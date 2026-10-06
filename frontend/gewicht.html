@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Gewicht — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Lichaamsgewicht</p>
+      <h1>Gewicht</h1>
+      <p class="subtitle">Weeg je bij voorkeur 's ochtends, na het toilet en voor het ontbijt.</p>
+    </div>
+
+    <section class="panel">
+      <div class="getallen">
+        <div>
+          <div class="getal-groot" id="gemiddelde">–</div>
+          <div class="getal-label">7-daags gemiddelde nu</div>
+        </div>
+        <div>
+          <div class="getal-groot" id="verschil">–</div>
+          <div class="getal-label">t.o.v. 7 dagen geleden</div>
+        </div>
+      </div>
+      <form id="gewicht-form" novalidate>
+        <div class="veld-rij">
+          <div>
+            <label for="datum">Datum</label>
+            <input id="datum" type="date" />
+          </div>
+          <div>
+            <label for="gewicht">Gewicht (kg)</label>
+            <input id="gewicht" inputmode="decimal" autocomplete="off" placeholder="81,4" />
+          </div>
+        </div>
+        <button type="submit" class="knop-groot ruimte-boven">Opslaan</button>
+        <p class="error" id="fout" role="alert"></p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>Wegingen</h2>
+      <p class="subtitle">Laatste 90 dagen, met het 7-daags gemiddelde op die dag.</p>
+      <ul class="lijst" id="metingen"></ul>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/gewicht.js"></script>
+</body>
+</html>

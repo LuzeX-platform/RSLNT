@@ -1,0 +1,125 @@
+// LuzeX RSLNT — datamodel.
+// Eén gebruiker: de trainingsdata hangt bewust niet aan een Gebruiker. Het account bestaat
+// alleen om de app achter een login te zetten.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Gebruiker {
+  id                    String    @id @default(cuid())
+  email                 String    @unique
+  naam                  String
+  wachtwoordHash        String
+  mislukteInlogpogingen Int       @default(0)
+  vergrendeldTot        DateTime?
+  aangemaaktOp          DateTime  @default(now())
+}
+
+model Oefening {
+  id           String   @id @default(cuid())
+  naam         String   @unique
+  /// dumbbell | barbell | kabel | machine | lichaamsgewicht
+  materiaal    String
+  /// Kleinste gewichtsstap in kg (bij dumbbells: per dumbbell). 0 bij lichaamsgewicht.
+  gewichtsstap Float
+  /// Reps tellen per kant/been (dead bug, Bulgarian split squat).
+  perKant      Boolean  @default(false)
+  aangemaaktOp DateTime @default(now())
+
+  schemaRegels   SchemaOefening[]
+  trainingRegels TrainingOefening[]
+}
+
+model Schema {
+  /// "A" of "B"
+  id         String           @id
+  naam       String
+  volgorde   Int
+  oefeningen SchemaOefening[]
+  trainingen Training[]
+}
+
+model SchemaOefening {
+  id            String   @id @default(cuid())
+  schemaId      String
+  oefeningId    String
+  volgorde      Int
+  aantalSets    Int
+  /// Zoveel sets moeten er minstens gelogd zijn voordat de oefening omhoog mag (bij "2–3 sets": 2).
+  minSets       Int
+  repsMin       Int
+  repsMax       Int
+  /// Oefeningen met dezelfde letter worden als superset getoond.
+  supersetGroep String?
+
+  schema   Schema   @relation(fields: [schemaId], references: [id], onDelete: Cascade)
+  oefening Oefening @relation(fields: [oefeningId], references: [id])
+
+  @@index([schemaId, volgorde])
+}
+
+model Training {
+  id           String    @id @default(cuid())
+  schemaId     String
+  datum        DateTime  @default(now())
+  notitie      String    @default("")
+  /// bezig | afgerond
+  status       String    @default("bezig")
+  afgerondOp   DateTime?
+  aangemaaktOp DateTime  @default(now())
+
+  schema     Schema             @relation(fields: [schemaId], references: [id])
+  oefeningen TrainingOefening[]
+
+  @@index([datum])
+}
+
+/// Momentopname van het schema bij het starten van een training: een latere schemawijziging
+/// herschrijft je geschiedenis niet.
+model TrainingOefening {
+  id            String  @id @default(cuid())
+  trainingId    String
+  oefeningId    String
+  volgorde      Int
+  aantalSets    Int
+  minSets       Int
+  repsMin       Int
+  repsMax       Int
+  supersetGroep String?
+
+  training Training      @relation(fields: [trainingId], references: [id], onDelete: Cascade)
+  oefening Oefening      @relation(fields: [oefeningId], references: [id])
+  sets     TrainingSet[]
+
+  @@index([oefeningId])
+}
+
+model TrainingSet {
+  id                 String   @id @default(cuid())
+  trainingOefeningId String
+  nummer             Int
+  /// null bij lichaamsgewicht
+  gewicht            Float?
+  reps               Int
+  /// 0–4, optioneel
+  rir                Int?
+  /// 0–10, optioneel. Leeg betekent onbekend, niet 0.
+  kniepijn           Int?
+  opgeslagenOp       DateTime @default(now()) @updatedAt
+
+  trainingOefening TrainingOefening @relation(fields: [trainingOefeningId], references: [id], onDelete: Cascade)
+
+  @@unique([trainingOefeningId, nummer])
+}
+
+model Lichaamsgewicht {
+  datum        DateTime @id @db.Date
+  gewicht      Float
+  opgeslagenOp DateTime @default(now()) @updatedAt
+}

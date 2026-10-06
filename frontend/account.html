@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Account — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Account</p>
+      <h1 id="kop">Account</h1>
+      <p class="subtitle" id="email"></p>
+    </div>
+
+    <section class="panel">
+      <h2>Wachtwoord wijzigen</h2>
+      <form id="wachtwoord-form" novalidate>
+        <label for="huidig">Huidig wachtwoord</label>
+        <input id="huidig" type="password" autocomplete="current-password" />
+        <label for="nieuw">Nieuw wachtwoord (minimaal 10 tekens)</label>
+        <input id="nieuw" type="password" autocomplete="new-password" />
+        <button type="submit" class="ruimte-boven">Wijzigen</button>
+        <p class="error" id="fout" role="alert"></p>
+        <p class="success" id="succes" role="status"></p>
+      </form>
+    </section>
+
+    <button type="button" class="knop-groot secondary" id="uitloggen">Uitloggen</button>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/account.js"></script>
+</body>
+</html>

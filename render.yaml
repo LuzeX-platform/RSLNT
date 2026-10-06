@@ -1,0 +1,43 @@
+# Render Blueprint voor LuzeX RSLNT — maakt de app en een eigen database aan. Bewust volledig
+# los van ACCRD en CMMNTY: eigen database, eigen service, eigen geheimen.
+# Gebruik: render.com → "New +" → "Blueprint" → kies deze repository → "Apply".
+#
+# Regio Frankfurt (enige EU-regio van Render), net als ACCRD en CMMNTY: gezondheidsgegevens
+# (gewicht, kniepijn, later HRV) blijven in de EU.
+# Geen gratis plan: dat valt in slaap bij inactiviteit, en dan duurt het openen in de
+# sportschool eerst een halve minuut. De gratis database verloopt bovendien na 30 dagen.
+
+services:
+  - name: luzex-rslnt
+    type: web
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/gezondheid
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: luzex-rslnt-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4200
+      # Render vraagt deze bij het aanmaken; zo komt je wachtwoord nooit in git.
+      - key: SEED_EMAIL
+        sync: false
+      - key: SEED_WACHTWOORD
+        sync: false
+      - key: SEED_NAAM
+        sync: false
+
+databases:
+  - name: luzex-rslnt-db
+    plan: basic-256mb
+    region: frankfurt
+    postgresMajorVersion: "16"
+    diskSizeGB: 1

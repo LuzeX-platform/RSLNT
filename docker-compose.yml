@@ -1,0 +1,15 @@
+# Alleen voor lokale ontwikkeling: een PostgreSQL 16 zoals op Render.
+#   docker compose up -d
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: rslnt
+      POSTGRES_PASSWORD: rslnt
+      POSTGRES_DB: rslnt
+    ports:
+      - "5432:5432"
+    volumes:
+      - rslnt-db:/var/lib/postgresql/data
+volumes:
+  rslnt-db:

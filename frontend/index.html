@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker" id="vandaag-datum">Vandaag</p>
+      <h1 id="kop">Laden…</h1>
+      <p class="subtitle" id="ondertitel"></p>
+    </div>
+
+    <section class="panel">
+      <button class="knop-groot" id="start-knop" hidden></button>
+      <div class="knop-rij" id="andere-schemas"></div>
+      <p class="error" id="start-fout" role="alert"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-kop">
+        <h2>Lichaamsgewicht</h2>
+        <a class="text-link" href="/gewicht.html">Alles →</a>
+      </div>
+      <div class="getallen">
+        <div>
+          <div class="getal-groot" id="gemiddelde">–</div>
+          <div class="getal-label">7-daags gemiddelde</div>
+        </div>
+        <div>
+          <div class="getal-groot" id="laatste">–</div>
+          <div class="getal-label" id="laatste-label">laatste weging</div>
+        </div>
+      </div>
+      <form class="invoer-rij" id="gewicht-form" novalidate>
+        <input id="gewicht-invoer" inputmode="decimal" autocomplete="off" placeholder="Gewicht vandaag" aria-label="Gewicht vandaag in kg" />
+        <button type="submit">Opslaan</button>
+      </form>
+      <p class="error" id="gewicht-fout" role="alert"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Recente trainingen</h2>
+      <ul class="lijst" id="recent"></ul>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/vandaag.js"></script>
+</body>
+</html>

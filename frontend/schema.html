@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Schema — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Schema</p>
+      <h1>Schema A en B</h1>
+      <p class="subtitle">Wijzigingen gelden vanaf je volgende training. Eerdere trainingen houden hun eigen schema.</p>
+    </div>
+
+    <div class="tabs" id="tabs" role="group" aria-label="Kies een schema"></div>
+
+    <section class="panel">
+      <div id="regels"></div>
+      <div class="knop-rij ruimte-boven">
+        <button type="button" class="secondary" id="regel-toevoegen">+ Oefening toevoegen</button>
+      </div>
+      <button type="button" class="knop-groot ruimte-boven" id="opslaan">Schema opslaan</button>
+      <p class="error" id="fout" role="alert"></p>
+      <p class="success" id="succes" role="status"></p>
+      <p class="veld-hint">Min. sets: zoveel sets moeten op de bovenkant van de range zitten voordat het gewicht omhoog gaat. Superset: oefeningen met dezelfde letter of hetzelfde cijfer horen bij elkaar.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Oefeningen</h2>
+      <p class="subtitle">Gewichtsstap = de kleinste stap die je sportschool heeft. Bij dumbbells: per dumbbell.</p>
+      <ul class="lijst" id="oefeningen"></ul>
+      <form id="oefening-form" class="oefening-form" novalidate>
+        <input type="hidden" id="oefening-id" />
+        <div class="breed">
+          <label for="oefening-naam" id="oefening-form-titel">Nieuwe oefening</label>
+          <input id="oefening-naam" autocomplete="off" placeholder="Naam" />
+        </div>
+        <div>
+          <label for="oefening-materiaal">Materiaal</label>
+          <select id="oefening-materiaal">
+            <option value="dumbbell">Dumbbell</option>
+            <option value="barbell">Stang / trap bar</option>
+            <option value="kabel">Kabel</option>
+            <option value="machine">Machine</option>
+            <option value="lichaamsgewicht">Lichaamsgewicht</option>
+          </select>
+        </div>
+        <div>
+          <label for="oefening-stap">Gewichtsstap (kg)</label>
+          <input id="oefening-stap" inputmode="decimal" autocomplete="off" />
+        </div>
+        <label class="vinkje breed"><input type="checkbox" id="oefening-perkant" /> Reps per kant / per been</label>
+        <div class="knop-rij breed ruimte-boven">
+          <button type="submit" id="oefening-opslaan">Oefening toevoegen</button>
+          <button type="button" class="text-link" id="oefening-annuleren" hidden>Annuleren</button>
+        </div>
+        <p class="error breed" id="oefening-fout" role="alert"></p>
+      </form>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/schema.js"></script>
+</body>
+</html>
