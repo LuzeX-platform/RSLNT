@@ -33,7 +33,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   before(async () => {
     ({ prisma } = await import("../src/db.js"));
     await prisma.$executeRawUnsafe(
-      'TRUNCATE "Gebruiker", "Programma", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht" CASCADE',
+      'TRUNCATE "Gebruiker", "Programma", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht", "Profiel", "Lichaamsmeting", "Herstelcheck" CASCADE',
     );
     const { hashWachtwoord } = await import("../src/auth.js");
     await prisma.gebruiker.create({
@@ -262,5 +262,78 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
 
     await vraag("DELETE", `/api/lichaamsgewicht/${dag}`);
     assert.equal((await vraag("GET", "/api/lichaamsgewicht")).json().metingen.length, 1);
+  });
+
+  test("gezondheidsmenu: zonder profiel zie je wat er ontbreekt, het doel komt uit je programma", async () => {
+    const lichaam = (await vraag("GET", "/api/lichaam")).json();
+    assert.deepEqual(lichaam.ontbreekt, ["lengte", "geboortedatum", "geslacht"]);
+    assert.equal(lichaam.doel.gewicht, 90);
+    assert.equal(lichaam.doel.tempoMin, 0.25);
+    assert.equal(lichaam.doel.tempoMax, 0.5);
+    assert.equal(lichaam.doel.bron, "programma");
+    assert.equal(lichaam.energie, null);
+  });
+
+  test("gezondheidsmenu: profiel en omtrekmaten geven BMI, vet%, FFMI en energie", async () => {
+    assert.equal((await vraag("PUT", "/api/profiel", { lengteCm: 50 })).statusCode, 400);
+    const profiel = await vraag("PUT", "/api/profiel", {
+      lengteCm: 200, geslacht: "man", geboortedatum: "1995-01-01", activiteit: "licht",
+    });
+    assert.equal(profiel.statusCode, 200);
+
+    let lichaam = (await vraag("GET", "/api/lichaam")).json();
+    assert.deepEqual(lichaam.ontbreekt, []);
+    assert.equal(lichaam.gewicht.gemiddelde7, 81);
+    assert.deepEqual(lichaam.samenstelling.bmi, { waarde: 20.3, categorie: "gezond gewicht" });
+    assert.equal(lichaam.energie.methode, "Mifflin-St Jeor");
+
+    const { vandaag } = await import("../src/datum.js");
+    assert.equal((await vraag("PUT", `/api/lichaamsmetingen/${vandaag()}`, { tailleCm: 85, nekCm: 39 })).statusCode, 200);
+    lichaam = (await vraag("GET", "/api/lichaam")).json();
+    assert.equal(lichaam.samenstelling.vet.waarde, 12.3);
+    assert.equal(lichaam.samenstelling.vet.bron, "geschat");
+    assert.equal(lichaam.samenstelling.ffmi.ffmi, 17.8);
+    assert.equal(lichaam.samenstelling.tailleLengte.ratio, 0.43);
+    assert.equal(lichaam.energie.methode, "Katch-McArdle");
+    assert.equal(lichaam.energie.eiwit.min, 130);
+
+    // Zelf gemeten vetpercentage gaat voor de schatting.
+    await vraag("PUT", `/api/lichaamsmetingen/${vandaag()}`, { tailleCm: 85, nekCm: 39, vetpercentage: 15 });
+    lichaam = (await vraag("GET", "/api/lichaam")).json();
+    assert.deepEqual([lichaam.samenstelling.vet.waarde, lichaam.samenstelling.vet.bron], [15, "gemeten"]);
+
+    // Eigen doel gaat voor het doel uit het programma.
+    await vraag("PUT", "/api/profiel", { doelgewicht: 88, tempoMin: 0.2, tempoMax: 0.4 });
+    lichaam = (await vraag("GET", "/api/lichaam")).json();
+    assert.deepEqual([lichaam.doel.gewicht, lichaam.doel.bron], [88, "profiel"]);
+  });
+
+  test("herstelcheck: losse signalen, ook op het beginscherm", async () => {
+    const { vandaag } = await import("../src/datum.js");
+    assert.equal((await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 6, spierpijn: 1, energie: 1, kniepijn: 1 })).statusCode, 400);
+    const res = (await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4, kniepijn: 1 })).json();
+    assert.deepEqual(res.signalen.map((s: any) => s.status), ["let_op", "goed", "goed", "goed"]);
+    const scherm = (await vraag("GET", "/api/vandaag")).json();
+    assert.equal(scherm.herstel.check.slaap, 2);
+    assert.equal(scherm.herstel.deloadOverwegen, false);
+  });
+
+  test("voortgang: gewicht met doelband, sets per spiergroep, e1RM en te volle trainingen", async () => {
+    const v = (await vraag("GET", "/api/voortgang")).json();
+    assert.ok(v.gewicht.reeks.length >= 1);
+    assert.deepEqual([v.gewicht.band.tempoMin, v.gewicht.band.tempoMax], [0.2, 0.4]);
+    assert.equal(v.gewicht.doelgewicht, 88);
+
+    const trapBar = v.oefeningen.find((o: any) => o.naam === "Trap bar deadlift");
+    assert.equal(trapBar.record.e1rm, 109.3); // 80 kg × (1 + (8 + 3) / 30)
+    const quads = v.volume.rijen.find((r: any) => r.spier === "quads");
+    assert.equal(quads.label, "Voorkant bovenbeen");
+    assert.equal(quads.dezeWeek, 2); // twee gelogde sets trap bar, deze week
+    assert.equal(v.volume.weken, 1);
+    assert.equal(quads.gemiddeld, 2);
+    assert.ok(v.volume.rijen.some((r: any) => r.spier === "abs" && r.gemiddeld === 0)); // ook spieren zonder sets
+
+    const benen = v.perTraining.trainingen.find((t: any) => t.code === "A");
+    assert.deepEqual(benen.teVol[0], { spier: "quads", sets: 13, label: "Voorkant bovenbeen" });
   });
 });

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Voortgang — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Voortgang</p>
+      <h1>Voortgang</h1>
+      <p class="subtitle">Je gewicht naast je doel, je sets per spiergroep en hoe sterk je wordt.</p>
+    </div>
+
+    <div class="tabs" id="periode" role="group" aria-label="Periode">
+      <button type="button" data-weken="4">4 weken</button>
+      <button type="button" data-weken="12" aria-pressed="true">12 weken</button>
+      <button type="button" data-weken="26">6 maanden</button>
+      <button type="button" data-weken="52">1 jaar</button>
+    </div>
+
+    <section class="panel">
+      <div class="panel-kop">
+        <h2>Gewicht</h2>
+        <a class="text-link" href="/wetenschap.html#aankomen">Waarom?</a>
+      </div>
+      <p class="subtitle" id="gewicht-samenvatting"></p>
+      <div class="legenda" id="gewicht-legenda">
+        <span><i class="grafiek-sleutel grafiek-sleutel-punt"></i>Weging</span>
+        <span><i class="grafiek-sleutel grafiek-sleutel-lijn"></i>7-daags gemiddelde</span>
+        <span><i class="grafiek-sleutel grafiek-sleutel-band"></i>Doeltempo</span>
+      </div>
+      <div id="gewicht-grafiek"></div>
+      <div id="gewicht-tabel"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-kop">
+        <h2>Sets per spiergroep</h2>
+        <a class="text-link" href="/wetenschap.html#volume">Waarom?</a>
+      </div>
+      <p class="subtitle" id="volume-samenvatting"></p>
+      <div id="volume-grafiek"></div>
+      <div id="volume-tabel"></div>
+    </section>
+
+    <section class="panel" id="per-training-paneel" hidden>
+      <div class="panel-kop">
+        <h2>Volle trainingen</h2>
+        <a class="text-link" href="/wetenschap.html#volume-per-training">Waarom?</a>
+      </div>
+      <p class="subtitle" id="per-training-uitleg"></p>
+      <ul class="lijst" id="per-training"></ul>
+    </section>
+
+    <section class="panel">
+      <div class="panel-kop">
+        <h2>Kracht</h2>
+        <a class="text-link" href="/wetenschap.html#e1rm">Waarom?</a>
+      </div>
+      <p class="subtitle">Geschatte 1RM per training: het gewicht dat je één keer zou kunnen tillen, berekend uit je beste set.</p>
+      <label for="oefening-keuze">Oefening</label>
+      <select id="oefening-keuze"></select>
+      <p class="getal-label ruimte-boven" id="e1rm-samenvatting"></p>
+      <div id="e1rm-grafiek"></div>
+      <div id="e1rm-tabel"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Records</h2>
+      <p class="subtitle">Je hoogste geschatte 1RM per oefening.</p>
+      <ul class="lijst" id="records"></ul>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/grafiek.js"></script>
+  <script src="/voortgang.js"></script>
+</body>
+</html>

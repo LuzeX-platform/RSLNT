@@ -206,14 +206,16 @@ window.addEventListener("online", verwerkWachtrij);
 
 const ICONEN = {
   vandaag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg>',
-  gewicht: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="4"/><path d="M8.5 10.5a5 5 0 0 1 7 0"/><path d="m12 11.5 1.5-2"/></svg>',
+  lichaam: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="4.5" r="2.2"/><path d="M5 8.5h14M12 8.5v6M12 14.5 8.5 21M12 14.5l3.5 6.5"/></svg>',
+  voortgang: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20h18"/><path d="M4 16l5-5 4 3 7-8"/><path d="M15 6h5v5"/></svg>',
   schema: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
   wetenschap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 12h5"/></svg>',
 };
 
 const TABS = [
   { href: "/", label: "Vandaag", icoon: "vandaag", match: (p) => p === "/" || p === "/index.html" || p.startsWith("/training") },
-  { href: "/gewicht.html", label: "Gewicht", icoon: "gewicht", match: (p) => p.startsWith("/gewicht") },
+  { href: "/lichaam.html", label: "Lichaam", icoon: "lichaam", match: (p) => p.startsWith("/lichaam") || p.startsWith("/gewicht") },
+  { href: "/voortgang.html", label: "Voortgang", icoon: "voortgang", match: (p) => p.startsWith("/voortgang") },
   { href: "/schema.html", label: "Schema", icoon: "schema", match: (p) => p.startsWith("/schema") },
   { href: "/wetenschap.html", label: "Wetenschap", icoon: "wetenschap", match: (p) => p.startsWith("/wetenschap") },
 ];

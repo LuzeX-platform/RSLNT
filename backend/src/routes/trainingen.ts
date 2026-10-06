@@ -7,6 +7,7 @@ import { doelInFase } from "../fase.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
 import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { ongeldig } from "./auth.js";
+import { herstelVandaag } from "./herstel.js";
 
 const setSchema = z.object({
   gewicht: z.number().min(0).max(1000).nullable(),
@@ -48,7 +49,7 @@ export async function trainingRoutes(app: FastifyInstance) {
       prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(dag, -6)) } } }),
     ]);
 
-    const volgende = programma ? await volgendeSchema(programma) : null;
+    const [volgende, herstel] = await Promise.all([programma ? volgendeSchema(programma) : null, herstelVandaag(dag)]);
     const fase = programma ? faseVoor(programma, dag) : null;
     const laatsteDag = recent[0] ? recent[0].datum.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" }) : null;
     // Rustdagen tussen de vorige training en vandaag; het programma adviseert er minstens zoveel.
@@ -86,6 +87,7 @@ export async function trainingRoutes(app: FastifyInstance) {
         fase: t.fase,
         aantalSets: t.oefeningen.reduce((som, o) => som + o._count.sets, 0),
       })),
+      herstel,
       gewicht: {
         laatste: laatsteWeging && { datum: uitDatum(laatsteWeging.datum), gewicht: laatsteWeging.gewicht },
         gemiddelde7: zevenDaagsGemiddelde(

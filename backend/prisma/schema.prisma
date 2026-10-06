@@ -186,3 +186,48 @@ model Lichaamsgewicht {
   gewicht      Float
   opgeslagenOp DateTime @default(now()) @updatedAt
 }
+
+/// Jouw gegevens voor de berekeningen in het gezondheidsmenu. Eén rij (id "ik").
+model Profiel {
+  id            String    @id @default("ik")
+  geboortedatum DateTime? @db.Date
+  /// man | vrouw — nodig voor de BMR- en vetpercentageformules.
+  geslacht      String?
+  lengteCm      Float?
+  /// sedentair | licht | matig | zwaar | zeer_zwaar
+  activiteit    String    @default("licht")
+  /// Leeg: het doel uit het actieve programma.
+  doelgewicht   Float?
+  /// Gewenst tempo in kg per week; leeg: uit het actieve programma.
+  tempoMin      Float?
+  tempoMax      Float?
+  bijgewerktOp  DateTime  @default(now()) @updatedAt
+}
+
+/// Omtrekmaten en (gemeten) vetpercentage, per dag. Gewicht staat in Lichaamsgewicht.
+model Lichaamsmeting {
+  datum         DateTime @id @db.Date
+  /// Zelf gemeten (scan, weegschaal); leeg = schatten uit taille en nek.
+  vetpercentage Float?
+  tailleCm      Float?
+  nekCm         Float?
+  heupCm        Float?
+  armCm         Float?
+  borstCm       Float?
+  dijCm         Float?
+  opgeslagenOp  DateTime @default(now()) @updatedAt
+}
+
+/// Herstelcheck vóór de training, schaal 1–5. Geen totaalscore: de signalen staan los.
+model Herstelcheck {
+  datum        DateTime @id @db.Date
+  /// 1 = slecht, 5 = top
+  slaap        Int
+  /// 1 = geen, 5 = veel
+  spierpijn    Int
+  /// 1 = leeg, 5 = vol energie
+  energie      Int
+  /// 1 = geen, 5 = veel
+  kniepijn     Int
+  opgeslagenOp DateTime @default(now()) @updatedAt
+}

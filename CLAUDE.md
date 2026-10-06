@@ -8,18 +8,26 @@ Zie README.md voor wat de app doet en hoe je hem draait. Hier de afspraken voor 
 backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeNext)
   src/app.ts          bouwApp(): plugins, CSP, CSRF-Origin-check, routes, statische frontend
   src/routes/         auth, schemas (+ oefeningen), programmas (import/activeren/deload),
-                      trainingen (+ sets, wisselen, /api/vandaag), lichaamsgewicht
+                      trainingen (+ sets, wisselen, /api/vandaag), lichaamsgewicht,
+                      lichaam (profiel, metingen, /api/lichaam), herstel, voortgang
   src/progressie.ts   pure logica: voorstel volgende keer (dubbele progressie, kniepijn, stagnatie, deload, RIR)
   src/fase.ts         pure logica: programmaweek, introfase, deload en het doel in die fase
   src/programmaImport.ts  programma-JSON (schema_version 1) valideren en inladen
   src/gewicht.ts      pure logica: 7-daags gemiddelde
+  src/lichaam.ts      pure logica: BMI, taille/lengte, vet% (Navy), FFMI, BMR, verbruik, calorie- en
+                      eiwitdoel, tempo (trendlijn), tempo-advies, doeldatum
+  src/voortgang.ts    pure logica: e1RM (Epley + RIR), fractionele sets, weekstart, volle trainingen
+  src/herstel.ts      pure logica: herstelsignalen en "deload overwegen"
+  src/spieren.ts      spiergroeplabels en doelgewicht/-tempo uit de programma-JSON
   src/datum.ts        kalenderdagen in Europe/Amsterdam (de server draait in UTC)
   src/trainingData.ts database rond een training: geschiedenis ophalen, voorstel laten berekenen
 programmas/         meegeleverde programma's (JSON); de seed laadt benen-push-pull.json in
   test/               node:test via tsx; api.test.ts draait alleen met TEST_DATABASE_URL
 frontend/           losse HTML + één script per pagina, geen build-stap
   styles.css          design tokens 1-op-1 uit CMMNTY/ACCRD + RSLNT-componenten
-  common.js           balk, tabbalk, api(), sessie, offline-wachtrij — door elke pagina geladen
+  common.js           balk, tabbalk (Vandaag, Lichaam, Voortgang, Schema, Wetenschap), api(),
+                      sessie, offline-wachtrij — door elke pagina geladen
+  grafiek.js          SVG-grafieken zonder bibliotheek: tijdGrafiek (punten, lijn, band) en staafGrafiek
   sw.js               service worker: netwerk eerst, cache als terugval
   wetenschap.html     openbare pagina: per regel het onderzoek, de zekerheid en de bron
 ```
@@ -34,7 +42,7 @@ frontend/           losse HTML + één script per pagina, geen build-stap
 - **Voorstellen worden niet opgeslagen** maar bij elke weergave berekend uit de geschiedenis vóór
   die training. Een training bewaart wel een momentopname van het schema (sets/range), zodat een
   schemawijziging de geschiedenis niet herschrijft.
-- **De kniepijnregel en max één stap omhoog zijn harde regels.** De AI-coach (fase 4) mag het
+- **De kniepijnregel en max één stap omhoog zijn harde regels.** De AI-coach (fase 5) mag het
   voorstel alleen binnen die grenzen aanpassen; bouw de vangrail in code ná de AI, niet in de prompt.
 - **Schrijfacties tijdens een training gaan via de offline-wachtrij** (`verstuurViaWachtrij` in
   common.js) en moeten daarom idempotent zijn: sets via PUT op een vaste plek
@@ -45,12 +53,18 @@ frontend/           losse HTML + één script per pagina, geen build-stap
 - **Oefeningen hebben een vaste sleutel** (gelijk aan `exercise.id` in een programma-JSON). Een
   import werkt oefeningen op sleutel bij, zodat de geschiedenis blijft. Wissel nooit een sleutel.
 - **Een training legt zijn fase vast** (intro/deload, aantal sets, doel-RIR) bij het starten.
+- **Grafieken**: kleuren alleen via de `--grafiek-*`-tokens in styles.css (licht en donker apart
+  gekozen en gecontroleerd op contrast). Eén y-as per grafiek, altijd een tooltip en een
+  tabelweergave, een legenda vanaf twee reeksen.
+- **Geen totaalscore voor herstel**: de vier signalen blijven los. De herstelcheck verandert het
+  gewichtsvoorstel niet; hij stelt hooguit een deload voor.
+- **Formules alleen in de backend** (lichaam.ts, voortgang.ts); de frontend toont wat de API
+  teruggeeft. Elke formule heeft een sectie op de Wetenschap-pagina.
 - **Mobiel eerst**: alles wat je tijdens een training aanraakt is minstens 44px hoog,
   invoervelden minstens 16px (anders zoomt iOS in).
 - Sessiecookie is `SameSite=Lax` zoals CMMNTY; CSRF blijft gedekt door de Origin-check.
 
 ## Later
 
-Fase 2 (gezondheidsmenu, dashboard, herstelcheck), fase 3 (oefeningenbibliotheek uit Free
-Exercise DB + personalisatiemenu), fase 4 (Garmin via de Python-bibliotheek `garminconnect`,
+Fase 3 (oefeningenbibliotheek uit Free Exercise DB + personalisatiemenu), fase 4 (Garmin via de Python-bibliotheek `garminconnect`,
 als aparte Render-cron die in dezelfde database schrijft), fase 5 (AI-coach via de Anthropic SDK).

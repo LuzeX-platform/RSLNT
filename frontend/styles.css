@@ -939,6 +939,7 @@ body.app {
 
 .tabbalk a {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -946,10 +947,11 @@ body.app {
   gap: 2px;
   min-height: 52px;
   border-radius: var(--radius-pill);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--text-secondary);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .tabbalk a svg {
@@ -1739,4 +1741,314 @@ a.knop-groot {
 
 #andere-schemas .set-extra {
   margin-top: 0;
+}
+
+/* ---------- Grafieken (grafiek.js) ----------
+   Reekskleur gevalideerd met de dataviz-validator: #0a63ad op het glas (#e4d8cb) en #3987e5
+   op donker (#1b1b1b) halen allebei lichtheid, chroma en contrast ≥ 3:1. */
+
+:root {
+  --grafiek-reeks: #0a63ad;
+  --grafiek-band: rgba(10, 99, 173, 0.12);
+  --grafiek-raster: rgba(29, 29, 31, 0.10);
+  --grafiek-vlak: #e4d8cb;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --grafiek-reeks: #3987e5;
+    --grafiek-band: rgba(57, 135, 229, 0.18);
+    --grafiek-raster: rgba(255, 255, 255, 0.12);
+    --grafiek-vlak: #1b1b1b;
+  }
+}
+
+.grafiek {
+  position: relative;
+  margin-top: 8px;
+  touch-action: pan-y;
+}
+
+.grafiek svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.grafiek svg:focus-visible {
+  outline: 2px solid var(--accent-ring);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.grafiek-raster line {
+  stroke: var(--grafiek-raster);
+  stroke-width: 1;
+}
+
+.grafiek-as,
+.grafiek-label,
+.grafiek-waarde {
+  font-size: 11.5px;
+  fill: var(--text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.grafiek-label {
+  font-size: 12.5px;
+  fill: var(--text-secondary);
+}
+
+.grafiek-waarde {
+  font-weight: 600;
+  fill: var(--text-secondary);
+}
+
+.grafiek-lijn {
+  fill: none;
+  stroke: var(--grafiek-reeks);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.grafiek-punt,
+.grafiek-eindpunt {
+  fill: var(--grafiek-reeks);
+  stroke: var(--grafiek-vlak);
+  stroke-width: 2;
+}
+
+.grafiek-punt {
+  fill-opacity: 0.45;
+}
+
+.grafiek-band {
+  fill: var(--grafiek-band);
+}
+
+.grafiek-staaf {
+  fill: var(--grafiek-reeks);
+}
+
+.grafiek-referentie {
+  stroke: var(--text-tertiary);
+  stroke-width: 1;
+}
+
+.grafiek-draad {
+  stroke: var(--text-tertiary);
+  stroke-width: 1;
+}
+
+.grafiek-raakvlak {
+  fill: transparent;
+  outline: none;
+}
+
+.grafiek-raakvlak:hover,
+.grafiek-raakvlak:focus {
+  fill: var(--neutral-tint);
+}
+
+.grafiek-tip {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  min-width: 120px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.grafiek-tip-rij {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.grafiek-tip-rij span:last-child {
+  color: var(--text-secondary);
+}
+
+.grafiek-sleutel {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--grafiek-reeks);
+}
+
+.grafiek-sleutel-punt {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  opacity: 0.6;
+}
+
+.grafiek-sleutel-band {
+  height: 10px;
+  border-radius: 2px;
+  background: var(--grafiek-band);
+}
+
+.legenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.legenda span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.grafiek-tabel {
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.grafiek-tabel summary {
+  cursor: pointer;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tabel-scroll {
+  overflow-x: auto;
+  max-height: 320px;
+}
+
+table.tabel {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.tabel th {
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-strong);
+  white-space: nowrap;
+}
+
+.tabel td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+main.laden .grafiek {
+  opacity: 0.5;
+  transition: opacity 0.2s var(--ease);
+}
+
+/* ---------- Lichaam ---------- */
+
+.waarden .lijst-rij {
+  align-items: flex-start;
+}
+
+.waarde-rechts {
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.tempo-advies {
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+
+#ontbreekt {
+  margin-bottom: 16px;
+}
+
+/* ---------- Herstelcheck ---------- */
+
+.herstel-rij {
+  margin-top: 12px;
+}
+
+.herstel-kop {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.herstel-kop .veld-label {
+  margin: 0;
+  text-align: left;
+}
+
+.schaal-uitleg {
+  font-size: 12px;
+  color: var(--text-tertiary);
+}
+
+.signalen {
+  list-style: none;
+  margin: 6px 0 8px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.signaal {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  background: var(--neutral-tint);
+  font-size: 14px;
+  line-height: 1.3;
+}
+
+.signaal-teken {
+  flex: 0 0 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  background: var(--glas-vast);
+}
+
+.signaal-goed .signaal-teken {
+  background: var(--success-tint);
+  color: var(--success);
+}
+
+.signaal-let_op {
+  background: var(--warning-tint);
+}
+
+.signaal-let_op .signaal-teken {
+  color: var(--warning);
+}
+
+.getal-groot .eenheid {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }

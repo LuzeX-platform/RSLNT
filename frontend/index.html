@@ -24,6 +24,20 @@
       <p class="subtitle" id="ondertitel"></p>
     </div>
 
+    <section class="panel" id="herstel-paneel">
+      <div class="panel-kop">
+        <h2>Herstelcheck</h2>
+        <a class="text-link" href="/wetenschap.html#herstel">Waarom?</a>
+      </div>
+      <form id="herstel-form" novalidate hidden>
+        <p class="subtitle">Hoe sta je ervoor? Vier losse signalen, geen totaalscore.</p>
+        <div id="herstel-rijen"></div>
+        <button type="submit" class="ruimte-boven" id="herstel-opslaan" disabled>Opslaan</button>
+      </form>
+      <div id="herstel-signalen" hidden></div>
+      <p class="error" id="herstel-fout" role="alert"></p>
+    </section>
+
     <section class="panel">
       <div class="fase-info" id="fase-info" hidden></div>
       <button class="knop-groot" id="start-knop" hidden></button>

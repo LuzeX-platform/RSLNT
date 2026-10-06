@@ -2,7 +2,8 @@
 
 Persoonlijke trainings- en herstel-app: je programma (nu Benen / Push / Pull) loggen in de
 sportschool, met een voorstel voor de volgende keer (dubbele progressie, met kniepijn als
-vangrail) en een Wetenschap-pagina die per regel laat zien waar die vandaan komt.
+vangrail), een gezondheidsmenu, een voortgangsdashboard, een herstelcheck en een
+Wetenschap-pagina die per regel en formule laat zien waar die vandaan komt.
 Eén gebruiker, achter een login, gemaakt voor de iPhone (op het beginscherm als app).
 
 Dezelfde stack en huisstijl als ACCRD en CMMNTY, maar **volledig los** daarvan: eigen database,
@@ -22,7 +23,7 @@ eigen deployment, eigen geheimen.
 |------|-----|--------|
 | 1 | Loggen en progressie: sets, vorige keer, voorstel, lichaamsgewicht | **gebouwd** |
 | 1b | Programma's als JSON, A/B/C-rotatie, introfase, deload, stagnatieregel, doel-RIR, rusttimer, wisselen, Wetenschap-pagina | **gebouwd** |
-| 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel) en dashboard (gewicht vs. doel, e1RM, sets per spiergroep), herstelcheck | — |
+| 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel, tempo en doeldatum), dashboard (gewicht vs. doeltempo, e1RM, sets per spiergroep, volle trainingen), herstelcheck | **gebouwd** |
 | 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | — |
 | 4 | Garmin: HRV, rusthartslag, slaap, Body Battery (7 vs. 60 dagen) | — |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
@@ -39,7 +40,20 @@ Een fase begint pas als de vorige in de sportschool werkt.
   (0–4) en optioneel kniepijn (0–10). Na elke set loopt de **rusttimer** (met +30 s).
   **Wisselen** naar een alternatief uit je programma als een machine bezet is. Opwarmen bovenaan.
   Na het afronden: het voorstel voor de volgende keer.
-- **Gewicht** — wegingen met het 7-daags gemiddelde per dag en het verschil met een week eerder.
+- **Herstelcheck** (op Vandaag) — slaap, energie, spierpijn en kniepijn (1–5) vóór je training.
+  Geen totaalscore: vier losse signalen naast je eigen gemiddelde. Twee keer in de laatste drie
+  checks twee of meer "let op" → voorstel om een deload te overwegen.
+- **Lichaam** — gemiddeld gewicht en je tempo (kg/week, lijn door 4 weken wegingen) naast je
+  doeltempo, met bijsturing in kcal en een datum voor je doelgewicht. BMI, taille/lengte,
+  vetpercentage (zelf ingevuld of geschat uit taille en nek), vetvrije massa en FFMI. Rust- en
+  dagelijks verbruik, calorieën om aan te komen (+5–15%) en eiwit (1,6–2,2 g/kg). Metingen
+  (vet%, taille, nek, heup, arm, borst, dij) en je profiel (lengte, geboortedatum, geslacht,
+  activiteit, doelgewicht, doeltempo). Doel en tempo komen uit je programma tenzij je ze zelf
+  instelt. Alle wegingen staan op een eigen pagina (`/gewicht.html`).
+- **Voortgang** — per 4 weken tot 1 jaar: gewicht met 7-daags gemiddelde naast een doeltempoband,
+  sets per spiergroep per week (fractioneel, met een lijn bij 10), trainingen die voor één spier
+  boven ~11 sets uitkomen, geschatte 1RM per oefening en records. Grafieken zijn eigen SVG
+  (geen bibliotheek), met tooltip, tabelweergave en een eigen donkere modus.
 - **Schema** — de trainingen van het actieve programma aanpassen (oefeningen, volgorde, sets,
   min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en
   "knie-gevoelig". **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
@@ -64,7 +78,9 @@ en maakt het actief. Daarna beheer je programma's in de app.
 
 ## De regels
 
-In `backend/src/progressie.ts` en `backend/src/fase.ts`, pure functies met unittests. Per
+In `backend/src/progressie.ts` en `backend/src/fase.ts`, pure functies met unittests. De
+formules van het gezondheidsmenu en dashboard staan in `lichaam.ts`, `voortgang.ts` en
+`herstel.ts`, met de bronnen op de Wetenschap-pagina. Per
 oefening, op basis van de vorige keer(en) dat je die oefening deed:
 
 1. **Kniepijn gaat voor alles** (alleen bij knie-gevoelige oefeningen). Hoogste kniepijn vorige

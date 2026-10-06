@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Lichaam — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Lichaam</p>
+      <h1>Lichaam</h1>
+      <p class="subtitle">Je gewicht, samenstelling en wat je nodig hebt om je doel te halen.</p>
+    </div>
+
+    <p class="melding" id="ontbreekt" hidden></p>
+
+    <section class="panel">
+      <div class="panel-kop">
+        <h2>Gewicht</h2>
+        <a class="text-link" href="/gewicht.html">Alle wegingen →</a>
+      </div>
+      <div class="getallen">
+        <div>
+          <div class="getal-groot" id="gemiddelde">–</div>
+          <div class="getal-label">7-daags gemiddelde</div>
+        </div>
+        <div>
+          <div class="getal-groot" id="tempo">–</div>
+          <div class="getal-label">tempo, laatste 4 weken</div>
+        </div>
+      </div>
+      <p class="tempo-advies" id="tempo-advies"></p>
+      <p class="lijst-meta" id="tijdlijn"></p>
+      <form class="invoer-rij" id="gewicht-form" novalidate>
+        <input id="gewicht-invoer" inputmode="decimal" autocomplete="off" placeholder="Gewicht vandaag" aria-label="Gewicht vandaag in kg" />
+        <button type="submit">Opslaan</button>
+      </form>
+      <p class="error" id="gewicht-fout" role="alert"></p>
+    </section>
+
+    <section class="panel">
+      <h2>Samenstelling</h2>
+      <ul class="lijst waarden" id="samenstelling"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Energie en eiwit</h2>
+      <ul class="lijst waarden" id="energie"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Meten</h2>
+      <p class="subtitle">Meet 's ochtends, ontspannen, met een meetlint. Taille op navelhoogte, nek net onder het strottenhoofd.</p>
+      <form id="meting-form" novalidate>
+        <div class="veld-rij">
+          <div>
+            <label for="meting-datum">Datum</label>
+            <input id="meting-datum" type="date" />
+          </div>
+          <div>
+            <label for="meting-vet">Vet% (gemeten, optioneel)</label>
+            <input id="meting-vet" inputmode="decimal" autocomplete="off" placeholder="bijv. 14" />
+          </div>
+          <div>
+            <label for="meting-taille">Taille (cm)</label>
+            <input id="meting-taille" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="meting-nek">Nek (cm)</label>
+            <input id="meting-nek" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div id="heup-veld">
+            <label for="meting-heup">Heup (cm)</label>
+            <input id="meting-heup" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="meting-arm">Bovenarm (cm)</label>
+            <input id="meting-arm" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="meting-borst">Borst (cm)</label>
+            <input id="meting-borst" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="meting-dij">Bovenbeen (cm)</label>
+            <input id="meting-dij" inputmode="decimal" autocomplete="off" />
+          </div>
+        </div>
+        <button type="submit" class="knop-groot ruimte-boven">Meting opslaan</button>
+        <p class="error" id="meting-fout" role="alert"></p>
+      </form>
+      <ul class="lijst" id="metingen"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Profiel en doel</h2>
+      <form id="profiel-form" novalidate>
+        <div class="veld-rij">
+          <div>
+            <label for="profiel-lengte">Lengte (cm)</label>
+            <input id="profiel-lengte" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="profiel-geboortedatum">Geboortedatum</label>
+            <input id="profiel-geboortedatum" type="date" />
+          </div>
+          <div>
+            <label for="profiel-geslacht">Geslacht (voor de formules)</label>
+            <select id="profiel-geslacht">
+              <option value="">Kies</option>
+              <option value="man">Man</option>
+              <option value="vrouw">Vrouw</option>
+            </select>
+          </div>
+          <div>
+            <label for="profiel-activiteit">Activiteit</label>
+            <select id="profiel-activiteit"></select>
+          </div>
+          <div>
+            <label for="profiel-doel">Doelgewicht (kg)</label>
+            <input id="profiel-doel" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="profiel-tempo-min">Tempo (kg/week) van</label>
+            <input id="profiel-tempo-min" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="profiel-tempo-max">tot</label>
+            <input id="profiel-tempo-max" inputmode="decimal" autocomplete="off" />
+          </div>
+        </div>
+        <p class="veld-hint" id="doel-hint"></p>
+        <button type="submit" class="knop-groot ruimte-boven">Profiel opslaan</button>
+        <p class="error" id="profiel-fout" role="alert"></p>
+        <p class="success" id="profiel-succes" role="status"></p>
+      </form>
+    </section>
+
+    <p class="lijst-meta">RSLNT geeft schattingen, geen medisch advies. Formules en bronnen staan onder <a href="/wetenschap.html#lichaam">Wetenschap</a>.</p>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/lichaam.js"></script>
+</body>
+</html>
