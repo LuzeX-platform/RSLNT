@@ -187,7 +187,7 @@ function staafGrafiek(houder, rijen, o) {
   const dikte = 14;
   const m = { links: 132, rechts: 36, boven: 22, onder: 6 };
   const hoogte = m.boven + rijen.length * rijHoogte + m.onder;
-  const max = Math.max(o.referentie ?? 0, ...rijen.map((r) => r.waarde), 1) * 1.1;
+  const max = Math.max(o.referentie ?? 0, ...rijen.map((r) => Math.max(r.waarde, r.doel ?? 0)), 1) * 1.1;
   const sx = (w) => m.links + (w / max) * (breedte - m.links - m.rechts);
 
   const svg = svgEl("svg", { viewBox: `0 0 ${breedte} ${hoogte}`, width: breedte, height: hoogte, role: "img", "aria-label": o.label });
@@ -216,7 +216,12 @@ function staafGrafiek(houder, rijen, o) {
       const d = `M${x0},${y0} H${eind - straal} Q${eind},${y0} ${eind},${y0 + straal} V${y0 + dikte - straal} Q${eind},${y0 + dikte} ${eind - straal},${y0 + dikte} H${x0} Z`;
       svg.append(svgEl("path", { d, class: "grafiek-staaf" }));
     }
-    const waarde = svgEl("text", { x: eind + 6, y: yMidden + 4, class: "grafiek-waarde" });
+    // Eigen doel per rij (een streepje dwars door de staaf), voor als elke rij een ander doel heeft.
+    if (r.doel) {
+      const x = sx(r.doel);
+      svg.append(svgEl("line", { x1: x, x2: x, y1: yMidden - dikte / 2 - 4, y2: yMidden + dikte / 2 + 4, class: "grafiek-doel" }));
+    }
+    const waarde = svgEl("text", { x: Math.max(eind, r.doel ? sx(r.doel) : 0) + 6, y: yMidden + 4, class: "grafiek-waarde" });
     waarde.textContent = o.formatWaarde(r.waarde);
     svg.append(waarde);
     // Raakvlak: de hele rij, groter dan de staaf zelf.

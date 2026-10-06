@@ -13,8 +13,11 @@ const MATERIAAL_NAMEN = {
   kabel: "Kabel",
   machine: "Machine",
   lichaamsgewicht: "Lichaamsgewicht",
+  kettlebell: "Kettlebell",
+  band: "Band",
+  overig: "Overig",
 };
-const STAP_PER_MATERIAAL = { dumbbell: 2, barbell: 2.5, trap_bar: 2.5, kabel: 2.5, machine: 2.5, lichaamsgewicht: 0 };
+const STAP_PER_MATERIAAL = { dumbbell: 2, barbell: 2.5, trap_bar: 2.5, kabel: 2.5, machine: 2.5, lichaamsgewicht: 0, kettlebell: 4, band: 0, overig: 0 };
 const GETALVELDEN = ["aantalSets", "minSets", "repsMin", "repsMax", "doelRir", "rustSeconden"];
 
 let schemas = [];
@@ -273,7 +276,9 @@ function tekenOefeningen() {
     .map(
       (o) => `
       <li class="lijst-rij">
-        <span><strong>${escapeHtml(o.naam)}</strong><br /><span class="lijst-meta">${oefeningOmschrijving(o)}</span></span>
+        <span><strong>${escapeHtml(o.naam)}</strong><br /><span class="lijst-meta">${oefeningOmschrijving(o)}${
+          o.bibliotheekId ? ` · <a class="waarom" href="/bibliotheek.html?id=${encodeURIComponent(o.bibliotheekId)}">Uitleg</a>` : ""
+        }</span></span>
         <button type="button" class="text-link" data-wijzig="${o.id}">Wijzig</button>
       </li>`,
     )

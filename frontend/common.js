@@ -216,7 +216,7 @@ const TABS = [
   { href: "/", label: "Vandaag", icoon: "vandaag", match: (p) => p === "/" || p === "/index.html" || p.startsWith("/training") },
   { href: "/lichaam.html", label: "Lichaam", icoon: "lichaam", match: (p) => p.startsWith("/lichaam") || p.startsWith("/gewicht") },
   { href: "/voortgang.html", label: "Voortgang", icoon: "voortgang", match: (p) => p.startsWith("/voortgang") },
-  { href: "/schema.html", label: "Schema", icoon: "schema", match: (p) => p.startsWith("/schema") },
+  { href: "/schema.html", label: "Schema", icoon: "schema", match: (p) => p.startsWith("/schema") || p.startsWith("/bibliotheek") || p.startsWith("/personaliseren") },
   { href: "/wetenschap.html", label: "Wetenschap", icoon: "wetenschap", match: (p) => p.startsWith("/wetenschap") },
 ];
 

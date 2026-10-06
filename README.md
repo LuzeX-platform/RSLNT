@@ -2,8 +2,9 @@
 
 Persoonlijke trainings- en herstel-app: je programma (nu Benen / Push / Pull) loggen in de
 sportschool, met een voorstel voor de volgende keer (dubbele progressie, met kniepijn als
-vangrail), een gezondheidsmenu, een voortgangsdashboard, een herstelcheck en een
-Wetenschap-pagina die per regel en formule laat zien waar die vandaan komt.
+vangrail), een gezondheidsmenu, een voortgangsdashboard, een herstelcheck, een
+oefeningenbibliotheek, een schema op maat en een Wetenschap-pagina die per regel en formule
+laat zien waar die vandaan komt.
 Eén gebruiker, achter een login, gemaakt voor de iPhone (op het beginscherm als app).
 
 Dezelfde stack en huisstijl als ACCRD en CMMNTY, maar **volledig los** daarvan: eigen database,
@@ -24,7 +25,7 @@ eigen deployment, eigen geheimen.
 | 1 | Loggen en progressie: sets, vorige keer, voorstel, lichaamsgewicht | **gebouwd** |
 | 1b | Programma's als JSON, A/B/C-rotatie, introfase, deload, stagnatieregel, doel-RIR, rusttimer, wisselen, Wetenschap-pagina | **gebouwd** |
 | 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel, tempo en doeldatum), dashboard (gewicht vs. doeltempo, e1RM, sets per spiergroep, volle trainingen), herstelcheck | **gebouwd** |
-| 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | — |
+| 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | **gebouwd** |
 | 4 | Garmin: HRV, rusthartslag, slaap, Body Battery (7 vs. 60 dagen) | — |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
 
@@ -58,6 +59,17 @@ Een fase begint pas als de vorige in de sportschool werkt.
   min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en
   "knie-gevoelig". **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
   downloaden.
+- **Oefeningen** (via Schema) — 876 oefeningen uit Free Exercise DB met foto's en uitleg (Engels),
+  zoeken ook in het Nederlands ("bankdrukken", "kuit"), filters op spiergroep, materiaal,
+  beweging en knievriendelijk. Per oefening: spieren, materiaal, cue, favoriet of "niet voor
+  mij", toevoegen aan een training en vergelijkbare oefeningen. In een training en in de
+  schema-editor staat bij elke gekoppelde oefening een link naar de uitleg.
+- **Schema op maat** (via Schema) — doel, ervaring, dagen per week, minuten per training,
+  materiaal, klachten (knie, schouder, onderrug), extra aandacht en doelgewicht met datum. Je
+  krijgt een voorstel met per training de oefeningen, sets, reps, RIR en rust, het weekvolume
+  per spiergroep naast het doel, en wat er niet past. Downloaden als JSON, of inladen als
+  programma "Op maat" (met of zonder activeren). Oefeningen die je al deed houden hun sleutel
+  en dus hun geschiedenis. Hoe het werkt: Wetenschap → "Schema op maat".
 - **Wetenschap** — per regel: wat het onderzoek zegt, wat RSLNT ermee doet, hoe zeker het is
   (meta-analyse, studie, consensus, preprint, praktijkregel) en de bron. Openbaar leesbaar.
 - **Offline** — valt het bereik weg, dan blijven opgeslagen sets op de telefoon staan en gaan
@@ -80,7 +92,8 @@ en maakt het actief. Daarna beheer je programma's in de app.
 
 In `backend/src/progressie.ts` en `backend/src/fase.ts`, pure functies met unittests. De
 formules van het gezondheidsmenu en dashboard staan in `lichaam.ts`, `voortgang.ts` en
-`herstel.ts`, met de bronnen op de Wetenschap-pagina. Per
+`herstel.ts`, de schemagenerator in `generator.ts` (met de basislijst in `catalogus.ts`), met
+de bronnen op de Wetenschap-pagina. Per
 oefening, op basis van de vorige keer(en) dat je die oefening deed:
 
 1. **Kniepijn gaat voor alles** (alleen bij knie-gevoelige oefeningen). Hoogste kniepijn vorige
@@ -101,6 +114,18 @@ oefening, op basis van de vorige keer(en) dat je die oefening deed:
 - Niet ingevulde RIR of kniepijn is onbekend, niet 0.
 - Zonder gewichtsstap (dead bug): alle sets op de bovenkant → "moeilijkere variant".
 - Eerste keer: geen voorstel, je kiest zelf.
+
+## Oefeningenbibliotheek bijwerken
+
+`backend/data/bibliotheek.json` is een omgezette, vastgepinde versie van
+[Free Exercise DB](https://github.com/yuhonas/free-exercise-db) (publiek domein, licentie in
+`backend/data/bibliotheek-LICENSE.md`). Alleen nodig als je de bron wilt bijwerken: zet de nieuwe
+commit in `BRON_COMMIT` (`backend/src/bibliotheekOmzetten.ts`), en dan
+
+```bash
+curl -o /tmp/fedb.json https://raw.githubusercontent.com/yuhonas/free-exercise-db/<commit>/dist/exercises.json
+cd backend && npm run bibliotheek -- /tmp/fedb.json && npm test
+```
 
 ## Lokaal draaien
 

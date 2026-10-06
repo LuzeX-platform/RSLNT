@@ -24,6 +24,8 @@ COPY --from=builder /app/backend/prisma ./prisma
 COPY backend/package.json ./
 # Het meegeleverde programma (Benen / Push / Pull); de seed laadt het in als het er nog niet is.
 COPY backend/programmas ./programmas
+# De oefeningenbibliotheek (Free Exercise DB, publiek domein) die de server in het geheugen laadt.
+COPY backend/data ./data
 COPY frontend /app/frontend
 EXPOSE 4200
 # Migraties + seed (account en startschema) zijn idempotent en draaien bij elke start — zelfde patroon als ACCRD en CMMNTY.

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Oefeningen — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <!-- Lijst: zoeken en filteren. De filters staan in het adres, zodat "terug" vanaf een oefening ze bewaart. -->
+    <div id="lijst-weergave" hidden>
+      <div class="app-kop">
+        <p class="kicker"><a class="text-link" href="/schema.html">Schema</a> · Bibliotheek</p>
+        <h1>Oefeningen</h1>
+        <p class="subtitle">876 oefeningen met uitleg en foto's. Markeer favorieten en wat je niet wilt doen: het <a href="/personaliseren.html">schema op maat</a> houdt er rekening mee.</p>
+      </div>
+
+      <section class="panel">
+        <label for="zoek">Zoeken</label>
+        <input id="zoek" type="search" placeholder="bijv. bankdrukken, kuit, row" autocomplete="off" enterkeyhint="search" />
+        <div class="bieb-filters">
+          <div>
+            <label for="filter-spier">Spiergroep</label>
+            <select id="filter-spier"><option value="">Alle</option></select>
+          </div>
+          <div>
+            <label for="filter-materiaal">Materiaal</label>
+            <select id="filter-materiaal"><option value="">Alles</option></select>
+          </div>
+          <div class="breed">
+            <label for="filter-patroon">Beweging</label>
+            <select id="filter-patroon"><option value="">Alle bewegingen</option></select>
+          </div>
+        </div>
+        <div class="pil-filters" role="group" aria-label="Snelfilters">
+          <button type="button" class="pil-filter" id="filter-knie" aria-pressed="false">Knievriendelijk</button>
+          <button type="button" class="pil-filter" id="filter-favorieten" aria-pressed="false">Favorieten</button>
+          <button type="button" class="pil-filter" id="filter-uitgesloten" aria-pressed="false">Niet voor mij</button>
+        </div>
+      </section>
+
+      <p class="lijst-meta bieb-aantal" id="aantal" role="status"></p>
+      <ul class="lijst bieb-lijst" id="resultaten"></ul>
+      <div class="knop-rij ruimte-boven">
+        <button type="button" class="secondary" id="meer" hidden>Meer laden</button>
+      </div>
+    </div>
+
+    <!-- Eén oefening. -->
+    <div id="detail-weergave" hidden>
+      <div class="app-kop">
+        <p class="kicker"><a class="text-link" href="/bibliotheek.html" id="terug">← Oefeningen</a></p>
+        <h1 id="detail-naam"></h1>
+        <p class="subtitle" id="detail-sub"></p>
+      </div>
+
+      <section class="panel">
+        <div class="bieb-fotos" id="detail-fotos"></div>
+        <div class="oefening-badges" id="detail-badges"></div>
+        <ul class="lijst waarden bieb-feiten" id="detail-feiten"></ul>
+        <p class="cue" id="detail-cue" hidden></p>
+        <div class="knop-rij ruimte-boven" role="group" aria-label="Jouw keuze">
+          <button type="button" class="secondary" id="knop-favoriet" aria-pressed="false">☆ Favoriet</button>
+          <button type="button" class="secondary" id="knop-uitgesloten" aria-pressed="false">Niet voor mij</button>
+        </div>
+        <p class="error" id="status-fout" role="alert"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Uitleg</h2>
+        <ol class="bieb-uitleg" id="detail-uitleg" lang="en"></ol>
+        <p class="lijst-meta">De stappen zijn in het Engels, zoals in de bron. De cue hierboven is van RSLNT.</p>
+      </section>
+
+      <section class="panel">
+        <h2>In je schema</h2>
+        <p class="subtitle" id="in-programma"></p>
+        <div id="toevoegen-blok">
+          <label for="toevoegen-schema">Toevoegen aan</label>
+          <select id="toevoegen-schema"></select>
+          <div class="knop-rij ruimte-boven">
+            <button type="button" id="toevoegen">Toevoegen</button>
+          </div>
+          <p class="veld-hint">Komt achteraan de training met 3 sets. Sets, reps en rust pas je aan onder <a href="/schema.html">Schema</a>.</p>
+        </div>
+        <p class="error" id="toevoegen-fout" role="alert"></p>
+        <p class="success" id="toevoegen-succes" role="status"></p>
+      </section>
+
+      <section class="panel" id="vergelijkbaar-paneel">
+        <h2>Vergelijkbaar</h2>
+        <ul class="lijst bieb-lijst" id="vergelijkbaar"></ul>
+      </section>
+    </div>
+
+    <p class="lijst-meta">Bron: <a href="https://github.com/yuhonas/free-exercise-db" target="_blank" rel="noopener">Free Exercise DB</a>, publiek domein (Unlicense). Spiergroepen, beweging en "knie-gevoelig" zijn door RSLNT vertaald en deels geschat; zie <a href="/wetenschap.html#bibliotheek">Wetenschap</a>.</p>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/bibliotheek.js"></script>
+</body>
+</html>

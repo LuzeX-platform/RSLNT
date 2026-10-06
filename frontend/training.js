@@ -218,7 +218,9 @@ function oefeningHtml(o) {
         <h2>${escapeHtml(o.naam)}</h2>
         <span class="doel">${doelTekst(o)}</span>
       </div>
-      ${meta ? `<p class="doel-meta">${meta}</p>` : ""}
+      ${meta || o.bibliotheekId ? `<p class="doel-meta">${meta}${meta && o.bibliotheekId ? " · " : ""}${
+        o.bibliotheekId ? `<a class="waarom" href="/bibliotheek.html?id=${encodeURIComponent(o.bibliotheekId)}">Uitleg en foto's</a>` : ""
+      }</p>` : ""}
       ${badges.trim() ? `<div class="oefening-badges">${badges}</div>` : ""}
       ${o.cue ? `<p class="cue">${escapeHtml(o.cue)}</p>` : ""}
       ${wisselHtml(o)}

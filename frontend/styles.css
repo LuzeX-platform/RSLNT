@@ -2052,3 +2052,198 @@ main.laden .grafiek {
   font-weight: 600;
   color: var(--text-secondary);
 }
+
+/* ---------- Keuzeknoppen met tekst (personaliseren) ---------- */
+
+.keuzes-tekst {
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 6px;
+}
+
+.keuzes-tekst .keuze {
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.25;
+  font-variant-numeric: normal;
+}
+
+.keuzes-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.keuzes-6 {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.keuze[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.opmerkingen {
+  display: grid;
+  gap: 8px;
+}
+
+.opmerkingen li.melding {
+  border-bottom: none;
+}
+
+.voorstel-regel {
+  align-items: flex-start;
+}
+
+.voorstel-regel .waarom {
+  flex: 0 0 auto;
+  padding-top: 2px;
+}
+
+.voorstel-cue {
+  font-style: italic;
+}
+
+/* Weekdoel per spiergroep in een staafgrafiek: een streep dwars door de staaf. */
+.grafiek-doel {
+  stroke: var(--text);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.grafiek-sleutel-doel {
+  width: 2px;
+  height: 12px;
+  background: var(--text);
+}
+
+/* ---------- Bibliotheek ---------- */
+
+.bieb-filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.bieb-filters .breed {
+  grid-column: 1 / -1;
+}
+
+.pil-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 14px;
+}
+
+.pil-filter {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--glas-dun-bg);
+  color: var(--text);
+  border: 1px solid var(--glas-rand);
+  font-size: 14px;
+}
+
+.pil-filter[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.bieb-aantal {
+  margin: 4px 2px 0;
+}
+
+.bieb-rij {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.bieb-duim {
+  flex: 0 0 56px;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--neutral-tint);
+}
+
+.bieb-tekst {
+  flex: 1;
+  min-width: 0;
+}
+
+.bieb-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.bieb-fotos {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+/* De foto's hebben een witte achtergrond; een lichte rand houdt ze ook in de donkere modus netjes. */
+.bieb-fotos img {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.bieb-uitleg {
+  margin: 8px 0 0;
+  padding-left: 22px;
+  line-height: 1.55;
+}
+
+.bieb-uitleg li + li {
+  margin-top: 6px;
+}
+
+.schema-links {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.schema-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  color: var(--text);
+  text-decoration: none;
+}
+
+@media (max-width: 420px) {
+  .schema-links {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Lange waarden (spiergroepen) mogen naar een volgende regel. */
+.bieb-feiten .waarde-rechts {
+  white-space: normal;
+  text-align: right;
+  min-width: 0;
+}
+
+.bieb-feiten .lijst-meta {
+  flex: 0 0 auto;
+}
+
+.vraag {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}

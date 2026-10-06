@@ -3,7 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireIngelogd } from "../plugins/requireAuth.js";
 import { isDag, naarDatum, uitDatum, vandaag } from "../datum.js";
-import { bibliotheek } from "../bibliotheek.js";
+import { bibliotheek, inCatalogus } from "../bibliotheek.js";
 import {
   BLESSURES,
   DOELEN,
@@ -81,7 +81,7 @@ export async function personalisatieRoutes(app: FastifyInstance) {
   app.get("/api/voorkeuren", async () => {
     const v = await voorkeuren();
     const { perId } = bibliotheek();
-    const naam = (id: string) => ({ id, naam: perId.get(id)?.naam ?? id });
+    const naam = (id: string) => ({ id, naam: inCatalogus(id)?.naam ?? perId.get(id)?.naam ?? id });
     const lichaam = await haalbaarheidNu(vandaag());
     return {
       voorkeuren: alsVoorkeuren(v),

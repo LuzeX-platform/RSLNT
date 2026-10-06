@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Schema op maat — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker"><a class="text-link" href="/schema.html">Schema</a> · Op maat</p>
+      <h1>Schema op maat</h1>
+      <p class="subtitle">Vertel wat je wilt en wat je hebt. RSLNT stelt een schema voor volgens het onderzoek op de <a href="/wetenschap.html#personaliseren">Wetenschap-pagina</a>. Je ziet het eerst; er verandert pas iets als je het inlaadt.</p>
+    </div>
+
+    <form id="voorkeuren-form" novalidate>
+      <section class="panel">
+        <h2>Je doel</h2>
+        <div class="keuzes keuzes-tekst" id="keuze-doel" role="radiogroup" aria-label="Doel"></div>
+        <p class="vraag ruimte-boven">Hoe lang train je al serieus met gewichten?</p>
+        <div class="keuzes keuzes-tekst keuzes-3" id="keuze-ervaring" role="radiogroup" aria-label="Ervaring"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Je tijd</h2>
+        <p class="vraag">Trainingen per week</p>
+        <div class="keuzes" id="keuze-dagen" role="radiogroup" aria-label="Trainingen per week"></div>
+        <p class="vraag ruimte-boven">Minuten per training, inclusief opwarmen</p>
+        <div class="keuzes keuzes-6" id="keuze-minuten" role="radiogroup" aria-label="Minuten per training"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Wat je hebt</h2>
+        <p class="subtitle">Oefeningen met je eigen lichaamsgewicht kunnen altijd.</p>
+        <div class="keuzes keuzes-tekst" id="keuze-materiaal" role="group" aria-label="Materiaal"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Waar je rekening mee houdt</h2>
+        <p class="vraag">Klachten</p>
+        <div class="keuzes keuzes-tekst keuzes-3" id="keuze-blessures" role="group" aria-label="Klachten"></div>
+        <p class="veld-hint">Bij de knie: hoogstens één kniebelastende oefening per training, met meer reps en meer over. Bij schouder of onderrug laten we de zwaarste varianten weg.</p>
+        <p class="vraag ruimte-boven">Extra aandacht (hoogstens drie)</p>
+        <div class="keuzes keuzes-tekst" id="keuze-focus" role="group" aria-label="Extra aandacht"></div>
+        <p class="error" id="focus-fout" role="alert"></p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-kop">
+          <h2>Oefeningen</h2>
+          <a class="text-link" href="/bibliotheek.html">Bibliotheek →</a>
+        </div>
+        <p class="subtitle">Favorieten krijgen voorrang, "niet voor mij" komt er niet in. Markeren doe je in de bibliotheek.</p>
+        <ul class="lijst" id="mijn-oefeningen"></ul>
+      </section>
+
+      <section class="panel">
+        <h2>Doelgewicht</h2>
+        <div class="veld-rij">
+          <div>
+            <label for="doelgewicht">Doelgewicht (kg)</label>
+            <input id="doelgewicht" inputmode="decimal" autocomplete="off" />
+          </div>
+          <div>
+            <label for="streefdatum">Wanneer wil je het halen?</label>
+            <input id="streefdatum" type="date" />
+          </div>
+        </div>
+        <p class="tempo-advies" id="haalbaarheid" role="status"></p>
+      </section>
+
+      <button type="submit" class="knop-groot" id="maak">Maak mijn voorstel</button>
+      <p class="error" id="form-fout" role="alert"></p>
+    </form>
+
+    <div id="voorstel" hidden>
+      <section class="panel">
+        <p class="kicker">Voorstel</p>
+        <h2 id="split-naam"></h2>
+        <p class="subtitle" id="split-uitleg"></p>
+        <ul class="lijst opmerkingen" id="opmerkingen"></ul>
+      </section>
+
+      <div id="sessies"></div>
+
+      <section class="panel">
+        <div class="panel-kop">
+          <h2>Sets per spiergroep per week</h2>
+          <a class="text-link" href="/wetenschap.html#volume">Waarom?</a>
+        </div>
+        <div class="legenda">
+          <span><i class="grafiek-sleutel grafiek-sleutel-band"></i>Sets in dit schema</span>
+          <span><i class="grafiek-sleutel grafiek-sleutel-doel"></i>Weekdoel</span>
+        </div>
+        <div id="volume-grafiek"></div>
+        <div id="volume-tabel"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Inladen</h2>
+        <p class="subtitle" id="inladen-uitleg">Het schema wordt een programma "Op maat". Activeer je het, dan begint het bij week 1 met twee weken introfase. Je huidige programma blijft bewaard en kun je onder Schema terugzetten.</p>
+        <div class="knop-rij">
+          <button type="button" id="activeren">Inladen en activeren</button>
+          <button type="button" class="secondary" id="inladen">Alleen inladen</button>
+          <button type="button" class="secondary" id="download">Download JSON</button>
+        </div>
+        <p class="error" id="inladen-fout" role="alert"></p>
+        <p class="success" id="inladen-succes" role="status"></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/grafiek.js"></script>
+  <script src="/personaliseren.js"></script>
+</body>
+</html>
