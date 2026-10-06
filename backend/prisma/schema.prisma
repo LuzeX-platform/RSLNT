@@ -1,6 +1,6 @@
 // LuzeX RSLNT — datamodel.
-// Eén gebruiker: de trainingsdata hangt bewust niet aan een Gebruiker. Het account bestaat
-// alleen om de app achter een login te zetten.
+// Meerdere mensen, elk met een eigen account: alle trainings- en gezondheidsdata hangt aan een
+// Gebruiker (gebruikerId) en elke query filtert daarop. Verwijder je je account, dan gaat alles mee.
 
 generator client {
   provider = "prisma-client-js"
@@ -16,16 +16,39 @@ model Gebruiker {
   email                 String    @unique
   naam                  String
   wachtwoordHash        String
+  /// lid | admin. Admin is het account uit de seed (de eigenaar), nooit via registratie.
+  rol                   String    @default("lid")
+  emailBevestigdOp      DateTime?
+  /// Alleen de sha256-hash van een token staat hier; het ruwe token staat alleen in de mail.
+  bevestigTokenHash     String?   @unique
+  resetTokenHash        String?   @unique
+  resetTokenVerlooptOp  DateTime?
+  /// Uitdrukkelijke toestemming voor gezondheidsgegevens (AVG art. 9), met de versie van de privacyverklaring.
+  toestemmingOp         DateTime?
+  privacyVersie         String?
+  /// Gaat omhoog bij een nieuw wachtwoord: oudere sessies (op andere apparaten) vervallen dan.
+  sessieVersie          Int       @default(0)
   mislukteInlogpogingen Int       @default(0)
   vergrendeldTot        DateTime?
   aangemaaktOp          DateTime  @default(now())
+  bijgewerktOp          DateTime  @default(now()) @updatedAt
+
+  programmas    Programma[]
+  oefeningen    Oefening[]
+  trainingen    Training[]
+  gewichten     Lichaamsgewicht[]
+  metingen      Lichaamsmeting[]
+  herstelchecks Herstelcheck[]
+  profiel       Profiel?
+  voorkeuren    Voorkeuren?
 }
 
 model Oefening {
   id               String   @id @default(cuid())
+  gebruikerId      String
   /// Vaste sleutel, gelijk aan exercise_id in een programma-JSON (bijv. trap_bar_deadlift).
-  sleutel          String   @unique
-  naam             String   @unique
+  sleutel          String
+  naam             String
   /// dumbbell | barbell | trap_bar | kabel | machine | lichaamsgewicht | kettlebell | band | overig
   materiaal        String
   /// Kleinste gewichtsstap in kg (bij dumbbells: per dumbbell). 0 = zonder gewicht.
@@ -45,16 +68,21 @@ model Oefening {
   bibliotheekId    String?
   aangemaaktOp     DateTime @default(now())
 
+  gebruiker      Gebruiker          @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
   schemaRegels   SchemaOefening[]
   trainingRegels TrainingOefening[]
+
+  @@unique([gebruikerId, sleutel])
+  @@unique([gebruikerId, naam])
 }
 
 /// Een trainingsprogramma (bijv. Benen / Push / Pull), meestal geïmporteerd uit een JSON-bestand.
 /// Er is er altijd hooguit één actief.
 model Programma {
   id                String    @id @default(cuid())
+  gebruikerId       String
   /// program.id uit de JSON, bijv. split_legs_push_pull_v1
-  sleutel           String    @unique
+  sleutel           String
   naam              String
   actief            Boolean   @default(false)
   /// Begin van de introfase en van de deloadcyclus: de dag van activeren.
@@ -75,21 +103,25 @@ model Programma {
   bron              Json?
   aangemaaktOp      DateTime  @default(now())
 
-  schemas Schema[]
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+  schemas   Schema[]
+
+  @@unique([gebruikerId, sleutel])
+  @@index([gebruikerId, actief])
 }
 
 model Schema {
   /// "A"/"B" bij het eerste programma, daarna een cuid.
-  id          String           @id @default(cuid())
+  id          String   @id @default(cuid())
   programmaId String
   /// Letter in de rotatie: A, B, C …
   code        String
   naam        String
   volgorde    Int
   minuten     Int?
-  focus       String[]         @default([])
+  focus       String[] @default([])
   /// false = niet meer in de rotatie (bij een nieuwe versie van het programma weggevallen).
-  inRotatie   Boolean          @default(true)
+  inRotatie   Boolean  @default(true)
 
   programma  Programma        @relation(fields: [programmaId], references: [id], onDelete: Cascade)
   oefeningen SchemaOefening[]
@@ -99,7 +131,7 @@ model Schema {
 }
 
 model SchemaOefening {
-  id            String   @id @default(cuid())
+  id            String  @id @default(cuid())
   schemaId      String
   oefeningId    String
   volgorde      Int
@@ -112,7 +144,7 @@ model SchemaOefening {
   supersetGroep String?
   rustSeconden  Int?
   doelRir       Int?
-  cue           String   @default("")
+  cue           String  @default("")
 
   schema   Schema   @relation(fields: [schemaId], references: [id], onDelete: Cascade)
   oefening Oefening @relation(fields: [oefeningId], references: [id])
@@ -122,6 +154,7 @@ model SchemaOefening {
 
 model Training {
   id           String    @id @default(cuid())
+  gebruikerId  String
   schemaId     String
   datum        DateTime  @default(now())
   notitie      String    @default("")
@@ -134,27 +167,28 @@ model Training {
   afgerondOp   DateTime?
   aangemaaktOp DateTime  @default(now())
 
+  gebruiker  Gebruiker          @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
   schema     Schema             @relation(fields: [schemaId], references: [id])
   oefeningen TrainingOefening[]
 
-  @@index([datum])
+  @@index([gebruikerId, datum])
 }
 
 /// Momentopname van het schema bij het starten van een training: een latere schemawijziging
 /// herschrijft je geschiedenis niet.
 model TrainingOefening {
-  id            String  @id @default(cuid())
-  trainingId    String
-  oefeningId    String
-  volgorde      Int
-  aantalSets    Int
-  minSets       Int
-  repsMin       Int
-  repsMax       Int
-  supersetGroep String?
-  rustSeconden  Int?
-  doelRir       Int?
-  cue           String  @default("")
+  id                  String  @id @default(cuid())
+  trainingId          String
+  oefeningId          String
+  volgorde            Int
+  aantalSets          Int
+  minSets             Int
+  repsMin             Int
+  repsMax             Int
+  supersetGroep       String?
+  rustSeconden        Int?
+  doelRir             Int?
+  cue                 String  @default("")
   /// Gezet als je deze oefening voor een alternatief hebt gewisseld: de oefening uit het schema.
   origineleOefeningId String?
 
@@ -184,14 +218,19 @@ model TrainingSet {
 }
 
 model Lichaamsgewicht {
-  datum        DateTime @id @db.Date
+  gebruikerId  String
+  datum        DateTime @db.Date
   gewicht      Float
   opgeslagenOp DateTime @default(now()) @updatedAt
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@id([gebruikerId, datum])
 }
 
-/// Jouw gegevens voor de berekeningen in het gezondheidsmenu. Eén rij (id "ik").
+/// Jouw gegevens voor de berekeningen in het gezondheidsmenu. Eén rij per account.
 model Profiel {
-  id            String    @id @default("ik")
+  gebruikerId   String    @id
   geboortedatum DateTime? @db.Date
   /// man | vrouw — nodig voor de BMR- en vetpercentageformules.
   geslacht      String?
@@ -206,11 +245,13 @@ model Profiel {
   /// Wanneer je je doelgewicht wilt halen; het personalisatiemenu toetst of dat haalbaar is.
   streefdatum   DateTime? @db.Date
   bijgewerktOp  DateTime  @default(now()) @updatedAt
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
 }
 
-/// Wat je in het personalisatiemenu invult. Eén rij ("ik"), net als Profiel.
+/// Wat je in het personalisatiemenu invult. Eén rij per account, net als Profiel.
 model Voorkeuren {
-  id                 String   @id @default("ik")
+  gebruikerId        String   @id
   /// spiermassa | kracht | vetverlies | fit
   doel               String   @default("spiermassa")
   /// beginner | gevorderd | ervaren
@@ -227,11 +268,14 @@ model Voorkeuren {
   /// Spiersleutels die extra aandacht krijgen.
   focus              String[] @default([])
   bijgewerktOp       DateTime @default(now()) @updatedAt
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
 }
 
 /// Omtrekmaten en (gemeten) vetpercentage, per dag. Gewicht staat in Lichaamsgewicht.
 model Lichaamsmeting {
-  datum         DateTime @id @db.Date
+  gebruikerId   String
+  datum         DateTime @db.Date
   /// Zelf gemeten (scan, weegschaal); leeg = schatten uit taille en nek.
   vetpercentage Float?
   tailleCm      Float?
@@ -241,11 +285,16 @@ model Lichaamsmeting {
   borstCm       Float?
   dijCm         Float?
   opgeslagenOp  DateTime @default(now()) @updatedAt
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@id([gebruikerId, datum])
 }
 
 /// Herstelcheck vóór de training, schaal 1–5. Geen totaalscore: de signalen staan los.
 model Herstelcheck {
-  datum        DateTime @id @db.Date
+  gebruikerId  String
+  datum        DateTime @db.Date
   /// 1 = slecht, 5 = top
   slaap        Int
   /// 1 = geen, 5 = veel
@@ -255,4 +304,8 @@ model Herstelcheck {
   /// 1 = geen, 5 = veel
   kniepijn     Int
   opgeslagenOp DateTime @default(now()) @updatedAt
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@id([gebruikerId, datum])
 }

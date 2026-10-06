@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { isDag, naarDatum, uitDatum, vandaag } from "../datum.js";
 import { bibliotheek, inCatalogus } from "../bibliotheek.js";
 import {
@@ -23,14 +23,14 @@ import { effectiefDoel, huidigGewicht, profiel } from "./lichaam.js";
 import { ongeldig } from "./auth.js";
 
 /** De ene rij met voorkeuren; bestaat die nog niet, dan met de standaardwaarden. */
-export async function voorkeuren() {
-  const bestaand = await prisma.voorkeuren.findUnique({ where: { id: "ik" } });
+export async function voorkeuren(gebruikerId: string) {
+  const bestaand = await prisma.voorkeuren.findUnique({ where: { gebruikerId } });
   if (bestaand) return bestaand;
   try {
-    return await prisma.voorkeuren.create({ data: { id: "ik" } });
+    return await prisma.voorkeuren.create({ data: { gebruikerId } });
   } catch {
     // Twee verzoeken tegelijk: de ander was eerst.
-    return prisma.voorkeuren.findUniqueOrThrow({ where: { id: "ik" } });
+    return prisma.voorkeuren.findUniqueOrThrow({ where: { gebruikerId } });
   }
 }
 
@@ -62,10 +62,10 @@ function alsVoorkeuren(v: Awaited<ReturnType<typeof voorkeuren>>): Voorkeuren {
   };
 }
 
-async function haalbaarheidNu(dag: string) {
-  const p = await profiel();
+async function haalbaarheidNu(gebruikerId: string, dag: string) {
+  const p = await profiel(gebruikerId);
   const doel = await effectiefDoel(p);
-  const kg = await huidigGewicht(dag);
+  const kg = await huidigGewicht(gebruikerId, dag);
   return {
     kg,
     doelgewicht: doel.gewicht,
@@ -78,11 +78,12 @@ async function haalbaarheidNu(dag: string) {
 export async function personalisatieRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
 
-  app.get("/api/voorkeuren", async () => {
-    const v = await voorkeuren();
+  app.get("/api/voorkeuren", async (request) => {
+    const g = gid(request);
+    const v = await voorkeuren(g);
     const { perId } = bibliotheek();
     const naam = (id: string) => ({ id, naam: inCatalogus(id)?.naam ?? perId.get(id)?.naam ?? id });
-    const lichaam = await haalbaarheidNu(vandaag());
+    const lichaam = await haalbaarheidNu(g, vandaag());
     return {
       voorkeuren: alsVoorkeuren(v),
       favorieten: v.favorieten.map(naam),
@@ -102,31 +103,37 @@ export async function personalisatieRoutes(app: FastifyInstance) {
     const parsed = voorkeurenSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const { doelgewicht, streefdatum, ...rest } = parsed.data;
-    await voorkeuren();
-    await profiel();
+    const g = gid(request);
+    await voorkeuren(g);
+    await profiel(g);
     await prisma.$transaction([
-      prisma.voorkeuren.update({ where: { id: "ik" }, data: rest }),
+      prisma.voorkeuren.update({ where: { gebruikerId: g }, data: rest }),
       prisma.profiel.update({
-        where: { id: "ik" },
+        where: { gebruikerId: g },
         data: {
           ...(doelgewicht !== undefined ? { doelgewicht } : {}),
           ...(streefdatum !== undefined ? { streefdatum: streefdatum ? naarDatum(streefdatum) : null } : {}),
         },
       }),
     ]);
-    return { ok: true, lichaam: await haalbaarheidNu(vandaag()) };
+    return { ok: true, lichaam: await haalbaarheidNu(g, vandaag()) };
   });
 
   // Een schemavoorstel op basis van je opgeslagen voorkeuren. Er wordt niets opgeslagen: inladen
   // gaat via POST /api/programmas/import met het bestand uit dit antwoord.
-  app.post("/api/voorstel", async () => {
+  app.post("/api/voorstel", async (request) => {
+    const g = gid(request);
     const dag = vandaag();
-    const v = await voorkeuren();
+    const v = await voorkeuren(g);
     const [oefeningen, gelogd, lichaam, bestaatAl] = await Promise.all([
-      prisma.oefening.findMany(),
-      prisma.trainingOefening.findMany({ where: { sets: { some: {} } }, select: { oefeningId: true }, distinct: ["oefeningId"] }),
-      haalbaarheidNu(dag),
-      prisma.programma.findUnique({ where: { sleutel: "op_maat" }, select: { id: true, actief: true } }),
+      prisma.oefening.findMany({ where: { gebruikerId: g } }),
+      prisma.trainingOefening.findMany({
+        where: { training: { gebruikerId: g }, sets: { some: {} } },
+        select: { oefeningId: true },
+        distinct: ["oefeningId"],
+      }),
+      haalbaarheidNu(g, dag),
+      prisma.programma.findUnique({ where: { gebruikerId_sleutel: { gebruikerId: g, sleutel: "op_maat" } }, select: { id: true, actief: true } }),
     ]);
     const metGeschiedenis = new Set(gelogd.map((g) => g.oefeningId));
     const { perId } = bibliotheek();

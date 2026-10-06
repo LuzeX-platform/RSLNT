@@ -6,6 +6,7 @@ import fastifyStatic from "@fastify/static";
 import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyHelmet from "@fastify/helmet";
 import { authRoutes } from "./routes/auth.js";
+import { accountRoutes } from "./routes/account.js";
 import { schemaRoutes } from "./routes/schemas.js";
 import { trainingRoutes } from "./routes/trainingen.js";
 import { lichaamsgewichtRoutes } from "./routes/lichaamsgewicht.js";
@@ -88,6 +89,7 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   app.get("/api/gezondheid", async () => ({ ok: true }));
 
   await app.register(authRoutes);
+  await app.register(accountRoutes);
   await app.register(schemaRoutes);
   await app.register(trainingRoutes);
   await app.register(lichaamsgewichtRoutes);

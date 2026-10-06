@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { metGemiddelde, zevenDaagsGemiddelde } from "../gewicht.js";
 import { isDag, naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { ongeldig } from "./auth.js";
@@ -17,7 +17,7 @@ export async function lichaamsgewichtRoutes(app: FastifyInstance) {
     const vanaf = verschuifDag(dag, -(dagen - 1));
     // Zes dagen extra ophalen, zodat ook de oudste getoonde dag een volledig 7-daags gemiddelde heeft.
     const rijen = await prisma.lichaamsgewicht.findMany({
-      where: { datum: { gte: naarDatum(verschuifDag(vanaf, -6)) } },
+      where: { gebruikerId: gid(request), datum: { gte: naarDatum(verschuifDag(vanaf, -6)) } },
       orderBy: { datum: "desc" },
     });
     const metingen = rijen.map((r) => ({ datum: uitDatum(r.datum), gewicht: r.gewicht }));
@@ -36,17 +36,18 @@ export async function lichaamsgewichtRoutes(app: FastifyInstance) {
     }
     const parsed = gewichtSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
+    const g = gid(request);
     await prisma.lichaamsgewicht.upsert({
-      where: { datum: naarDatum(datum) },
+      where: { gebruikerId_datum: { gebruikerId: g, datum: naarDatum(datum) } },
       update: { gewicht: parsed.data.gewicht },
-      create: { datum: naarDatum(datum), gewicht: parsed.data.gewicht },
+      create: { gebruikerId: g, datum: naarDatum(datum), gewicht: parsed.data.gewicht },
     });
     return { ok: true };
   });
 
   app.delete<{ Params: { datum: string } }>("/api/lichaamsgewicht/:datum", async (request, reply) => {
     if (!isDag(request.params.datum)) return reply.code(400).send({ errorCode: "ONGELDIGE_DATUM" });
-    await prisma.lichaamsgewicht.deleteMany({ where: { datum: naarDatum(request.params.datum) } });
+    await prisma.lichaamsgewicht.deleteMany({ where: { gebruikerId: gid(request), datum: naarDatum(request.params.datum) } });
     return { ok: true };
   });
 }

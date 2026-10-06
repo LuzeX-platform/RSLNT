@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { AFBEELDING_BASIS, type BibliotheekOefening } from "../bibliotheekOmzetten.js";
 import {
   bibliotheek,
@@ -34,19 +34,20 @@ function statusVan(id: string, v: { favorieten: string[]; uitgesloten: string[] 
  * de basislijst, dan op naam. Bestaat ze niet, dan maken we haar aan met de gegevens uit de
  * basislijst (of, daarbuiten, uit de bibliotheek zelf).
  */
-async function oefeningVoor(o: BibliotheekOefening, tx: Prisma.TransactionClient) {
+async function oefeningVoor(gebruikerId: string, o: BibliotheekOefening, tx: Prisma.TransactionClient) {
   const c = inCatalogus(o.id);
   const naam = c?.naam ?? o.naam.slice(0, 80);
   const bestaand =
-    (await tx.oefening.findFirst({ where: { bibliotheekId: o.id } })) ??
-    (c ? await tx.oefening.findUnique({ where: { sleutel: c.sleutel } }) : null) ??
-    (await tx.oefening.findFirst({ where: { naam: { equals: naam, mode: "insensitive" } } }));
+    (await tx.oefening.findFirst({ where: { gebruikerId, bibliotheekId: o.id } })) ??
+    (c ? await tx.oefening.findUnique({ where: { gebruikerId_sleutel: { gebruikerId, sleutel: c.sleutel } } }) : null) ??
+    (await tx.oefening.findFirst({ where: { gebruikerId, naam: { equals: naam, mode: "insensitive" } } }));
   if (bestaand) {
     return bestaand.bibliotheekId ? bestaand : tx.oefening.update({ where: { id: bestaand.id }, data: { bibliotheekId: o.id } });
   }
   return tx.oefening.create({
     data: {
-      sleutel: c?.sleutel ?? (await nieuweSleutel(o.id)),
+      gebruikerId,
+      sleutel: c?.sleutel ?? (await nieuweSleutel(gebruikerId, o.id)),
       naam,
       materiaal: c?.materiaal ?? o.materiaal,
       gewichtsstap: c?.gewichtsstap ?? o.gewichtsstap,
@@ -68,7 +69,7 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
     Querystring: { zoek?: string; spier?: string; materiaal?: string; patroon?: string; knie?: string; lijst?: string; pagina?: string };
   }>("/api/bibliotheek", async (request) => {
     const q = request.query;
-    const v = await voorkeuren();
+    const v = await voorkeuren(gid(request));
     const { bestand } = bibliotheek();
     const ids = q.lijst === "favorieten" ? new Set(v.favorieten) : q.lijst === "uitgesloten" ? new Set(v.uitgesloten) : undefined;
     const gevonden = zoekOefeningen(bestand.oefeningen, {
@@ -95,10 +96,11 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
     const o = perId.get(request.params.id);
     if (!o) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     const c = inCatalogus(o.id);
+    const g = gid(request);
     const [v, inDatabase, programma] = await Promise.all([
-      voorkeuren(),
-      prisma.oefening.findFirst({ where: { bibliotheekId: o.id }, select: { id: true, sleutel: true, naam: true } }),
-      actiefProgramma(),
+      voorkeuren(g),
+      prisma.oefening.findFirst({ where: { gebruikerId: g, bibliotheekId: o.id }, select: { id: true, sleutel: true, naam: true } }),
+      actiefProgramma(g),
     ]);
     const inProgramma =
       inDatabase && programma
@@ -144,10 +146,11 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const id = request.params.id;
     if (!bibliotheek().perId.has(id)) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
-    const v = await voorkeuren();
+    const g = gid(request);
+    const v = await voorkeuren(g);
     const zonder = (lijst: string[]) => lijst.filter((x) => x !== id);
     await prisma.voorkeuren.update({
-      where: { id: "ik" },
+      where: { gebruikerId: g },
       data: {
         favorieten: parsed.data.status === "favoriet" ? [...zonder(v.favorieten), id] : zonder(v.favorieten),
         uitgesloten: parsed.data.status === "uitgesloten" ? [...zonder(v.uitgesloten), id] : zonder(v.uitgesloten),
@@ -162,12 +165,16 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const o = bibliotheek().perId.get(request.params.id);
     if (!o) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
-    const schema = await prisma.schema.findUnique({ where: { id: parsed.data.schemaId }, include: { oefeningen: true } });
+    const g = gid(request);
+    const schema = await prisma.schema.findFirst({
+      where: { id: parsed.data.schemaId, programma: { gebruikerId: g } },
+      include: { oefeningen: true },
+    });
     if (!schema) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     const c = inCatalogus(o.id);
     const compound = (c?.mechaniek ?? o.mechaniek) === "compound";
     const resultaat = await prisma.$transaction(async (tx) => {
-      const oefening = await oefeningVoor(o, tx);
+      const oefening = await oefeningVoor(g, o, tx);
       if (schema.oefeningen.some((r) => r.oefeningId === oefening.id)) return { oefening, alGepland: true };
       await tx.schemaOefening.create({
         data: {

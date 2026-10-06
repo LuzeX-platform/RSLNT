@@ -1,9 +1,16 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { SESSIE_TTL_SECONDEN, verifieerSessieToken, type SessionPayload } from "../auth.js";
+import { prisma } from "../db.js";
+
+export interface IngelogdeGebruiker {
+  gebruikerId: string;
+  email: string;
+  rol: "lid" | "admin";
+}
 
 declare module "fastify" {
   interface FastifyRequest {
-    gebruiker?: SessionPayload;
+    gebruiker?: IngelogdeGebruiker;
   }
 }
 
@@ -36,9 +43,34 @@ export function leesSessie(request: FastifyRequest): SessionPayload | null {
   }
 }
 
+/**
+ * De sessie plus een controle in de database: bestaat het account nog, is het bevestigd en is de
+ * sessie niet vervallen door een nieuw wachtwoord? Zo is een verwijderd account meteen uitgelogd.
+ */
+export async function geldigeSessie(request: FastifyRequest): Promise<IngelogdeGebruiker | null> {
+  const sessie = leesSessie(request);
+  if (!sessie) return null;
+  const g = await prisma.gebruiker.findUnique({
+    where: { id: sessie.gebruikerId },
+    select: { id: true, email: true, rol: true, sessieVersie: true, emailBevestigdOp: true },
+  });
+  if (!g || g.sessieVersie !== sessie.versie || !g.emailBevestigdOp) return null;
+  return { gebruikerId: g.id, email: g.email, rol: g.rol === "admin" ? "admin" : "lid" };
+}
+
 /** preHandler voor alles achter de login. */
 export async function requireIngelogd(request: FastifyRequest, reply: FastifyReply) {
-  const sessie = leesSessie(request);
-  if (!sessie) return reply.code(401).send({ errorCode: "NIET_INGELOGD" });
-  request.gebruiker = sessie;
+  const gebruiker = await geldigeSessie(request);
+  if (!gebruiker) {
+    if (request.cookies[COOKIE_NAME]) wisSessieCookie(reply);
+    return reply.code(401).send({ errorCode: "NIET_INGELOGD" });
+  }
+  request.gebruiker = gebruiker;
+}
+
+/** Het account van dit verzoek. Alleen te gebruiken achter requireIngelogd. */
+export function gid(request: FastifyRequest): string {
+  const id = request.gebruiker?.gebruikerId;
+  if (!id) throw new Error("gid() zonder requireIngelogd");
+  return id;
 }

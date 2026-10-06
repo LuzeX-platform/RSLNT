@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { metGemiddelde } from "../gewicht.js";
 import { aanbevolenTempo } from "../lichaam.js";
@@ -23,9 +23,10 @@ export async function voortgangRoutes(app: FastifyInstance) {
     const weken = Math.min(Math.max(Number(request.query.weken) || 12, 4), 104);
     const dag = vandaag();
     const vanaf = verschuifDag(dag, -(weken * 7 - 1));
+    const g = gid(request);
     const [programma, profiel, wegingen, trainingen] = await Promise.all([
       prisma.programma.findFirst({
-        where: { actief: true },
+        where: { gebruikerId: g, actief: true },
         include: {
           schemas: {
             where: { inRotatie: true },
@@ -34,9 +35,10 @@ export async function voortgangRoutes(app: FastifyInstance) {
           },
         },
       }),
-      prisma.profiel.findUnique({ where: { id: "ik" } }),
-      prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(vanaf, -6)) } }, orderBy: { datum: "asc" } }),
+      prisma.profiel.findUnique({ where: { gebruikerId: g } }),
+      prisma.lichaamsgewicht.findMany({ where: { gebruikerId: g, datum: { gte: naarDatum(verschuifDag(vanaf, -6)) } }, orderBy: { datum: "asc" } }),
       prisma.training.findMany({
+        where: { gebruikerId: g },
         orderBy: { datum: "asc" },
         include: { oefeningen: { include: { oefening: true, sets: true } } },
       }),

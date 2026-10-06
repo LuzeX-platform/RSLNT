@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { actiefProgramma } from "../trainingData.js";
 import { ongeldig } from "./auth.js";
 
@@ -36,29 +36,32 @@ const schemaPutSchema = z.object({
 });
 
 /** "Leg press (smal)" → leg_press_smal; bij een botsing komt er een volgnummer achter. */
-export async function nieuweSleutel(naam: string): Promise<string> {
+export async function nieuweSleutel(gebruikerId: string, naam: string): Promise<string> {
   const basis = naam.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "oefening";
   let sleutel = basis;
-  for (let i = 2; await prisma.oefening.findUnique({ where: { sleutel } }); i++) sleutel = `${basis}_${i}`;
+  for (let i = 2; await prisma.oefening.findUnique({ where: { gebruikerId_sleutel: { gebruikerId, sleutel } } }); i++) {
+    sleutel = `${basis}_${i}`;
+  }
   return sleutel;
 }
 
 export async function schemaRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
 
-  app.get("/api/oefeningen", async () => {
-    const oefeningen = await prisma.oefening.findMany({ orderBy: { naam: "asc" } });
+  app.get("/api/oefeningen", async (request) => {
+    const oefeningen = await prisma.oefening.findMany({ where: { gebruikerId: gid(request) }, orderBy: { naam: "asc" } });
     return { oefeningen };
   });
 
   app.post("/api/oefeningen", async (request, reply) => {
     const parsed = z.object(oefeningVelden).safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
-    if (await prisma.oefening.findUnique({ where: { naam: parsed.data.naam } })) {
+    const g = gid(request);
+    if (await prisma.oefening.findUnique({ where: { gebruikerId_naam: { gebruikerId: g, naam: parsed.data.naam } } })) {
       return reply.code(409).send({ errorCode: "OEFENING_BESTAAT_AL" });
     }
     const oefening = await prisma.oefening.create({
-      data: { sleutel: await nieuweSleutel(parsed.data.naam), ...parsed.data },
+      data: { gebruikerId: g, sleutel: await nieuweSleutel(g, parsed.data.naam), ...parsed.data },
     });
     return { oefening };
   });
@@ -66,10 +69,11 @@ export async function schemaRoutes(app: FastifyInstance) {
   app.patch<{ Params: { id: string } }>("/api/oefeningen/:id", async (request, reply) => {
     const parsed = z.object(oefeningVelden).partial().safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
-    const bestaand = await prisma.oefening.findUnique({ where: { id: request.params.id } });
+    const g = gid(request);
+    const bestaand = await prisma.oefening.findFirst({ where: { id: request.params.id, gebruikerId: g } });
     if (!bestaand) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     if (parsed.data.naam && parsed.data.naam !== bestaand.naam) {
-      if (await prisma.oefening.findUnique({ where: { naam: parsed.data.naam } })) {
+      if (await prisma.oefening.findUnique({ where: { gebruikerId_naam: { gebruikerId: g, naam: parsed.data.naam } } })) {
         return reply.code(409).send({ errorCode: "OEFENING_BESTAAT_AL" });
       }
     }
@@ -78,8 +82,8 @@ export async function schemaRoutes(app: FastifyInstance) {
   });
 
   // De trainingen (A, B, C …) van het actieve programma.
-  app.get("/api/schemas", async () => {
-    const programma = await actiefProgramma();
+  app.get("/api/schemas", async (request) => {
+    const programma = await actiefProgramma(gid(request));
     if (!programma) return { programma: null, schemas: [] };
     const schemas = await prisma.schema.findMany({
       where: { programmaId: programma.id, inRotatie: true },
@@ -95,14 +99,16 @@ export async function schemaRoutes(app: FastifyInstance) {
   app.put<{ Params: { id: string } }>("/api/schemas/:id", async (request, reply) => {
     const parsed = schemaPutSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
-    const schema = await prisma.schema.findUnique({ where: { id: request.params.id } });
+    const g = gid(request);
+    const schema = await prisma.schema.findFirst({ where: { id: request.params.id, programma: { gebruikerId: g } } });
     if (!schema) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
 
     const ids = [...new Set(parsed.data.oefeningen.map((r) => r.oefeningId))];
     if (ids.length !== parsed.data.oefeningen.length) {
       return reply.code(400).send({ errorCode: "DUBBELE_OEFENING", bericht: "Een oefening staat twee keer in dit schema." });
     }
-    if ((await prisma.oefening.count({ where: { id: { in: ids } } })) !== ids.length) {
+    // Alleen je eigen oefeningen.
+    if ((await prisma.oefening.count({ where: { gebruikerId: g, id: { in: ids } } })) !== ids.length) {
       return reply.code(400).send({ errorCode: "ONBEKENDE_OEFENING" });
     }
 

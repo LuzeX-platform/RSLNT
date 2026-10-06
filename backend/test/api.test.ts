@@ -12,10 +12,15 @@ const PROGRAMMA = JSON.parse(readFileSync(new URL("../programmas/benen-push-pull
 describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   process.env.DATABASE_URL = TEST_DB;
   process.env.JWT_SECRET ??= "test-geheim";
+  process.env.NODE_ENV ??= "test";
+  delete process.env.SMTP_HOST; // mails gaan naar testPostvak in mailer.ts
 
   let app: import("fastify").FastifyInstance;
   let prisma: import("@prisma/client").PrismaClient;
   let cookie = "";
+  let ikId = "";
+  /** Een oefening van het eerste account, op sleutel. */
+  const mijnOefening = (sleutel: string) => prisma.oefening.findUnique({ where: { gebruikerId_sleutel: { gebruikerId: ikId, sleutel } } });
 
   type Antwoord = { statusCode: number; json: () => any; headers: Record<string, unknown> };
   async function vraag(method: string, url: string, payload?: unknown): Promise<Antwoord> {
@@ -36,9 +41,16 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       'TRUNCATE "Gebruiker", "Programma", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht", "Profiel", "Lichaamsmeting", "Herstelcheck", "Voorkeuren" CASCADE',
     );
     const { hashWachtwoord } = await import("../src/auth.js");
-    await prisma.gebruiker.create({
-      data: { email: "ik@test.nl", naam: "Ik", wachtwoordHash: await hashWachtwoord("goed-wachtwoord") },
+    const eigenaar = await prisma.gebruiker.create({
+      data: {
+        email: "ik@test.nl",
+        naam: "Ik",
+        wachtwoordHash: await hashWachtwoord("goed-wachtwoord"),
+        rol: "admin",
+        emailBevestigdOp: new Date(),
+      },
     });
+    ikId = eigenaar.id;
     const { bouwApp } = await import("../src/app.js");
     app = await bouwApp({ logger: false });
   });
@@ -107,11 +119,11 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(vandaag.volgendeSchema.naam, "Benen");
     assert.deepEqual(vandaag.schemas.map((s: any) => s.code), ["A", "B", "C"]);
 
-    const trapBar = await prisma.oefening.findUnique({ where: { sleutel: "trap_bar_deadlift" } });
+    const trapBar = await mijnOefening("trap_bar_deadlift");
     assert.equal(trapBar?.knieGevoelig, true);
     assert.equal(trapBar?.gewichtsstap, 5);
     assert.deepEqual(trapBar?.alternatieven, ["goblet_squat", "hack_squat"]);
-    const bss = await prisma.oefening.findUnique({ where: { sleutel: "bulgarian_split_squat" } });
+    const bss = await mijnOefening("bulgarian_split_squat");
     assert.equal(bss?.perKant, true);
   });
 
@@ -147,7 +159,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   test("wisselen: alleen naar een alternatief, terug kan altijd, niet meer na een gelogde set", async () => {
     const alternatieven = (await vraag("GET", `/api/trainingen/${benen}`)).json().oefeningen[0].alternatieven;
     const goblet = alternatieven.find((a: any) => a.naam === "Goblet squat");
-    const latPulldown = await prisma.oefening.findUnique({ where: { sleutel: "lat_pulldown" } });
+    const latPulldown = await mijnOefening("lat_pulldown");
 
     const ongeldig = await vraag("PATCH", `/api/trainingen/${benen}/oefeningen/${trapBarRegel}/wissel`, { oefeningId: latPulldown!.id });
     assert.equal(ongeldig.statusCode, 400);
@@ -428,16 +440,187 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     // Trap bar deadlift heeft geschiedenis: die gaat voor bij gelijke keuze.
     assert.ok(alle.some((r: any) => r.sleutel === "trap_bar_deadlift"));
 
-    const voor = await prisma.oefening.findUniqueOrThrow({ where: { sleutel: "trap_bar_deadlift" } });
+    const voor = (await mijnOefening("trap_bar_deadlift"))!;
     const imp = await vraag("POST", "/api/programmas/import", { bestand: voorstel.bestand, activeren: true });
     assert.equal(imp.statusCode, 200, JSON.stringify(imp.json()));
     const scherm = (await vraag("GET", "/api/vandaag")).json();
     assert.match(scherm.programma.naam, /^Op maat/);
     assert.equal(scherm.volgendeSchema.code, "A");
     // Zelfde oefening, zelfde id: de opbouw loopt door.
-    const na = await prisma.oefening.findUniqueOrThrow({ where: { sleutel: "trap_bar_deadlift" } });
+    const na = (await mijnOefening("trap_bar_deadlift"))!;
     assert.equal(na.id, voor.id);
     assert.equal(na.gewichtsstap, voor.gewichtsstap);
     assert.equal((await vraag("POST", "/api/voorstel")).json().bestaatAl.actief, true);
   });
+
+  // ---------- Accounts: registreren, isolatie, wachtwoord, export, verwijderen ----------
+
+  let cookieB = "";
+  const vraagAls = (c: string, method: string, url: string, payload?: unknown): Promise<Antwoord> =>
+    app.inject({ method: method as "GET", url, payload: payload as object, headers: { cookie: c } });
+  const sessieCookie = (res: Antwoord) => {
+    const header = res.headers["set-cookie"];
+    return (Array.isArray(header) ? header[0] : String(header)).split(";")[0];
+  };
+  const tokenUit = (tekst: string) => /token=([0-9a-f]+)/.exec(tekst)![1];
+
+  test("registreren: toestemming verplicht, bevestigingsmail, pas inloggen na bevestigen", async () => {
+    const { testPostvak } = await import("../src/mailer.js");
+    const gegevens = { naam: "Bo", email: "Bo@Test.nl", wachtwoord: "bo-wachtwoord-1" };
+    assert.equal((await vraagAls("", "POST", "/api/auth/registreren", gegevens)).statusCode, 400);
+    assert.equal((await vraagAls("", "POST", "/api/auth/registreren", { ...gegevens, toestemming: false })).statusCode, 400);
+    assert.equal((await vraagAls("", "POST", "/api/auth/registreren", { ...gegevens, toestemming: true })).statusCode, 200);
+    const eerste = testPostvak.at(-1)!;
+    assert.equal(eerste.naar, "bo@test.nl");
+    assert.match(eerste.tekst, /\/bevestigen\.html\?token=[0-9a-f]{64}/);
+    const g = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "bo@test.nl" } });
+    assert.equal(g.rol, "lid");
+    assert.ok(g.toestemmingOp && g.privacyVersie);
+    assert.equal(g.emailBevestigdOp, null);
+
+    const vroeg = await vraagAls("", "POST", "/api/auth/inloggen", { email: "bo@test.nl", wachtwoord: "bo-wachtwoord-1" });
+    assert.equal(vroeg.statusCode, 403);
+    assert.equal(vroeg.json().errorCode, "EMAIL_NIET_BEVESTIGD");
+
+    // Nog eens registreren: zelfde antwoord, nieuwe mail, de oude link vervalt.
+    assert.equal((await vraagAls("", "POST", "/api/auth/registreren", { ...gegevens, toestemming: true })).statusCode, 200);
+    const tweede = testPostvak.at(-1)!;
+    assert.notEqual(tokenUit(tweede.tekst), tokenUit(eerste.tekst));
+    assert.equal((await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(eerste.tekst) })).statusCode, 400);
+    const bevestigd = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(tweede.tekst) });
+    assert.equal(bevestigd.statusCode, 200);
+    cookieB = sessieCookie(bevestigd);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid" });
+
+    // Een bestaand, bevestigd adres: zelfde antwoord, geen mail (niets te raden).
+    const aantal = testPostvak.length;
+    assert.equal((await vraagAls("", "POST", "/api/auth/registreren", { naam: "X", email: "ik@test.nl", wachtwoord: "iets-anders-1", toestemming: true })).statusCode, 200);
+    assert.equal(testPostvak.length, aantal);
+  });
+
+  test("twee accounts: B ziet en wijzigt niets van A", async () => {
+    const trainingA = await prisma.training.findFirstOrThrow({ where: { gebruikerId: ikId }, include: { oefeningen: true } });
+    const toA = trainingA.oefeningen[0];
+    const programmaA = await prisma.programma.findFirstOrThrow({ where: { gebruikerId: ikId, actief: true }, include: { schemas: true } });
+    const schemaA = programmaA.schemas[0];
+    const oefeningA = (await mijnOefening("leg_press"))!;
+    const oefeningenA = await prisma.oefening.count({ where: { gebruikerId: ikId } });
+
+    const scherm = (await vraagAls(cookieB, "GET", "/api/vandaag")).json();
+    assert.equal(scherm.programma, null);
+    assert.deepEqual(scherm.recent, []);
+    assert.equal(scherm.gewicht.laatste, null);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/trainingen")).json().trainingen, []);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/programmas")).json().programmas, []);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/oefeningen")).json().oefeningen, []);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/herstel")).json().checks, []);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/voortgang")).json().oefeningen, []);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/profiel")).json().profiel.lengteCm, null);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/bibliotheek/Leg_Press")).json().inDatabase, null);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/voorkeuren")).json().voorkeuren.favorieten, []);
+
+    // Alles van A is voor B "niet gevonden".
+    const pogingen: [string, string, unknown?][] = [
+      ["GET", `/api/trainingen/${trainingA.id}`],
+      ["PATCH", `/api/trainingen/${trainingA.id}`, { notitie: "van B" }],
+      ["POST", `/api/trainingen/${trainingA.id}/afronden`],
+      ["POST", `/api/trainingen/${trainingA.id}/heropenen`],
+      ["DELETE", `/api/trainingen/${trainingA.id}`],
+      ["PUT", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/sets/1`, { gewicht: 1, reps: 1, rir: null, kniepijn: null }],
+      ["DELETE", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/sets/1`],
+      ["PATCH", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/wissel`, { oefeningId: null }],
+      ["PATCH", `/api/oefeningen/${oefeningA.id}`, { naam: "Gekaapt" }],
+      ["PUT", `/api/schemas/${schemaA.id}`, { oefeningen: [] }],
+      ["POST", "/api/trainingen", { schemaId: schemaA.id }],
+      ["POST", `/api/programmas/${programmaA.id}/activeren`],
+      ["POST", `/api/programmas/${programmaA.id}/deload`, { aan: true }],
+      ["GET", `/api/programmas/${programmaA.id}/bestand`],
+      ["POST", "/api/bibliotheek/Face_Pull/toevoegen", { schemaId: schemaA.id }],
+    ];
+    for (const [methode, url, body] of pogingen) {
+      assert.equal((await vraagAls(cookieB, methode, url, body)).statusCode, 404, `${methode} ${url}`);
+    }
+
+    // Eigen gewicht en herstelcheck op dezelfde dag als A: twee aparte rijen.
+    const { vandaag } = await import("../src/datum.js");
+    const gewichtA = await prisma.lichaamsgewicht.findFirst({ where: { gebruikerId: ikId }, orderBy: { datum: "desc" } });
+    assert.equal((await vraagAls(cookieB, "PUT", `/api/lichaamsgewicht/${vandaag()}`, { gewicht: 70 })).statusCode, 200);
+    assert.equal((await vraagAls(cookieB, "PUT", `/api/herstel/${vandaag()}`, { slaap: 5, spierpijn: 1, energie: 5, kniepijn: 1 })).statusCode, 200);
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/lichaamsgewicht")).json().metingen.map((m: any) => m.gewicht), [70]);
+    const gewichtANa = await prisma.lichaamsgewicht.findFirst({ where: { gebruikerId: ikId }, orderBy: { datum: "desc" } });
+    assert.deepEqual(gewichtANa, gewichtA);
+    assert.equal((await vraag("GET", "/api/herstel")).json().checks[0].slaap, 2, "A's herstelcheck blijft");
+
+    // B laadt hetzelfde programma in: eigen oefeningen met dezelfde sleutels, A blijft actief.
+    const imp = await vraagAls(cookieB, "POST", "/api/programmas/import", { bestand: PROGRAMMA, activeren: true });
+    assert.equal(imp.statusCode, 200, JSON.stringify(imp.json()));
+    const legB = await prisma.oefening.findFirstOrThrow({ where: { sleutel: "leg_press", NOT: { gebruikerId: ikId } } });
+    assert.notEqual(legB.id, oefeningA.id);
+    assert.equal(await prisma.oefening.count({ where: { gebruikerId: ikId } }), oefeningenA);
+    assert.equal((await prisma.programma.findUniqueOrThrow({ where: { id: programmaA.id } })).actief, true);
+    assert.match((await vraagAls(cookieB, "GET", "/api/vandaag")).json().programma.naam, /Benen/);
+    assert.notEqual((await vraag("GET", "/api/vandaag")).json().programma.id, (await vraagAls(cookieB, "GET", "/api/vandaag")).json().programma.id);
+  });
+
+  test("wachtwoord vergeten: resetmail, nieuw wachtwoord, oude sessies vervallen", async () => {
+    const { testPostvak } = await import("../src/mailer.js");
+    const aantal = testPostvak.length;
+    assert.equal((await vraagAls("", "POST", "/api/auth/wachtwoord-vergeten", { email: "niemand@test.nl" })).statusCode, 200);
+    assert.equal(testPostvak.length, aantal, "geen mail naar een onbekend adres");
+    assert.equal((await vraagAls("", "POST", "/api/auth/wachtwoord-vergeten", { email: "bo@test.nl" })).statusCode, 200);
+    const mail = testPostvak.at(-1)!;
+    assert.match(mail.tekst, /wachtwoord-resetten\.html\?token=/);
+    const kort = await vraagAls("", "POST", "/api/auth/wachtwoord-resetten", { token: tokenUit(mail.tekst), wachtwoord: "kort" });
+    assert.equal(kort.statusCode, 400);
+    const reset = await vraagAls("", "POST", "/api/auth/wachtwoord-resetten", { token: tokenUit(mail.tekst), wachtwoord: "bo-nieuw-wachtwoord" });
+    assert.equal(reset.statusCode, 200);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 401, "oude sessie vervallen");
+    cookieB = sessieCookie(reset);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 200);
+    assert.equal((await vraagAls("", "POST", "/api/auth/wachtwoord-resetten", { token: tokenUit(mail.tekst), wachtwoord: "nog-een-keer-1" })).statusCode, 400);
+    assert.equal((await vraagAls("", "POST", "/api/auth/inloggen", { email: "bo@test.nl", wachtwoord: "bo-wachtwoord-1" })).statusCode, 401);
+  });
+
+  test("wachtwoord wijzigen: andere apparaten uitgelogd, dit apparaat niet", async () => {
+    const telefoon = sessieCookie(await vraagAls("", "POST", "/api/auth/inloggen", { email: "bo@test.nl", wachtwoord: "bo-nieuw-wachtwoord" }));
+    const laptop = sessieCookie(await vraagAls("", "POST", "/api/auth/inloggen", { email: "bo@test.nl", wachtwoord: "bo-nieuw-wachtwoord" }));
+    const res = await vraagAls(telefoon, "POST", "/api/auth/wachtwoord", { huidig: "bo-nieuw-wachtwoord", nieuw: "bo-derde-wachtwoord" });
+    assert.equal(res.statusCode, 200);
+    assert.equal((await vraagAls(laptop, "GET", "/api/vandaag")).statusCode, 401);
+    cookieB = sessieCookie(res);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 200);
+  });
+
+  test("account: gegevens downloaden en verwijderen met alles erop en eraan", async () => {
+    // B traint eerst, zodat er trainingen, sets en oefeningen zijn om te verwijderen.
+    const scherm = (await vraagAls(cookieB, "GET", "/api/vandaag")).json();
+    const start = (await vraagAls(cookieB, "POST", "/api/trainingen", { schemaId: scherm.volgendeSchema.id })).json();
+    const detail = (await vraagAls(cookieB, "GET", `/api/trainingen/${start.id}`)).json();
+    assert.equal((await vraagAls(cookieB, "PUT", `/api/trainingen/${start.id}/oefeningen/${detail.oefeningen[0].id}/sets/1`, { gewicht: 40, reps: 8, rir: 2, kniepijn: null })).statusCode, 200);
+
+    const exp = await vraagAls(cookieB, "GET", "/api/account/export");
+    assert.equal(exp.statusCode, 200);
+    assert.match(String(exp.headers["content-disposition"]), /attachment; filename="rslnt-gegevens-/);
+    const gegevens = exp.json();
+    assert.equal(gegevens.account.email, "bo@test.nl");
+    assert.equal(gegevens.trainingen.length, 1);
+    assert.equal(gegevens.trainingen[0].oefeningen[0].sets[0].gewicht, 40);
+    assert.deepEqual(gegevens.lichaamsgewicht.map((g: any) => g.gewicht), [70]);
+    assert.ok(!JSON.stringify(gegevens).includes("wachtwoordHash"));
+    assert.ok(!JSON.stringify(gegevens).includes("ik@test.nl"));
+
+    assert.equal((await vraag("DELETE", "/api/account", { wachtwoord: "goed-wachtwoord" })).json().errorCode, "ADMIN_NIET_VERWIJDERBAAR");
+    assert.equal((await vraagAls(cookieB, "DELETE", "/api/account", { wachtwoord: "fout-wachtwoord" })).statusCode, 400);
+    const bId = (await prisma.gebruiker.findUniqueOrThrow({ where: { email: "bo@test.nl" } })).id;
+    assert.equal((await vraagAls(cookieB, "DELETE", "/api/account", { wachtwoord: "bo-derde-wachtwoord" })).statusCode, 200);
+    for (const tabel of ["training", "programma", "oefening", "lichaamsgewicht", "herstelcheck", "profiel", "voorkeuren"] as const) {
+      assert.equal(await (prisma[tabel] as any).count({ where: { gebruikerId: bId } }), 0, tabel);
+    }
+    assert.equal(await prisma.gebruiker.count({ where: { id: bId } }), 0);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 401);
+    // A merkt er niets van.
+    assert.match((await vraag("GET", "/api/vandaag")).json().programma.naam, /Op maat|Benen/);
+    assert.ok((await prisma.training.count({ where: { gebruikerId: ikId } })) > 0);
+  });
 });
+

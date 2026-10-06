@@ -24,11 +24,12 @@ export interface Sessie extends EerdereSessie {
  * deload). Alleen sessies waarin iets gelogd is: een overgeslagen oefening telt niet als "vorige keer".
  */
 export async function historiePerOefening(
+  gebruikerId: string,
   oefeningIds: string[],
   datum: { lt: Date } | { lte: Date },
 ): Promise<Map<string, Sessie[]>> {
   const regels = await prisma.trainingOefening.findMany({
-    where: { oefeningId: { in: oefeningIds }, training: { datum }, sets: { some: {} } },
+    where: { oefeningId: { in: oefeningIds }, training: { gebruikerId, datum }, sets: { some: {} } },
     include: {
       training: { select: { id: true, datum: true, fase: true } },
       sets: { orderBy: { nummer: "asc" }, select: SET_VELDEN },
@@ -63,9 +64,9 @@ export function faseInstellingen(p: Programma): FaseInstellingen {
   };
 }
 
-export async function actiefProgramma() {
+export async function actiefProgramma(gebruikerId: string) {
   return prisma.programma.findFirst({
-    where: { actief: true },
+    where: { gebruikerId, actief: true },
     include: { schemas: { where: { inRotatie: true }, orderBy: { volgorde: "asc" } } },
   });
 }
@@ -78,7 +79,7 @@ export async function volgendeSchema(programma: NonNullable<Awaited<ReturnType<t
   const schemas = programma.schemas;
   if (schemas.length === 0) return null;
   const laatste = await prisma.training.findFirst({
-    where: { schema: { programmaId: programma.id } },
+    where: { gebruikerId: programma.gebruikerId, schema: { programmaId: programma.id } },
     orderBy: { datum: "desc" },
     select: { schemaId: true },
   });
@@ -86,9 +87,10 @@ export async function volgendeSchema(programma: NonNullable<Awaited<ReturnType<t
   return schemas[(i + 1) % schemas.length];
 }
 
-export async function trainingDetail(id: string) {
-  const training = await prisma.training.findUnique({
-    where: { id },
+/** Eén training van dit account; null als die niet bestaat of van iemand anders is. */
+export async function trainingDetail(gebruikerId: string, id: string) {
+  const training = await prisma.training.findFirst({
+    where: { id, gebruikerId },
     include: {
       schema: { select: { code: true, naam: true, programma: { select: { naam: true, opwarmen: true } } } },
       oefeningen: {
@@ -100,17 +102,17 @@ export async function trainingDetail(id: string) {
   if (!training) return null;
 
   const ids = training.oefeningen.map((o) => o.oefeningId);
-  const historie = await historiePerOefening(ids, { lt: training.datum });
+  const historie = await historiePerOefening(gebruikerId, ids, { lt: training.datum });
 
   // Alternatieven om naar te wisselen: die van de oefening uit het schema (ook na een wissel).
   const origineleIds = training.oefeningen.map((o) => o.origineleOefeningId ?? o.oefeningId);
   const originelen = new Map(
-    (await prisma.oefening.findMany({ where: { id: { in: origineleIds } } })).map((o) => [o.id, o]),
+    (await prisma.oefening.findMany({ where: { gebruikerId, id: { in: origineleIds } } })).map((o) => [o.id, o]),
   );
   const alternatieven = new Map(
     (
       await prisma.oefening.findMany({
-        where: { sleutel: { in: [...originelen.values()].flatMap((o) => o.alternatieven) } },
+        where: { gebruikerId, sleutel: { in: [...originelen.values()].flatMap((o) => o.alternatieven) } },
         select: { id: true, sleutel: true, naam: true },
       })
     ).map((o) => [o.sleutel, o]),
@@ -121,7 +123,7 @@ export async function trainingDetail(id: string) {
   let vooruit: Map<string, Sessie[]> | null = null;
   let huidigDoel = new Map<string, Doel>();
   if (training.status === "afgerond") {
-    vooruit = await historiePerOefening(ids, { lte: training.datum });
+    vooruit = await historiePerOefening(gebruikerId, ids, { lte: training.datum });
     const regels = await prisma.schemaOefening.findMany({
       where: { schemaId: training.schemaId, oefeningId: { in: ids } },
     });

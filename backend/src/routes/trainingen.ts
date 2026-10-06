@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { actiefProgramma, faseInstellingen, faseVoor, trainingDetail, volgendeSchema } from "../trainingData.js";
 import { doelInFase } from "../fase.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
@@ -28,16 +28,18 @@ export async function trainingRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
 
   // Alles voor het beginscherm in één verzoek: in de sportschool telt elke round-trip.
-  app.get("/api/vandaag", async () => {
+  app.get("/api/vandaag", async (request) => {
+    const g = gid(request);
     const dag = vandaag();
     const [programma, bezig, recent, laatsteWeging, metingen] = await Promise.all([
-      actiefProgramma(),
+      actiefProgramma(g),
       prisma.training.findFirst({
-        where: { status: "bezig" },
+        where: { gebruikerId: g, status: "bezig" },
         orderBy: { datum: "desc" },
         include: { schema: { select: { code: true, naam: true } } },
       }),
       prisma.training.findMany({
+        where: { gebruikerId: g },
         orderBy: { datum: "desc" },
         take: 8,
         include: {
@@ -45,11 +47,11 @@ export async function trainingRoutes(app: FastifyInstance) {
           oefeningen: { select: { _count: { select: { sets: true } } } },
         },
       }),
-      prisma.lichaamsgewicht.findFirst({ orderBy: { datum: "desc" } }),
-      prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(dag, -6)) } } }),
+      prisma.lichaamsgewicht.findFirst({ where: { gebruikerId: g }, orderBy: { datum: "desc" } }),
+      prisma.lichaamsgewicht.findMany({ where: { gebruikerId: g, datum: { gte: naarDatum(verschuifDag(dag, -6)) } } }),
     ]);
 
-    const [volgende, herstel] = await Promise.all([programma ? volgendeSchema(programma) : null, herstelVandaag(dag)]);
+    const [volgende, herstel] = await Promise.all([programma ? volgendeSchema(programma) : null, herstelVandaag(g, dag)]);
     const fase = programma ? faseVoor(programma, dag) : null;
     const laatsteDag = recent[0] ? recent[0].datum.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" }) : null;
     // Rustdagen tussen de vorige training en vandaag; het programma adviseert er minstens zoveel.
@@ -102,6 +104,7 @@ export async function trainingRoutes(app: FastifyInstance) {
   app.get<{ Querystring: { limiet?: string } }>("/api/trainingen", async (request) => {
     const limiet = Math.min(Math.max(Number(request.query.limiet) || 30, 1), 200);
     const trainingen = await prisma.training.findMany({
+      where: { gebruikerId: gid(request) },
       orderBy: { datum: "desc" },
       take: limiet,
       include: {
@@ -127,12 +130,13 @@ export async function trainingRoutes(app: FastifyInstance) {
     const parsed = z.object({ schemaId: z.string().min(1) }).safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
 
+    const g = gid(request);
     // Eén training tegelijk: een tweede start is bijna altijd een dubbele tik.
-    const bezig = await prisma.training.findFirst({ where: { status: "bezig" }, select: { id: true } });
+    const bezig = await prisma.training.findFirst({ where: { gebruikerId: g, status: "bezig" }, select: { id: true } });
     if (bezig) return reply.code(409).send({ errorCode: "TRAINING_BEZIG", id: bezig.id });
 
-    const schema = await prisma.schema.findUnique({
-      where: { id: parsed.data.schemaId },
+    const schema = await prisma.schema.findFirst({
+      where: { id: parsed.data.schemaId, programma: { gebruikerId: g } },
       include: { programma: true, oefeningen: { orderBy: { volgorde: "asc" } } },
     });
     if (!schema) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
@@ -143,6 +147,7 @@ export async function trainingRoutes(app: FastifyInstance) {
     const instellingen = faseInstellingen(schema.programma);
     const training = await prisma.training.create({
       data: {
+        gebruikerId: g,
         schemaId: schema.id,
         fase: fase.fase,
         week: fase.week,
@@ -169,7 +174,7 @@ export async function trainingRoutes(app: FastifyInstance) {
   });
 
   app.get<{ Params: { id: string } }>("/api/trainingen/:id", async (request, reply) => {
-    const detail = await trainingDetail(request.params.id);
+    const detail = await trainingDetail(gid(request), request.params.id);
     if (!detail) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     return detail;
   });
@@ -178,7 +183,7 @@ export async function trainingRoutes(app: FastifyInstance) {
     const parsed = z.object({ notitie: z.string().max(4000) }).safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const { count } = await prisma.training.updateMany({
-      where: { id: request.params.id },
+      where: { id: request.params.id, gebruikerId: gid(request) },
       data: { notitie: parsed.data.notitie },
     });
     if (count === 0) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
@@ -187,7 +192,8 @@ export async function trainingRoutes(app: FastifyInstance) {
 
   // Idempotent: de offline-wachtrij kan dit twee keer sturen.
   app.post<{ Params: { id: string } }>("/api/trainingen/:id/afronden", async (request, reply) => {
-    const training = await prisma.training.findUnique({ where: { id: request.params.id } });
+    const g = gid(request);
+    const training = await prisma.training.findFirst({ where: { id: request.params.id, gebruikerId: g } });
     if (!training) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     if (training.status !== "afgerond") {
       await prisma.training.update({
@@ -195,17 +201,18 @@ export async function trainingRoutes(app: FastifyInstance) {
         data: { status: "afgerond", afgerondOp: new Date() },
       });
     }
-    return trainingDetail(training.id);
+    return trainingDetail(g, training.id);
   });
 
   app.post<{ Params: { id: string } }>("/api/trainingen/:id/heropenen", async (request, reply) => {
+    const g = gid(request);
     const bezig = await prisma.training.findFirst({
-      where: { status: "bezig", id: { not: request.params.id } },
+      where: { gebruikerId: g, status: "bezig", id: { not: request.params.id } },
       select: { id: true },
     });
     if (bezig) return reply.code(409).send({ errorCode: "TRAINING_BEZIG", id: bezig.id });
     const { count } = await prisma.training.updateMany({
-      where: { id: request.params.id },
+      where: { id: request.params.id, gebruikerId: g },
       data: { status: "bezig", afgerondOp: null },
     });
     if (count === 0) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
@@ -213,7 +220,7 @@ export async function trainingRoutes(app: FastifyInstance) {
   });
 
   app.delete<{ Params: { id: string } }>("/api/trainingen/:id", async (request, reply) => {
-    const { count } = await prisma.training.deleteMany({ where: { id: request.params.id } });
+    const { count } = await prisma.training.deleteMany({ where: { id: request.params.id, gebruikerId: gid(request) } });
     if (count === 0) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     return { ok: true };
   });
@@ -225,8 +232,9 @@ export async function trainingRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const parsed = z.object({ oefeningId: z.string().min(1).nullable() }).safeParse(request.body);
       if (!parsed.success) return ongeldig(reply, parsed.error);
+      const g = gid(request);
       const regel = await prisma.trainingOefening.findFirst({
-        where: { id: request.params.toId, trainingId: request.params.id },
+        where: { id: request.params.toId, trainingId: request.params.id, training: { gebruikerId: g } },
         include: { _count: { select: { sets: true } } },
       });
       if (!regel) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
@@ -239,11 +247,11 @@ export async function trainingRoutes(app: FastifyInstance) {
           where: { id: regel.id },
           data: { oefeningId: origineelId, origineleOefeningId: null },
         });
-        return trainingDetail(request.params.id);
+        return trainingDetail(g, request.params.id);
       }
       const [origineel, doel] = await Promise.all([
-        prisma.oefening.findUnique({ where: { id: origineelId } }),
-        prisma.oefening.findUnique({ where: { id: doelId } }),
+        prisma.oefening.findFirst({ where: { id: origineelId, gebruikerId: g } }),
+        prisma.oefening.findFirst({ where: { id: doelId, gebruikerId: g } }),
       ]);
       if (!origineel || !doel || !origineel.alternatieven.includes(doel.sleutel)) {
         return reply.code(400).send({ errorCode: "GEEN_ALTERNATIEF" });
@@ -256,7 +264,7 @@ export async function trainingRoutes(app: FastifyInstance) {
         where: { id: regel.id },
         data: { oefeningId: doel.id, origineleOefeningId: origineelId },
       });
-      return trainingDetail(request.params.id);
+      return trainingDetail(g, request.params.id);
     },
   );
 
@@ -269,7 +277,10 @@ export async function trainingRoutes(app: FastifyInstance) {
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const { id, toId, nummer } = params.data;
 
-    const regel = await prisma.trainingOefening.findFirst({ where: { id: toId, trainingId: id }, select: { id: true } });
+    const regel = await prisma.trainingOefening.findFirst({
+      where: { id: toId, trainingId: id, training: { gebruikerId: gid(request) } },
+      select: { id: true },
+    });
     if (!regel) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
 
     const set = await prisma.trainingSet.upsert({
@@ -285,7 +296,10 @@ export async function trainingRoutes(app: FastifyInstance) {
     const params = setParams.safeParse(request.params);
     if (!params.success) return ongeldig(reply, params.error);
     const { id, toId, nummer } = params.data;
-    const regel = await prisma.trainingOefening.findFirst({ where: { id: toId, trainingId: id }, select: { id: true } });
+    const regel = await prisma.trainingOefening.findFirst({
+      where: { id: toId, trainingId: id, training: { gebruikerId: gid(request) } },
+      select: { id: true },
+    });
     if (!regel) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     await prisma.trainingSet.deleteMany({ where: { trainingOefeningId: regel.id, nummer } });
     return { ok: true };

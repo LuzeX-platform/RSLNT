@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { isDag, naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { deloadOverwegen, herstelSignalen, type HerstelWaarden } from "../herstel.js";
 import { ongeldig } from "./auth.js";
@@ -17,9 +17,9 @@ const waarden = (c: HerstelWaarden): HerstelWaarden => ({
 });
 
 /** De check van vandaag met signalen, voor het beginscherm. */
-export async function herstelVandaag(dag = vandaag()) {
+export async function herstelVandaag(gebruikerId: string, dag = vandaag()) {
   const checks = await prisma.herstelcheck.findMany({
-    where: { datum: { lte: naarDatum(dag), gte: naarDatum(verschuifDag(dag, -60)) } },
+    where: { gebruikerId, datum: { lte: naarDatum(dag), gte: naarDatum(verschuifDag(dag, -60)) } },
     orderBy: { datum: "desc" },
     take: 30,
   });
@@ -40,18 +40,19 @@ export async function herstelRoutes(app: FastifyInstance) {
     if (!isDag(datum) || datum > verschuifDag(vandaag(), 1)) return reply.code(400).send({ errorCode: "ONGELDIGE_DATUM" });
     const parsed = checkSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
+    const g = gid(request);
     await prisma.herstelcheck.upsert({
-      where: { datum: naarDatum(datum) },
+      where: { gebruikerId_datum: { gebruikerId: g, datum: naarDatum(datum) } },
       update: parsed.data,
-      create: { datum: naarDatum(datum), ...parsed.data },
+      create: { gebruikerId: g, datum: naarDatum(datum), ...parsed.data },
     });
-    return herstelVandaag(datum);
+    return herstelVandaag(g, datum);
   });
 
   app.get<{ Querystring: { dagen?: string } }>("/api/herstel", async (request) => {
     const dagen = Math.min(Math.max(Number(request.query.dagen) || 28, 7), 365);
     const checks = await prisma.herstelcheck.findMany({
-      where: { datum: { gte: naarDatum(verschuifDag(vandaag(), -(dagen - 1))) } },
+      where: { gebruikerId: gid(request), datum: { gte: naarDatum(verschuifDag(vandaag(), -(dagen - 1))) } },
       orderBy: { datum: "desc" },
     });
     return { checks: checks.map((c) => ({ datum: uitDatum(c.datum), ...waarden(c) })) };

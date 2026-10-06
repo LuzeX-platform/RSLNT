@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
-import { requireIngelogd } from "../plugins/requireAuth.js";
+import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { isDag, naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
 import {
@@ -50,20 +50,20 @@ const metingSchema = z.object({
   dijCm: maat,
 });
 
-export async function profiel() {
-  const bestaand = await prisma.profiel.findUnique({ where: { id: "ik" } });
+export async function profiel(gebruikerId: string) {
+  const bestaand = await prisma.profiel.findUnique({ where: { gebruikerId } });
   if (bestaand) return bestaand;
   try {
-    return await prisma.profiel.create({ data: { id: "ik" } });
+    return await prisma.profiel.create({ data: { gebruikerId } });
   } catch {
     // Twee verzoeken tegelijk (de pagina haalt /api/lichaam en /api/profiel samen op): de ander was eerst.
-    return prisma.profiel.findUniqueOrThrow({ where: { id: "ik" } });
+    return prisma.profiel.findUniqueOrThrow({ where: { gebruikerId } });
   }
 }
 
 /** Doelgewicht en tempo: eerst wat je zelf instelde, anders het doel uit je actieve programma. */
 export async function effectiefDoel(p: Awaited<ReturnType<typeof profiel>>) {
-  const actief = await prisma.programma.findFirst({ where: { actief: true }, select: { bron: true } });
+  const actief = await prisma.programma.findFirst({ where: { gebruikerId: p.gebruikerId, actief: true }, select: { bron: true } });
   const uitProgramma = programmaDoel(actief?.bron ?? null);
   return {
     gewicht: p.doelgewicht ?? uitProgramma.gewicht,
@@ -87,10 +87,10 @@ function profielUit(p: Awaited<ReturnType<typeof profiel>>) {
 }
 
 /** Je huidige gewicht voor berekeningen: het 7-daags gemiddelde, anders je laatste weging. */
-export async function huidigGewicht(dag: string): Promise<number | null> {
+export async function huidigGewicht(gebruikerId: string, dag: string): Promise<number | null> {
   const [wegingen, laatste] = await Promise.all([
-    prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(dag, -13)) } }, orderBy: { datum: "asc" } }),
-    prisma.lichaamsgewicht.findFirst({ orderBy: { datum: "desc" } }),
+    prisma.lichaamsgewicht.findMany({ where: { gebruikerId, datum: { gte: naarDatum(verschuifDag(dag, -13)) } }, orderBy: { datum: "asc" } }),
+    prisma.lichaamsgewicht.findFirst({ where: { gebruikerId }, orderBy: { datum: "desc" } }),
   ]);
   const reeks = wegingen.map((w) => ({ datum: uitDatum(w.datum), gewicht: w.gewicht }));
   return zevenDaagsGemiddelde(reeks, dag) ?? laatste?.gewicht ?? null;
@@ -99,8 +99,8 @@ export async function huidigGewicht(dag: string): Promise<number | null> {
 export async function lichaamRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
 
-  app.get("/api/profiel", async () => {
-    const p = await profiel();
+  app.get("/api/profiel", async (request) => {
+    const p = await profiel(gid(request));
     return { profiel: profielUit(p), doel: await effectiefDoel(p), activiteiten: ACTIVITEIT };
   });
 
@@ -108,9 +108,10 @@ export async function lichaamRoutes(app: FastifyInstance) {
     const parsed = profielSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const { geboortedatum, streefdatum, ...rest } = parsed.data;
-    await profiel();
+    const g = gid(request);
+    await profiel(g);
     const p = await prisma.profiel.update({
-      where: { id: "ik" },
+      where: { gebruikerId: g },
       data: {
         ...rest,
         ...(geboortedatum !== undefined ? { geboortedatum: geboortedatum ? naarDatum(geboortedatum) : null } : {}),
@@ -125,29 +126,31 @@ export async function lichaamRoutes(app: FastifyInstance) {
     if (!isDag(datum) || datum > verschuifDag(vandaag(), 1)) return reply.code(400).send({ errorCode: "ONGELDIGE_DATUM" });
     const parsed = metingSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
+    const g = gid(request);
     await prisma.lichaamsmeting.upsert({
-      where: { datum: naarDatum(datum) },
+      where: { gebruikerId_datum: { gebruikerId: g, datum: naarDatum(datum) } },
       update: parsed.data,
-      create: { datum: naarDatum(datum), ...parsed.data },
+      create: { gebruikerId: g, datum: naarDatum(datum), ...parsed.data },
     });
     return { ok: true };
   });
 
   app.delete<{ Params: { datum: string } }>("/api/lichaamsmetingen/:datum", async (request, reply) => {
     if (!isDag(request.params.datum)) return reply.code(400).send({ errorCode: "ONGELDIGE_DATUM" });
-    await prisma.lichaamsmeting.deleteMany({ where: { datum: naarDatum(request.params.datum) } });
+    await prisma.lichaamsmeting.deleteMany({ where: { gebruikerId: gid(request), datum: naarDatum(request.params.datum) } });
     return { ok: true };
   });
 
   // Alles voor het gezondheidsmenu in één keer: invoer, afgeleide waarden en wat er nog ontbreekt.
-  app.get("/api/lichaam", async () => {
+  app.get("/api/lichaam", async (request) => {
+    const g = gid(request);
     const dag = vandaag();
-    const p = await profiel();
+    const p = await profiel(g);
     const doel = await effectiefDoel(p);
     const [wegingen, laatsteWeging, metingen] = await Promise.all([
-      prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(dag, -41)) } }, orderBy: { datum: "asc" } }),
-      prisma.lichaamsgewicht.findFirst({ orderBy: { datum: "desc" } }),
-      prisma.lichaamsmeting.findMany({ orderBy: { datum: "desc" }, take: 30 }),
+      prisma.lichaamsgewicht.findMany({ where: { gebruikerId: g, datum: { gte: naarDatum(verschuifDag(dag, -41)) } }, orderBy: { datum: "asc" } }),
+      prisma.lichaamsgewicht.findFirst({ where: { gebruikerId: g }, orderBy: { datum: "desc" } }),
+      prisma.lichaamsmeting.findMany({ where: { gebruikerId: g }, orderBy: { datum: "desc" }, take: 30 }),
     ]);
     const reeks = wegingen.map((w) => ({ datum: uitDatum(w.datum), gewicht: w.gewicht }));
     const gemiddelde7 = zevenDaagsGemiddelde(reeks, dag);

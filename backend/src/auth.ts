@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 
@@ -14,6 +15,8 @@ function jwtSecret(): string {
 export interface SessionPayload {
   gebruikerId: string;
   email: string;
+  /** Moet gelijk zijn aan Gebruiker.sessieVersie; na een nieuw wachtwoord vervallen oudere sessies. */
+  versie: number;
 }
 
 export async function hashWachtwoord(wachtwoord: string): Promise<string> {
@@ -33,6 +36,19 @@ export function maakSessieToken(payload: SessionPayload): string {
 }
 
 export function verifieerSessieToken(token: string): SessionPayload {
-  const { gebruikerId, email } = jwt.verify(token, jwtSecret()) as SessionPayload;
-  return { gebruikerId, email };
+  const { gebruikerId, email, versie } = jwt.verify(token, jwtSecret()) as Partial<SessionPayload>;
+  if (!gebruikerId || !email) throw new Error("Ongeldige sessie");
+  // Sessies van vóór de sessieversie hebben er geen: die horen bij versie 0.
+  return { gebruikerId, email, versie: versie ?? 0 };
+}
+
+// Eenmalige tokens voor de bevestigings- en resetmail, zoals CMMNTY: alleen de sha256-hash staat
+// in de database, het ruwe token alleen in de mail.
+export function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+export function maakEenmaligToken(): { ruweToken: string; tokenHash: string } {
+  const ruweToken = crypto.randomBytes(32).toString("hex");
+  return { ruweToken, tokenHash: hashToken(ruweToken) };
 }

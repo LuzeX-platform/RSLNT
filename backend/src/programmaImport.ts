@@ -168,8 +168,9 @@ export function valideerProgramma(invoer: unknown): Validatie {
 export async function importeerProgramma(
   prisma: PrismaClient,
   bestand: ProgrammaBestand,
-  opties: { activeren: boolean },
+  opties: { activeren: boolean; gebruikerId: string },
 ): Promise<{ id: string; nieuw: boolean }> {
+  const { gebruikerId } = opties;
   return prisma.$transaction(async (tx) => {
     // 1. Oefeningen op sleutel. Per kant: als het programma dat ergens zegt, of bij unilaterale oefeningen.
     const perKant = new Set(bestand.workouts.flatMap((w) => w.exercises.filter((r) => r.per_side).map((r) => r.exercise_id)));
@@ -191,11 +192,15 @@ export async function importeerProgramma(
           ? { bibliotheekId: o.library_id ?? CATALOGUS_PER_SLEUTEL.get(o.id)!.bibliotheekId }
           : {}),
       };
-      const naamBezet = await tx.oefening.findFirst({ where: { naam: o.name, NOT: { sleutel: o.id } } });
+      const naamBezet = await tx.oefening.findFirst({ where: { gebruikerId, naam: o.name, NOT: { sleutel: o.id } } });
       if (naamBezet) {
         throw new ImportFout(`De naam "${o.name}" is al in gebruik door een andere oefening (${naamBezet.sleutel}).`);
       }
-      const rij = await tx.oefening.upsert({ where: { sleutel: o.id }, update: data, create: { sleutel: o.id, ...data } });
+      const rij = await tx.oefening.upsert({
+        where: { gebruikerId_sleutel: { gebruikerId, sleutel: o.id } },
+        update: data,
+        create: { gebruikerId, sleutel: o.id, ...data },
+      });
       oefeningIds.set(o.id, rij.id);
     }
 
@@ -216,10 +221,10 @@ export async function importeerProgramma(
       deloadSetFactor: deload?.sets_multiplier ?? 0.5,
       bron: bestand as unknown as Prisma.InputJsonValue,
     };
-    const bestaand = await tx.programma.findUnique({ where: { sleutel: p.id } });
+    const bestaand = await tx.programma.findUnique({ where: { gebruikerId_sleutel: { gebruikerId, sleutel: p.id } } });
     const programma = bestaand
       ? await tx.programma.update({ where: { id: bestaand.id }, data: velden })
-      : await tx.programma.create({ data: { sleutel: p.id, startdatum: naarDatum(vandaag()), ...velden } });
+      : await tx.programma.create({ data: { gebruikerId, sleutel: p.id, startdatum: naarDatum(vandaag()), ...velden } });
 
     // 3. De trainingen (A, B, C …). Bestaande schema's worden bijgewerkt in plaats van vervangen:
     //    eerdere trainingen verwijzen ernaar.
@@ -269,7 +274,8 @@ export async function importeerProgramma(
  */
 export async function activeer(tx: Prisma.TransactionClient, programmaId: string) {
   const programma = await tx.programma.findUniqueOrThrow({ where: { id: programmaId } });
-  await tx.programma.updateMany({ where: { NOT: { id: programmaId } }, data: { actief: false } });
+  // Alleen de andere programma's van hetzelfde account.
+  await tx.programma.updateMany({ where: { gebruikerId: programma.gebruikerId, NOT: { id: programmaId } }, data: { actief: false } });
   if (!programma.actief) {
     await tx.programma.update({
       where: { id: programmaId },
