@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Beginnen — LuzeX RSLNT</title>
+  <meta name="description" content="Je eerste stappen in RSLNT." />
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Stap 1 van 2</p>
+      <h1 id="kop">Welkom</h1>
+      <p class="subtitle">Een paar dingen over jou, zodat RSLNT je gewicht, energie en tempo goed kan berekenen. Alles is later aan te passen onder Lichaam.</p>
+    </div>
+
+    <form id="start-form" novalidate>
+      <section class="panel">
+        <p class="vraag">Geslacht (voor de formules van rustverbruik en vetpercentage)</p>
+        <div class="keuzes keuzes-tekst keuzes-3" id="keuze-geslacht" role="radiogroup" aria-label="Geslacht">
+          <button type="button" class="keuze" role="radio" data-waarde="man" aria-checked="false">Man</button>
+          <button type="button" class="keuze" role="radio" data-waarde="vrouw" aria-checked="false">Vrouw</button>
+          <button type="button" class="keuze" role="radio" data-waarde="" aria-checked="false">Zeg ik liever niet</button>
+        </div>
+        <div class="veld-rij ruimte-boven">
+          <div>
+            <label for="geboortedatum">Geboortedatum</label>
+            <input id="geboortedatum" type="date" />
+          </div>
+          <div>
+            <label for="lengte">Lengte (cm)</label>
+            <input id="lengte" inputmode="decimal" autocomplete="off" placeholder="bijv. 180" />
+          </div>
+          <div>
+            <label for="gewicht">Gewicht vandaag (kg)</label>
+            <input id="gewicht" inputmode="decimal" autocomplete="off" placeholder="bijv. 75,4" />
+          </div>
+        </div>
+        <p class="veld-hint">Alles is optioneel. Zonder deze gegevens werken de trainingen gewoon; alleen de berekeningen onder Lichaam blijven dan leeg.</p>
+      </section>
+
+      <button type="submit" class="knop-groot" id="verder">Verder naar je schema</button>
+      <p class="error" id="fout" role="alert"></p>
+    </form>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/start.js"></script>
+</body>
+</html>

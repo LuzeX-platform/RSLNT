@@ -2247,3 +2247,106 @@ main.laden .grafiek {
   font-weight: 600;
   color: var(--text-secondary);
 }
+
+/* ---------- Portaal en accountpagina's ---------- */
+
+body.portaal {
+  padding-bottom: calc(48px + env(safe-area-inset-bottom));
+}
+
+/* Een link die eruitziet als een knop (portaal, account). */
+.knop-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.knop-link:hover {
+  background: var(--accent-hover);
+}
+
+.knop-link.knop-groot {
+  border-radius: var(--radius-pill);
+}
+
+.knop-link.secondary {
+  background: var(--glas-dun-bg);
+  backdrop-filter: var(--glas-dun-blur);
+  -webkit-backdrop-filter: var(--glas-dun-blur);
+  border: 1px solid var(--glas-rand);
+  color: var(--text);
+}
+
+.knop-link.secondary:hover {
+  background: var(--border-strong);
+}
+
+.portaal-held {
+  padding: 24px 0 8px;
+}
+
+.portaal-held h1 {
+  font-size: clamp(32px, 9vw, 44px);
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  margin: 6px 0 14px;
+}
+
+.portaal-held .knop-rij {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 22px 0 28px;
+}
+
+@media (max-width: 420px) {
+  .portaal-held .knop-rij {
+    grid-template-columns: 1fr;
+  }
+}
+
+.portaal-kaarten {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+@media (max-width: 640px) {
+  .portaal-kaarten {
+    grid-template-columns: 1fr;
+  }
+}
+
+.portaal-kaarten h2 {
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+
+.portaal-kaarten p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.vinkje.toestemming span {
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--text-secondary);
+}
+
+.vinkje.toestemming input {
+  flex: 0 0 auto;
+  margin-top: 3px;
+}
+
+.gevaar-zone {
+  border: 1px solid var(--danger);
+}

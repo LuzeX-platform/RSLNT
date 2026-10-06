@@ -5,7 +5,8 @@ sportschool, met een voorstel voor de volgende keer (dubbele progressie, met kni
 vangrail), een gezondheidsmenu, een voortgangsdashboard, een herstelcheck, een
 oefeningenbibliotheek, een schema op maat en een Wetenschap-pagina die per regel en formule
 laat zien waar die vandaan komt.
-Eén gebruiker, achter een login, gemaakt voor de iPhone (op het beginscherm als app).
+Iedereen maakt zelf een gratis account (met bevestigingsmail); ieders gegevens zijn alleen voor
+die persoon. Gemaakt voor de iPhone (op het beginscherm als app).
 
 Dezelfde stack en huisstijl als ACCRD en CMMNTY, maar **volledig los** daarvan: eigen database,
 eigen deployment, eigen geheimen.
@@ -16,6 +17,7 @@ eigen deployment, eigen geheimen.
 | Database    | PostgreSQL 16 via Prisma 5 |
 | Frontend    | Losse HTML/CSS/JS, geserveerd door dezelfde server (geen build-stap) |
 | Inloggen    | E-mail + wachtwoord (Argon2id), sessie in een httpOnly-cookie (90 dagen) |
+| Mail        | SMTP via nodemailer, Mailgun (EU) of SendGrid, zoals CMMNTY |
 | Hosting     | Render (Blueprint in `render.yaml`), regio Frankfurt |
 
 ## Fases
@@ -26,12 +28,26 @@ eigen deployment, eigen geheimen.
 | 1b | Programma's als JSON, A/B/C-rotatie, introfase, deload, stagnatieregel, doel-RIR, rusttimer, wisselen, Wetenschap-pagina | **gebouwd** |
 | 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel, tempo en doeldatum), dashboard (gewicht vs. doeltempo, e1RM, sets per spiergroep, volle trainingen), herstelcheck | **gebouwd** |
 | 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | **gebouwd** |
-| 4 | Garmin: HRV, rusthartslag, slaap, Body Battery (7 vs. 60 dagen) | — |
+| 4 | Accounts: portaal, registreren met bevestigingsmail, wachtwoord vergeten, alle data per persoon, privacyverklaring, gegevens downloaden en account verwijderen | **gebouwd** |
+| — | Garmin | geschrapt |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
 
 Een fase begint pas als de vorige in de sportschool werkt.
 
 ## Wat zit erin
+
+- **Portaal** (`/welkom.html`) — wat RSLNT is, met "Account maken" en "Inloggen". Wie niet is
+  ingelogd en de app opent, komt hier.
+- **Accounts** — registreren met naam, e-mail, wachtwoord en uitdrukkelijke toestemming voor
+  gezondheidsgegevens; bevestigen via een mail (daarna meteen ingelogd en naar de start);
+  inloggen met vergrendeling na vijf missers; wachtwoord vergeten via een resetmail (andere
+  sessies vervallen). Niet bevestigde accounts verdwijnen na 7 dagen.
+- **Start** (nieuw account) — geslacht, geboortedatum, lengte en gewicht, daarna het schema op
+  maat; "Dit schema gebruiken" zet het actief en je staat op Vandaag.
+- **Account** — naam en wachtwoord wijzigen, al je gegevens downloaden (JSON), uitloggen (wist
+  ook de offline-kopieën op de telefoon) en je account met alles verwijderen.
+- **Privacy** (`/privacy.html`) — wat we bewaren, waarom, waar en je rechten. Contact:
+  info@luzex.nl.
 
 - **Vandaag** — welke training aan de beurt is (A → B → C → A …, los van de weekdag), de duur,
   de fase van je programma (introfase, deload, week), een rustdag-advies, gewicht invoeren met
@@ -156,8 +172,9 @@ GitHub Actions draait beide bij elke push (`.github/workflows/test.yml`).
 
 1. Render → **New + → Blueprint** → kies deze repository → **Apply**.
 2. Vul bij het aanmaken in: `SEED_EMAIL`, `SEED_WACHTWOORD` (minimaal 10 tekens) en `SEED_NAAM`.
-   Het account wordt bij de eerste start aangemaakt; het wachtwoord wijzig je daarna in de app
-   onder *Account*.
+   Dat is het eigenaarsaccount (admin), met Benen / Push / Pull; het wachtwoord wijzig je daarna
+   in de app onder *Account*. Verder `APP_URL` (bijv. `https://rslnt.luzex.nl`) en de
+   `SMTP_*`-waarden hieronder.
 3. Eigen domein: in Render *Settings → Custom Domains* `rslnt.luzex.nl` toevoegen en bij Vimexx
    een CNAME `rslnt` → `luzex-rslnt.onrender.com.` aanmaken.
 4. Op de iPhone: open het adres in Safari → deelknop → **Zet op beginscherm**, en log daar één
@@ -165,7 +182,24 @@ GitHub Actions draait beide bij elke push (`.github/workflows/test.yml`).
 
 Render bouwt bij elke push naar `main` automatisch opnieuw.
 
+### Mail (Mailgun of SendGrid), zoals CMMNTY
+
+Zonder `SMTP_HOST` worden mails alleen in de log gezet en kan niemand zijn account bevestigen.
+
+| | Mailgun (EU) | SendGrid |
+|---|---|---|
+| `SMTP_HOST` | `smtp.eu.mailgun.org` | `smtp.sendgrid.net` |
+| `SMTP_PORT` | `587` | `587` |
+| `SMTP_USER` | `postmaster@mg.luzex.nl` | `apikey` |
+| `SMTP_WACHTWOORD` | SMTP-wachtwoord uit Mailgun | de API-key |
+| `SMTP_AFZENDER` | `LuzeX RSLNT <rslnt@mg.luzex.nl>` | idem, geverifieerd adres |
+
+Gebruikt CMMNTY al Mailgun, dan kun je hetzelfde domein en dezelfde gegevens gebruiken (met een
+eigen afzender). Zet SPF/DKIM goed voor het afzenddomein, anders belandt de bevestigingsmail in
+spam. Mailgun EU houdt de data in de EU.
+
 ### Kosten (Render, indicatief)
 
-Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. In fase 4 komt er een
-cron voor de Garmin-sync bij (± $1).
+Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. Mailgun of SendGrid: gratis
+tot een paar duizend mails per maand. Met veel gebruikers wordt de database van 1 GB te klein;
+vergroten kan in Render.

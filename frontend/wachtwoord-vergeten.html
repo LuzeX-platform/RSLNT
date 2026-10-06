@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Inloggen — LuzeX RSLNT</title>
-  <meta name="description" content="Log in bij LuzeX RSLNT." />
+  <title>Wachtwoord vergeten — LuzeX RSLNT</title>
+  <meta name="description" content="Stel een nieuw wachtwoord in voor LuzeX RSLNT." />
   <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -15,25 +15,21 @@
   <link rel="manifest" href="/assets/site.webmanifest" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body data-pagina="inloggen">
+<body data-pagina="wachtwoord-vergeten">
   <header id="balk"></header>
 
   <main class="auth-kolom">
     <div class="panel auth-kaart">
-      <h1>Inloggen</h1>
-      <p class="subtitle">Trainen, herstellen, groeien.</p>
+      <h1>Wachtwoord vergeten</h1>
+      <p class="subtitle">Vul je e-mailadres in. Je krijgt een link om een nieuw wachtwoord in te stellen.</p>
       <form id="formulier" novalidate>
         <label for="email">E-mailadres</label>
-        <input id="email" name="email" type="email" autocomplete="username" required />
-        <label for="wachtwoord">Wachtwoord</label>
-        <input id="wachtwoord" name="wachtwoord" type="password" autocomplete="current-password" required />
-        <button type="submit">Inloggen</button>
+        <input id="email" name="email" type="email" autocomplete="email" required />
+        <button type="submit">Link versturen</button>
         <p class="error" id="fout" role="alert"></p>
         <p class="success" id="succes" role="status"></p>
-        <button type="button" class="text-link" id="opnieuw-sturen" hidden>Stuur de bevestigingsmail opnieuw</button>
       </form>
-      <p class="auth-voet"><a href="/wachtwoord-vergeten.html">Wachtwoord vergeten?</a></p>
-      <p class="auth-voet">Nog geen account? <a href="/registreren.html">Account maken</a></p>
+      <p class="auth-voet"><a href="/inloggen.html">Terug naar inloggen</a></p>
     </div>
   </main>
 

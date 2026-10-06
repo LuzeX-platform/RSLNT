@@ -3,7 +3,7 @@
 # Gebruik: render.com → "New +" → "Blueprint" → kies deze repository → "Apply".
 #
 # Regio Frankfurt (enige EU-regio van Render), net als ACCRD en CMMNTY: gezondheidsgegevens
-# (gewicht, kniepijn, later HRV) blijven in de EU.
+# (gewicht, kniepijn, herstel) van iedereen met een account blijven in de EU.
 # Geen gratis plan: dat valt in slaap bij inactiviteit, en dan duurt het openen in de
 # sportschool eerst een halve minuut. De gratis database verloopt bovendien na 30 dagen.
 
@@ -28,11 +28,27 @@ services:
       - key: PORT
         value: 4200
       # Render vraagt deze bij het aanmaken; zo komt je wachtwoord nooit in git.
+      # Het SEED-account is de eigenaar (admin); anderen maken zelf een account aan.
       - key: SEED_EMAIL
         sync: false
       - key: SEED_WACHTWOORD
         sync: false
       - key: SEED_NAAM
+        sync: false
+      # Publieke adres van de app: voor de links in de bevestigings- en resetmail.
+      - key: APP_URL
+        sync: false
+      # Mailgun (EU) of SendGrid via SMTP, zoals CMMNTY — zie README.md. Zonder SMTP_HOST worden
+      # mails alleen gelogd en kan niemand zijn account bevestigen.
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_WACHTWOORD
+        sync: false
+      - key: SMTP_AFZENDER
         sync: false
 
 databases:

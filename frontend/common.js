@@ -74,6 +74,9 @@ const FOUTTEKSTEN = {
   AL_SETS_GELOGD: "Je hebt al sets gelogd voor deze oefening. Wis die eerst om te wisselen.",
   AL_IN_TRAINING: "Die oefening zit al in deze training.",
   ONGELDIG_PROGRAMMA: "Het programmabestand klopt niet.",
+  EMAIL_NIET_BEVESTIGD: "Je e-mailadres is nog niet bevestigd. Klik op de link in de mail die we je stuurden.",
+  TOKEN_ONGELDIG: "Deze link is ongeldig, verlopen of al gebruikt.",
+  ADMIN_NIET_VERWIJDERBAAR: "Het eigenaarsaccount kan niet verwijderd worden.",
 };
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */
@@ -101,8 +104,15 @@ function haalSessie() {
   return sessieBelofte;
 }
 
+const OPENBARE_PAGINAS = ["/welkom.html", "/inloggen.html", "/registreren.html", "/bevestigen.html", "/wachtwoord-vergeten.html", "/wachtwoord-resetten.html", "/privacy.html"];
+
+/** Niet ingelogd: het beginscherm gaat naar het portaal, een andere pagina naar inloggen met de weg terug. */
 function naarInloggen() {
-  if (location.pathname === "/inloggen.html") return;
+  if (OPENBARE_PAGINAS.includes(location.pathname)) return;
+  if (location.pathname === "/" || location.pathname === "/index.html") {
+    window.location.href = "/welkom.html";
+    return;
+  }
   window.location.href = `/inloggen.html?terug=${encodeURIComponent(location.pathname + location.search)}`;
 }
 
@@ -117,9 +127,29 @@ async function vereisSessie() {
   return gebruiker;
 }
 
+/**
+ * Uitloggen ruimt ook op wat op deze telefoon staat: de offline-kopieën van je pagina's en gegevens
+ * en de wachtrij. Zo ziet iemand anders die hier inlogt niets van jou.
+ */
 async function uitloggen() {
-  await fetch("/api/auth/uitloggen", { method: "POST" });
-  window.location.href = "/inloggen.html";
+  const wachtend = leesWachtrij().length;
+  if (wachtend && !confirm(`Er ${wachtend === 1 ? "staat nog 1 set" : `staan nog ${wachtend} sets`} klaar om te versturen. Uitloggen gooit ${wachtend === 1 ? "die" : "ze"} weg. Toch uitloggen?`)) {
+    return;
+  }
+  await fetch("/api/auth/uitloggen", { method: "POST" }).catch(() => {});
+  try {
+    localStorage.removeItem(WACHTRIJ_SLEUTEL);
+  } catch {
+    // geen opslag beschikbaar: niets op te ruimen
+  }
+  if ("caches" in window) {
+    try {
+      for (const naam of await caches.keys()) await caches.delete(naam);
+    } catch {
+      // cache niet bereikbaar: de service worker ververst bij de volgende keer online
+    }
+  }
+  window.location.href = "/welkom.html";
 }
 
 // ---------- Offline-wachtrij ----------
@@ -233,7 +263,13 @@ function tekenBalk() {
       </a>
       <div class="balk-acties">
         <span class="wachtrij-indicator" id="wachtrij-indicator" role="status" hidden></span>
-        ${ingelogd ? '<a class="text-link" href="/account.html">Account</a>' : ""}
+        ${
+          ingelogd
+            ? '<a class="text-link" href="/account.html">Account</a>'
+            : location.pathname === "/inloggen.html"
+              ? '<a class="text-link" href="/registreren.html">Account maken</a>'
+              : '<a class="text-link" href="/inloggen.html">Inloggen</a>'
+        }
       </div>
     </div>`;
 }

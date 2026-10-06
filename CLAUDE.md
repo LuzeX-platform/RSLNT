@@ -7,7 +7,8 @@ Zie README.md voor wat de app doet en hoe je hem draait. Hier de afspraken voor 
 ```
 backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeNext)
   src/app.ts          bouwApp(): plugins, CSP, CSRF-Origin-check, routes, statische frontend
-  src/routes/         auth, schemas (+ oefeningen), programmas (import/activeren/deload),
+  src/routes/         auth (registreren, bevestigen, inloggen, wachtwoord), account (export, verwijderen),
+                      schemas (+ oefeningen), programmas (import/activeren/deload),
                       trainingen (+ sets, wisselen, /api/vandaag), lichaamsgewicht,
                       lichaam (profiel, metingen, /api/lichaam), herstel, voortgang,
                       bibliotheek (zoeken, detail, favoriet, toevoegen), personalisatie (voorkeuren, voorstel)
@@ -27,6 +28,8 @@ backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeN
   src/generator.ts    pure logica: voorkeuren → programmabestand (split, oefeningkeuze, sets, tijd, klachten)
 data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licentie van de bron
   src/datum.ts        kalenderdagen in Europe/Amsterdam (de server draait in UTC)
+  src/mailer.ts       SMTP via nodemailer (zoals CMMNTY); zonder SMTP_HOST gelogd en in testPostvak
+  src/plugins/requireAuth.ts  sessiecookie + controle in de database (bestaat, bevestigd, sessieVersie); gid()
   src/trainingData.ts database rond een training: geschiedenis ophalen, voorstel laten berekenen
 programmas/         meegeleverde programma's (JSON); de seed laadt benen-push-pull.json in
   test/               node:test via tsx; api.test.ts draait alleen met TEST_DATABASE_URL
@@ -40,6 +43,8 @@ frontend/           losse HTML + één script per pagina, geen build-stap
   personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import
   sw.js               service worker: netwerk eerst, cache als terugval
   wetenschap.html     openbare pagina: per regel het onderzoek, de zekerheid en de bron
+  welkom.html         openbaar portaal; auth.js voor inloggen/registreren/bevestigen/wachtwoord-pagina's
+  privacy.html        privacyverklaring (openbaar); start.html/js: eerste stap voor een nieuw account
 ```
 
 ## Afspraken
@@ -47,7 +52,18 @@ frontend/           losse HTML + één script per pagina, geen build-stap
 - **Nederlands** in UI, code-identifiers en commentaar, zoals in ACCRD en CMMNTY.
 - **Geen inline scripts of event handlers** in HTML: de CSP staat alleen `script-src 'self'` toe.
 - **Huisstijl**: tokens niet herdefiniëren. Wijzig je er één, doe het dan ook in ACCRD en CMMNTY.
-- **Eén gebruiker**: trainingsdata hangt niet aan een Gebruiker. Het account is er alleen voor de login.
+- **Alles per account.** Elke rij trainings- of gezondheidsdata heeft een `gebruikerId` (direct, of
+  via programma/training). **Elke query filtert erop**: `gid(request)` achter `requireIngelogd`,
+  en zoek nooit op alleen een id (`findFirst({ where: { id, gebruikerId } })`, niet `findUnique`).
+  Sleutels en namen van oefeningen zijn uniek per account. De isolatietest in api.test.ts
+  ("twee accounts") hoort elke nieuwe route te dekken.
+- **Accounts zoals CMMNTY**: registreren met bevestigingsmail, eenmalige tokens alleen als
+  sha256-hash, vergrendeling na vijf missers, antwoorden verraden niet of een adres bestaat.
+  `sessieVersie` gaat omhoog bij een nieuw wachtwoord: oudere sessies vervallen. Het
+  eigenaarsaccount (seed, rol admin) kan niet zichzelf verwijderen.
+- **AVG**: toestemming voor gezondheidsgegevens bij registratie (met `PRIVACY_VERSIE`); nieuwe
+  soorten gegevens → privacyverklaring (frontend/privacy.html) en de export in routes/account.ts
+  bijwerken, en de PRIVACY_VERSIE ophogen.
 - **Pure logica los van de database** (progressie.ts, gewicht.ts), zodat die testbaar blijft.
 - **Voorstellen worden niet opgeslagen** maar bij elke weergave berekend uit de geschiedenis vóór
   die training. Een training bewaart wel een momentopname van het schema (sets/range), zodat een
@@ -83,5 +99,5 @@ frontend/           losse HTML + één script per pagina, geen build-stap
 
 ## Later
 
-Fase 4 (Garmin via de Python-bibliotheek `garminconnect`,
-als aparte Render-cron die in dezelfde database schrijft), fase 5 (AI-coach via de Anthropic SDK).
+Garmin is geschrapt. Fase 5 (AI-coach via de Anthropic SDK) staat nog open; die komt dan ook in de
+privacyverklaring (welke gegevens naar Anthropic gaan).

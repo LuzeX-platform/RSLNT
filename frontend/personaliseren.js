@@ -2,6 +2,8 @@
 // zie backend/src/generator.ts) en dat bekijken, downloaden of inladen als programma "Op maat".
 
 const MINUTEN = [30, 45, 60, 75, 90, 120];
+/** Via de start voor nieuwe accounts (start.html): na het activeren meteen naar Vandaag. */
+const START = queryParam("start") === "1";
 const DAGEN = [2, 3, 4, 5, 6];
 const MAX_FOCUS = 3;
 
@@ -225,13 +227,17 @@ async function maakVoorstel(e) {
 
 async function laadIn(activeren) {
   if (!voorstel) return;
-  if (activeren && !confirm("Dit schema activeren? Je volgende training komt dan uit dit schema.")) return;
+  if (activeren && !START && !confirm("Dit schema activeren? Je volgende training komt dan uit dit schema.")) return;
   const fout = document.getElementById("inladen-fout");
   const succes = document.getElementById("inladen-succes");
   fout.textContent = "";
   succes.textContent = "";
   try {
     const res = await api("/api/programmas/import", { methode: "POST", body: { bestand: voorstel.bestand, activeren } });
+    if (activeren && START) {
+      window.location.href = "/";
+      return;
+    }
     succes.innerHTML = activeren
       ? 'Ingeladen en actief. <a href="/">Naar Vandaag →</a>'
       : 'Ingeladen. Je vindt het onder <a href="/schema.html">Schema</a>, waar je het ook activeert.';
@@ -255,6 +261,12 @@ function download() {
 }
 
 async function laad() {
+  if (START) {
+    document.querySelector(".app-kop .kicker").textContent = "Stap 2 van 2";
+    document.querySelector(".app-kop h1").textContent = "Je schema";
+    document.getElementById("activeren").textContent = "Dit schema gebruiken";
+    document.getElementById("inladen").hidden = true;
+  }
   try {
     const data = await api("/api/voorkeuren");
     keuzes = data.keuzes;

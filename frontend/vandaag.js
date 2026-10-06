@@ -66,9 +66,11 @@ function tekenTraining() {
     return;
   }
   if (!volgendeSchema) {
-    kop.textContent = "Nog geen programma";
-    ondertitel.innerHTML = 'Laad een programma in onder <a href="/schema.html">Schema</a>.';
-    startKnop.hidden = true;
+    kop.textContent = "Welkom bij RSLNT";
+    ondertitel.textContent = "Je hebt nog geen schema. In een paar minuten maak je er een die past bij je doel, je tijd en je lichaam.";
+    startKnop.hidden = false;
+    startKnop.textContent = "Beginnen";
+    startKnop.onclick = () => (window.location.href = "/start.html");
     return;
   }
 

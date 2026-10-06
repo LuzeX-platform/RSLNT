@@ -25,6 +25,17 @@
     </div>
 
     <section class="panel">
+      <h2>Je naam</h2>
+      <form id="naam-form" novalidate>
+        <label for="naam">Voornaam</label>
+        <input id="naam" type="text" autocomplete="given-name" />
+        <button type="submit" class="ruimte-boven">Opslaan</button>
+        <p class="error" id="naam-fout" role="alert"></p>
+        <p class="success" id="naam-succes" role="status"></p>
+      </form>
+    </section>
+
+    <section class="panel">
       <h2>Wachtwoord wijzigen</h2>
       <form id="wachtwoord-form" novalidate>
         <label for="huidig">Huidig wachtwoord</label>
@@ -37,7 +48,27 @@
       </form>
     </section>
 
+    <section class="panel">
+      <h2>Je gegevens</h2>
+      <p class="subtitle">Alles wat RSLNT van je bewaart in één bestand: je account, trainingen, sets, gewicht, metingen, herstelchecks, programma's en voorkeuren.</p>
+      <div class="knop-rij">
+        <a class="knop-link secondary" href="/api/account/export" download>Download al mijn gegevens</a>
+      </div>
+      <p class="lijst-meta ruimte-boven">Wat we bewaren en waarom: <a href="/privacy.html">privacyverklaring</a>.</p>
+    </section>
+
     <button type="button" class="knop-groot secondary" id="uitloggen">Uitloggen</button>
+
+    <section class="panel gevaar-zone ruimte-boven" id="verwijder-paneel" hidden>
+      <h2>Account verwijderen</h2>
+      <p class="subtitle">Dit verwijdert je account en al je gegevens, direct en voorgoed: trainingen, gewicht, metingen, herstelchecks en programma's. Download ze eerst als je ze wilt bewaren.</p>
+      <form id="verwijder-form" novalidate>
+        <label for="verwijder-wachtwoord">Je wachtwoord, ter bevestiging</label>
+        <input id="verwijder-wachtwoord" type="password" autocomplete="current-password" />
+        <button type="submit" class="gevaar ruimte-boven">Account en gegevens verwijderen</button>
+        <p class="error" id="verwijder-fout" role="alert"></p>
+      </form>
+    </section>
   </main>
 
   <script src="/common.js"></script>

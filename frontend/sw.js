@@ -21,8 +21,9 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
-  // Inloggen en sessie nooit uit een cache: dat moet altijd de echte stand zijn.
-  if (url.pathname.startsWith("/api/auth/")) return;
+  // Inloggen, sessie en je account nooit uit een cache: dat moet altijd de echte stand zijn, en
+  // een export van al je gegevens hoort niet op de telefoon te blijven staan.
+  if (url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/account")) return;
 
   event.respondWith(
     (async () => {
