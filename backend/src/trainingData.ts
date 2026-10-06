@@ -156,6 +156,7 @@ export async function trainingDetail(id: string) {
         gewichtsstap: to.oefening.gewichtsstap,
         perKant: to.oefening.perKant,
         knieGevoelig: to.oefening.knieGevoelig,
+        bibliotheekId: to.oefening.bibliotheekId,
         aantalSets: to.aantalSets,
         minSets: to.minSets,
         repsMin: to.repsMin,

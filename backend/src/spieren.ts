@@ -20,6 +20,16 @@ export const SPIER_LABELS: Record<string, string> = {
   abs: "Buikspieren",
 };
 
+/**
+ * Plus spieren die alleen in de oefeningenbibliotheek voorkomen. Die staan niet standaard in het
+ * dashboard (daar zou "Nek: 0 sets" alleen ruis zijn).
+ */
+export const ALLE_SPIER_LABELS: Record<string, string> = {
+  ...SPIER_LABELS,
+  abductors: "Buitenkant heup",
+  neck: "Nek",
+};
+
 export function spierLabels(bron: unknown): Record<string, string> {
   const eigen = (bron as { muscle_labels_nl?: Record<string, string> } | null)?.muscle_labels_nl;
   return { ...SPIER_LABELS, ...(eigen && typeof eigen === "object" ? eigen : {}) };

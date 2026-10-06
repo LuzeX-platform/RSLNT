@@ -26,7 +26,7 @@ model Oefening {
   /// Vaste sleutel, gelijk aan exercise_id in een programma-JSON (bijv. trap_bar_deadlift).
   sleutel          String   @unique
   naam             String   @unique
-  /// dumbbell | barbell | trap_bar | kabel | machine | lichaamsgewicht
+  /// dumbbell | barbell | trap_bar | kabel | machine | lichaamsgewicht | kettlebell | band | overig
   materiaal        String
   /// Kleinste gewichtsstap in kg (bij dumbbells: per dumbbell). 0 = zonder gewicht.
   gewichtsstap     Float
@@ -41,6 +41,8 @@ model Oefening {
   knieGevoelig     Boolean  @default(false)
   /// Sleutels van oefeningen waarmee je deze mag wisselen.
   alternatieven    String[] @default([])
+  /// Id in de oefeningenbibliotheek (data/bibliotheek.json, Free Exercise DB): uitleg en foto's.
+  bibliotheekId    String?
   aangemaaktOp     DateTime @default(now())
 
   schemaRegels   SchemaOefening[]
@@ -201,7 +203,30 @@ model Profiel {
   /// Gewenst tempo in kg per week; leeg: uit het actieve programma.
   tempoMin      Float?
   tempoMax      Float?
+  /// Wanneer je je doelgewicht wilt halen; het personalisatiemenu toetst of dat haalbaar is.
+  streefdatum   DateTime? @db.Date
   bijgewerktOp  DateTime  @default(now()) @updatedAt
+}
+
+/// Wat je in het personalisatiemenu invult. Eén rij ("ik"), net als Profiel.
+model Voorkeuren {
+  id                 String   @id @default("ik")
+  /// spiermassa | kracht | vetverlies | fit
+  doel               String   @default("spiermassa")
+  /// beginner | gevorderd | ervaren
+  ervaring           String   @default("gevorderd")
+  dagenPerWeek       Int      @default(3)
+  minutenPerTraining Int      @default(60)
+  /// Zie MATERIAAL_KEUZES in generator.ts. Lichaamsgewicht kan altijd.
+  materiaal          String[] @default(["dumbbell", "barbell", "trap_bar", "kabel", "machine", "stang"])
+  /// knie | schouder | rug
+  blessures          String[] @default([])
+  /// Bibliotheek-id's.
+  favorieten         String[] @default([])
+  uitgesloten        String[] @default([])
+  /// Spiersleutels die extra aandacht krijgen.
+  focus              String[] @default([])
+  bijgewerktOp       DateTime @default(now()) @updatedAt
 }
 
 /// Omtrekmaten en (gemeten) vetpercentage, per dag. Gewicht staat in Lichaamsgewicht.

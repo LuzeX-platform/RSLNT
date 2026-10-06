@@ -14,7 +14,7 @@ import {
   weekStart,
   type SetSpieren,
 } from "../voortgang.js";
-import { programmaDoel, spierLabels } from "../spieren.js";
+import { ALLE_SPIER_LABELS, programmaDoel, spierLabels } from "../spieren.js";
 
 export async function voortgangRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
@@ -42,7 +42,7 @@ export async function voortgangRoutes(app: FastifyInstance) {
       }),
     ]);
     const labels = spierLabels(programma?.bron ?? null);
-    const label = (spier: string) => labels[spier] ?? spier;
+    const label = (spier: string) => labels[spier] ?? ALLE_SPIER_LABELS[spier] ?? spier;
 
     // ---------- Gewicht met doelband ----------
     const metingen = wegingen.map((w) => ({ datum: uitDatum(w.datum), gewicht: w.gewicht }));

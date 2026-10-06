@@ -36,6 +36,7 @@ const profielSchema = z.object({
   doelgewicht: z.number().min(30).max(300).nullable().optional(),
   tempoMin: z.number().min(-2).max(2).nullable().optional(),
   tempoMax: z.number().min(-2).max(2).nullable().optional(),
+  streefdatum: z.string().refine(isDag, "Ongeldige datum").nullable().optional(),
 });
 
 const maat = z.number().min(10).max(250).nullable().optional();
@@ -49,7 +50,7 @@ const metingSchema = z.object({
   dijCm: maat,
 });
 
-async function profiel() {
+export async function profiel() {
   const bestaand = await prisma.profiel.findUnique({ where: { id: "ik" } });
   if (bestaand) return bestaand;
   try {
@@ -61,7 +62,7 @@ async function profiel() {
 }
 
 /** Doelgewicht en tempo: eerst wat je zelf instelde, anders het doel uit je actieve programma. */
-async function effectiefDoel(p: Awaited<ReturnType<typeof profiel>>) {
+export async function effectiefDoel(p: Awaited<ReturnType<typeof profiel>>) {
   const actief = await prisma.programma.findFirst({ where: { actief: true }, select: { bron: true } });
   const uitProgramma = programmaDoel(actief?.bron ?? null);
   return {
@@ -81,7 +82,18 @@ function profielUit(p: Awaited<ReturnType<typeof profiel>>) {
     doelgewicht: p.doelgewicht,
     tempoMin: p.tempoMin,
     tempoMax: p.tempoMax,
+    streefdatum: p.streefdatum ? uitDatum(p.streefdatum) : null,
   };
+}
+
+/** Je huidige gewicht voor berekeningen: het 7-daags gemiddelde, anders je laatste weging. */
+export async function huidigGewicht(dag: string): Promise<number | null> {
+  const [wegingen, laatste] = await Promise.all([
+    prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(dag, -13)) } }, orderBy: { datum: "asc" } }),
+    prisma.lichaamsgewicht.findFirst({ orderBy: { datum: "desc" } }),
+  ]);
+  const reeks = wegingen.map((w) => ({ datum: uitDatum(w.datum), gewicht: w.gewicht }));
+  return zevenDaagsGemiddelde(reeks, dag) ?? laatste?.gewicht ?? null;
 }
 
 export async function lichaamRoutes(app: FastifyInstance) {
@@ -95,11 +107,15 @@ export async function lichaamRoutes(app: FastifyInstance) {
   app.put("/api/profiel", async (request, reply) => {
     const parsed = profielSchema.safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
-    const { geboortedatum, ...rest } = parsed.data;
+    const { geboortedatum, streefdatum, ...rest } = parsed.data;
     await profiel();
     const p = await prisma.profiel.update({
       where: { id: "ik" },
-      data: { ...rest, ...(geboortedatum !== undefined ? { geboortedatum: geboortedatum ? naarDatum(geboortedatum) : null } : {}) },
+      data: {
+        ...rest,
+        ...(geboortedatum !== undefined ? { geboortedatum: geboortedatum ? naarDatum(geboortedatum) : null } : {}),
+        ...(streefdatum !== undefined ? { streefdatum: streefdatum ? naarDatum(streefdatum) : null } : {}),
+      },
     });
     return { profiel: profielUit(p) };
   });

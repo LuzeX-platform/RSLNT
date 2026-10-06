@@ -9,6 +9,7 @@
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { naarDatum, vandaag } from "./datum.js";
+import { CATALOGUS_PER_SLEUTEL } from "./catalogus.js";
 
 const sleutel = z.string().regex(/^[a-z0-9_]+$/, "Alleen kleine letters, cijfers en _");
 
@@ -19,11 +20,16 @@ const MATERIAAL: Record<string, string> = {
   cable: "kabel",
   machine: "machine",
   bodyweight: "lichaamsgewicht",
+  kettlebell: "kettlebell",
+  band: "band",
+  other: "overig",
 };
 
 const oefeningSchema = z.object({
   id: sleutel,
   name: z.string().trim().min(1).max(80),
+  /** Id in de oefeningenbibliotheek (Free Exercise DB), voor uitleg en foto's. */
+  library_id: z.string().max(120).optional(),
   muscles_primary: z.array(z.string()).default([]),
   muscles_secondary: z.array(z.string()).default([]),
   equipment: z.enum(Object.keys(MATERIAAL) as [string, ...string[]]),
@@ -180,6 +186,10 @@ export async function importeerProgramma(
         unilateraal: o.unilateral,
         knieGevoelig: o.knee_sensitive,
         alternatieven: o.alternatives,
+        // Zonder library_id: de koppeling uit de catalogus, als die er is. Nooit wissen.
+        ...((o.library_id ?? CATALOGUS_PER_SLEUTEL.get(o.id)?.bibliotheekId)
+          ? { bibliotheekId: o.library_id ?? CATALOGUS_PER_SLEUTEL.get(o.id)!.bibliotheekId }
+          : {}),
       };
       const naamBezet = await tx.oefening.findFirst({ where: { naam: o.name, NOT: { sleutel: o.id } } });
       if (naamBezet) {

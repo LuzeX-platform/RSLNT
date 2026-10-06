@@ -5,7 +5,7 @@ import { requireIngelogd } from "../plugins/requireAuth.js";
 import { actiefProgramma } from "../trainingData.js";
 import { ongeldig } from "./auth.js";
 
-const MATERIALEN = ["dumbbell", "barbell", "trap_bar", "kabel", "machine", "lichaamsgewicht"] as const;
+const MATERIALEN = ["dumbbell", "barbell", "trap_bar", "kabel", "machine", "lichaamsgewicht", "kettlebell", "band", "overig"] as const;
 
 const oefeningVelden = {
   naam: z.string().trim().min(1, "Naam is verplicht").max(80),
@@ -36,7 +36,7 @@ const schemaPutSchema = z.object({
 });
 
 /** "Leg press (smal)" → leg_press_smal; bij een botsing komt er een volgnummer achter. */
-async function nieuweSleutel(naam: string): Promise<string> {
+export async function nieuweSleutel(naam: string): Promise<string> {
   const basis = naam.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "oefening";
   let sleutel = basis;
   for (let i = 2; await prisma.oefening.findUnique({ where: { sleutel } }); i++) sleutel = `${basis}_${i}`;

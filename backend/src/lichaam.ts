@@ -189,3 +189,35 @@ export function tijdlijn(
 export function aanbevolenTempo(kg: number): { min: number; max: number } {
   return { min: rond(kg * 0.0025, 2), max: rond(kg * 0.005, 2) };
 }
+
+/** Afvallen: 0,5–1% van je lichaamsgewicht per week behoudt het meeste spier (Helms 2014). */
+export function aanbevolenAfvaltempo(kg: number): { min: number; max: number } {
+  return { min: rond(kg * 0.005, 2), max: rond(kg * 0.01, 2) };
+}
+
+export type Haalbaarheid = {
+  oordeel: "haalbaar" | "te_snel" | "ruim" | "verlopen" | "bereikt";
+  weken: number;
+  /** Nodig tempo in kg per week (negatief = afvallen). */
+  nodigPerWeek: number;
+  aanbevolen: { min: number; max: number };
+  /** Wanneer het wel lukt binnen het aanbevolen tempo. */
+  vroegst: string | null;
+  uiterlijk: string | null;
+};
+
+/** Is je doelgewicht op je streefdatum te halen binnen een verstandig tempo? */
+export function haalbaarheid(huidig: number, doel: number, streefdatum: string, dag: string): Haalbaarheid {
+  const verschil = rond(doel - huidig);
+  const aankomen = verschil >= 0;
+  const aanbevolen = aankomen ? aanbevolenTempo(huidig) : aanbevolenAfvaltempo(huidig);
+  const weken = Math.round(((naarDatum(streefdatum).getTime() - naarDatum(dag).getTime()) / (7 * 86400000)) * 10) / 10;
+  const kg = Math.abs(verschil);
+  const vroegst = kg > 0 ? verschuifDag(dag, Math.ceil(kg / aanbevolen.max) * 7) : null;
+  const uiterlijk = kg > 0 ? verschuifDag(dag, Math.ceil(kg / aanbevolen.min) * 7) : null;
+  if (kg === 0) return { oordeel: "bereikt", weken, nodigPerWeek: 0, aanbevolen, vroegst, uiterlijk };
+  if (weken <= 0) return { oordeel: "verlopen", weken, nodigPerWeek: verschil, aanbevolen, vroegst, uiterlijk };
+  const nodig = rond(verschil / weken, 2);
+  const oordeel = Math.abs(nodig) > aanbevolen.max ? "te_snel" : Math.abs(nodig) < aanbevolen.min ? "ruim" : "haalbaar";
+  return { oordeel, weken, nodigPerWeek: nodig, aanbevolen, vroegst, uiterlijk };
+}

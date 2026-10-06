@@ -13,6 +13,8 @@ import { programmaRoutes } from "./routes/programmas.js";
 import { lichaamRoutes } from "./routes/lichaam.js";
 import { herstelRoutes } from "./routes/herstel.js";
 import { voortgangRoutes } from "./routes/voortgang.js";
+import { bibliotheekRoutes } from "./routes/bibliotheek.js";
+import { personalisatieRoutes } from "./routes/personalisatie.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Werkt vanuit zowel src/ (tsx) als dist/ (productie): beide liggen twee niveaus onder de repo.
@@ -35,7 +37,8 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
         defaultSrc: ["'self'"],
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
-        imgSrc: ["'self'", "data:"],
+        // Foto's uit de oefeningenbibliotheek (Free Exercise DB, vastgepinde versie op GitHub).
+        imgSrc: ["'self'", "data:", "https://raw.githubusercontent.com"],
         fontSrc: ["'self'"],
         connectSrc: ["'self'"],
         workerSrc: ["'self'"],
@@ -92,6 +95,8 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(lichaamRoutes);
   await app.register(herstelRoutes);
   await app.register(voortgangRoutes);
+  await app.register(bibliotheekRoutes);
+  await app.register(personalisatieRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });
 

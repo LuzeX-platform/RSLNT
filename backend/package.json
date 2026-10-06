@@ -11,7 +11,8 @@
     "test": "tsx --test test/*.test.ts",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
-    "seed": "tsx src/seed.ts"
+    "seed": "tsx src/seed.ts",
+    "bibliotheek": "tsx src/bibliotheekBouwen.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",

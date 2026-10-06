@@ -33,7 +33,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   before(async () => {
     ({ prisma } = await import("../src/db.js"));
     await prisma.$executeRawUnsafe(
-      'TRUNCATE "Gebruiker", "Programma", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht", "Profiel", "Lichaamsmeting", "Herstelcheck" CASCADE',
+      'TRUNCATE "Gebruiker", "Programma", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht", "Profiel", "Lichaamsmeting", "Herstelcheck", "Voorkeuren" CASCADE',
     );
     const { hashWachtwoord } = await import("../src/auth.js");
     await prisma.gebruiker.create({
@@ -335,5 +335,109 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
 
     const benen = v.perTraining.trainingen.find((t: any) => t.code === "A");
     assert.deepEqual(benen.teVol[0], { spier: "quads", sets: 13, label: "Voorkant bovenbeen" });
+  });
+
+  test("bibliotheek: zoeken in het Nederlands, gekoppeld aan je programma, foto's van de vastgepinde bron", async () => {
+    const lijst = (await vraag("GET", "/api/bibliotheek?zoek=bankdrukken")).json();
+    assert.ok(lijst.totaal > 5);
+    assert.equal(lijst.oefeningen[0].basislijst, true);
+    assert.match(lijst.oefeningen[0].afbeelding, /^https:\/\/raw\.githubusercontent\.com\/yuhonas\/free-exercise-db\/[0-9a-f]{40}\//);
+    assert.equal((await vraag("GET", "/api/bibliotheek?spier=quads&knie=vriendelijk")).json().oefeningen.some((o: any) => o.knieGevoelig), false);
+
+    // De import heeft leg_press aan de bibliotheek gekoppeld (via de basislijst).
+    const leg = (await vraag("GET", "/api/bibliotheek/Leg_Press")).json();
+    assert.equal(leg.inDatabase.sleutel, "leg_press");
+    assert.deepEqual(leg.inProgramma.map((s: any) => s.code), ["A"]);
+    assert.equal(leg.oefening.knieGevoelig, true);
+    assert.equal(leg.oefening.knieGeschat, false);
+    assert.ok(leg.oefening.uitleg.length > 0 && leg.oefening.afbeeldingen.length === 2);
+    assert.ok(leg.vergelijkbaar.every((o: any) => o.patroon === "knie_dominant"));
+    assert.equal((await vraag("GET", "/api/bibliotheek/Bestaat_Niet")).statusCode, 404);
+
+    // In een training zie je waar de uitleg staat.
+    const { oefeningen } = (await vraag("GET", "/api/schemas")).json().schemas[0];
+    assert.equal(oefeningen.find((r: any) => r.oefening.sleutel === "leg_press").oefening.bibliotheekId, "Leg_Press");
+  });
+
+  test("bibliotheek: favoriet, niet voor mij en toevoegen aan een training", async () => {
+    assert.equal((await vraag("PUT", "/api/bibliotheek/Hack_Squat/status", { status: "favoriet" })).json().status, "favoriet");
+    assert.equal((await vraag("PUT", "/api/bibliotheek/Leg_Press/status", { status: "uitgesloten" })).json().status, "uitgesloten");
+    // Wisselen van favoriet naar uitgesloten haalt hem uit de andere lijst.
+    await vraag("PUT", "/api/bibliotheek/Barbell_Squat/status", { status: "favoriet" });
+    await vraag("PUT", "/api/bibliotheek/Barbell_Squat/status", { status: "uitgesloten" });
+    let v = (await vraag("GET", "/api/voorkeuren")).json();
+    assert.deepEqual(v.voorkeuren.favorieten, ["Hack_Squat"]);
+    assert.deepEqual(v.voorkeuren.uitgesloten, ["Leg_Press", "Barbell_Squat"]);
+    assert.equal((await vraag("GET", "/api/bibliotheek?lijst=favorieten")).json().totaal, 1);
+    await vraag("PUT", "/api/bibliotheek/Barbell_Squat/status", { status: "geen" });
+    v = (await vraag("GET", "/api/voorkeuren")).json();
+    assert.deepEqual(v.voorkeuren.uitgesloten, ["Leg_Press"]);
+
+    // Een oefening van buiten de basislijst toevoegen: krijgt een sleutel en de koppeling.
+    const { schemas } = (await vraag("GET", "/api/schemas")).json();
+    const b = schemas.find((s: any) => s.code === "B");
+    const toe = await vraag("POST", "/api/bibliotheek/Barbell_Full_Squat/toevoegen", { schemaId: b.id });
+    assert.equal(toe.statusCode, 200);
+    assert.equal(toe.json().oefening.sleutel, "barbell_full_squat");
+    assert.equal(toe.json().oefening.bibliotheekId, "Barbell_Full_Squat");
+    assert.equal(toe.json().oefening.knieGevoelig, true);
+    const nogEens = await vraag("POST", "/api/bibliotheek/Barbell_Full_Squat/toevoegen", { schemaId: b.id });
+    assert.equal(nogEens.statusCode, 409);
+    const na = (await vraag("GET", "/api/schemas")).json().schemas.find((s: any) => s.code === "B");
+    assert.equal(na.oefeningen.at(-1).oefening.sleutel, "barbell_full_squat");
+    assert.equal(na.oefeningen.at(-1).aantalSets, 3);
+    // Uit de basislijst: de bestaande oefening wordt hergebruikt, geen tweede "Face pull".
+    const c = schemas.find((s: any) => s.code === "C");
+    const dubbel = await vraag("POST", "/api/bibliotheek/Face_Pull/toevoegen", { schemaId: c.id });
+    assert.equal(dubbel.statusCode, 409, "face pull staat al in Pull");
+    const face = await vraag("POST", "/api/bibliotheek/Face_Pull/toevoegen", { schemaId: b.id });
+    assert.equal(face.statusCode, 200);
+    assert.equal(face.json().oefening.sleutel, "face_pull");
+    assert.equal(await prisma.oefening.count({ where: { naam: { equals: "Face pull", mode: "insensitive" } } }), 1);
+  });
+
+  test("personaliseren: voorkeuren, haalbaarheid en een voorstel dat je geschiedenis behoudt", async () => {
+    assert.equal((await vraag("PUT", "/api/voorkeuren", { doel: "spiermassa", ervaring: "gevorderd", dagenPerWeek: 9, minutenPerTraining: 60, materiaal: [], blessures: [], focus: [] })).statusCode, 400);
+    assert.equal((await vraag("PUT", "/api/voorkeuren", { doel: "spiermassa", ervaring: "gevorderd", dagenPerWeek: 3, minutenPerTraining: 60, materiaal: ["zwembad"], blessures: [], focus: [] })).statusCode, 400);
+    const { vandaag, verschuifDag } = await import("../src/datum.js");
+    const opslaan = await vraag("PUT", "/api/voorkeuren", {
+      doel: "spiermassa",
+      ervaring: "gevorderd",
+      dagenPerWeek: 3,
+      minutenPerTraining: 75,
+      materiaal: ["dumbbell", "barbell", "trap_bar", "kabel", "machine", "stang"],
+      blessures: ["knie"],
+      focus: ["side_delts"],
+      doelgewicht: 90,
+      streefdatum: verschuifDag(vandaag(), 70),
+    });
+    assert.equal(opslaan.statusCode, 200);
+    assert.equal(opslaan.json().lichaam.haalbaarheid.oordeel, "te_snel"); // 10 weken voor ~9 kg
+    assert.equal((await vraag("GET", "/api/profiel")).json().profiel.streefdatum, verschuifDag(vandaag(), 70));
+
+    const voorstel = (await vraag("POST", "/api/voorstel")).json();
+    assert.equal(voorstel.controle.ok, true);
+    assert.deepEqual(voorstel.controle.waarschuwingen, []);
+    assert.equal(voorstel.sessies.length, 3);
+    assert.equal(voorstel.bestand.program.id, "op_maat");
+    assert.equal(voorstel.bestaatAl, null);
+    const alle = voorstel.sessies.flatMap((s: any) => s.regels);
+    assert.ok(alle.some((r: any) => r.sleutel === "hack_squat"), "favoriet");
+    assert.ok(!alle.some((r: any) => r.sleutel === "leg_press"), "uitgesloten");
+    for (const s of voorstel.sessies) assert.ok(s.regels.filter((r: any) => r.knieGevoelig).length <= 1);
+    // Trap bar deadlift heeft geschiedenis: die gaat voor bij gelijke keuze.
+    assert.ok(alle.some((r: any) => r.sleutel === "trap_bar_deadlift"));
+
+    const voor = await prisma.oefening.findUniqueOrThrow({ where: { sleutel: "trap_bar_deadlift" } });
+    const imp = await vraag("POST", "/api/programmas/import", { bestand: voorstel.bestand, activeren: true });
+    assert.equal(imp.statusCode, 200, JSON.stringify(imp.json()));
+    const scherm = (await vraag("GET", "/api/vandaag")).json();
+    assert.match(scherm.programma.naam, /^Op maat/);
+    assert.equal(scherm.volgendeSchema.code, "A");
+    // Zelfde oefening, zelfde id: de opbouw loopt door.
+    const na = await prisma.oefening.findUniqueOrThrow({ where: { sleutel: "trap_bar_deadlift" } });
+    assert.equal(na.id, voor.id);
+    assert.equal(na.gewichtsstap, voor.gewichtsstap);
+    assert.equal((await vraag("POST", "/api/voorstel")).json().bestaatAl.actief, true);
   });
 });
