@@ -9,6 +9,7 @@ import { authRoutes } from "./routes/auth.js";
 import { schemaRoutes } from "./routes/schemas.js";
 import { trainingRoutes } from "./routes/trainingen.js";
 import { lichaamsgewichtRoutes } from "./routes/lichaamsgewicht.js";
+import { programmaRoutes } from "./routes/programmas.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Werkt vanuit zowel src/ (tsx) als dist/ (productie): beide liggen twee niveaus onder de repo.
@@ -84,6 +85,7 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(schemaRoutes);
   await app.register(trainingRoutes);
   await app.register(lichaamsgewichtRoutes);
+  await app.register(programmaRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });
 

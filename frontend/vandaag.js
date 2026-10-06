@@ -21,31 +21,62 @@ async function start(schemaId) {
   }
 }
 
+function faseHtml(programma) {
+  const { fase } = programma;
+  const delen = [];
+  if (fase.fase === "intro") {
+    delen.push(
+      `<p><strong>Introfase · week ${fase.week} van ${programma.introWeken}.</strong> ${programma.introSets ?? ""} sets per oefening, RIR ${programma.introRir ?? "–"}: wennen voor pezen en knieën.</p>`,
+    );
+  } else if (fase.fase === "deload") {
+    delen.push(
+      `<p><strong>Deloadweek${fase.handmatig ? " (op jouw verzoek)" : ` · week ${fase.week}`}.</strong> Halve sets, zelfde gewicht.</p>`,
+    );
+  } else {
+    const tot = programma.deloadElkeWeken ? programma.deloadElkeWeken - (fase.week % programma.deloadElkeWeken) : null;
+    delen.push(`<p>Week ${fase.week} van ${escapeHtml(programma.naam)}${tot ? ` · deload over ${tot} ${tot === 1 ? "week" : "weken"}` : ""}.</p>`);
+  }
+  if (programma.rustAdvies) {
+    delen.push(`<p class="lijst-meta">Je programma adviseert minstens ${programma.minRustdagen} rustdag tussen trainingen.</p>`);
+  }
+  // Handmatige deload aan of uit; een automatische deloadweek kun je niet wegtikken.
+  if (fase.fase !== "deload") {
+    delen.push('<button type="button" class="text-link" data-deload="aan">Ik heb een deload nodig</button>');
+  } else if (fase.handmatig) {
+    delen.push('<button type="button" class="text-link" data-deload="uit">Deload stoppen</button>');
+  }
+  return delen.join("");
+}
+
 function tekenTraining() {
-  const { bezig, volgendeSchema, schemas, recent } = gegevens;
+  const { programma, bezig, volgendeSchema, schemas, recent } = gegevens;
   const kop = document.getElementById("kop");
   const ondertitel = document.getElementById("ondertitel");
+  const faseInfo = document.getElementById("fase-info");
   andereSchemas.innerHTML = "";
   startKnop.hidden = false;
+  faseInfo.hidden = !programma;
+  if (programma) faseInfo.innerHTML = faseHtml(programma);
 
   if (bezig) {
     kop.textContent = `${bezig.schemaNaam} loopt nog`;
-    ondertitel.textContent = `Gestart ${datumKort(bezig.datum)}.`;
+    ondertitel.textContent = `Training ${bezig.schemaCode}, gestart ${datumKort(bezig.datum)}.`;
     startKnop.textContent = "Verder met trainen";
     startKnop.onclick = () => (window.location.href = `/training.html?id=${bezig.id}`);
     return;
   }
   if (!volgendeSchema) {
-    kop.textContent = "Nog geen schema";
+    kop.textContent = "Nog geen programma";
+    ondertitel.innerHTML = 'Laad een programma in onder <a href="/schema.html">Schema</a>.';
     startKnop.hidden = true;
     return;
   }
 
   kop.textContent = `${volgendeSchema.naam} is aan de beurt`;
   const laatste = recent[0];
-  ondertitel.textContent = laatste
-    ? `Vorige: ${laatste.schemaNaam}, ${datumKort(laatste.datum)}.`
-    : "Je eerste training. Kies startgewichten waarmee je de range netjes haalt.";
+  const duur = volgendeSchema.minuten ? `± ${volgendeSchema.minuten} min` : "";
+  const vorige = laatste ? `Vorige: ${laatste.schemaNaam}, ${datumKort(laatste.datum)}.` : "Je eerste training: kies startgewichten waarmee je de range netjes haalt.";
+  ondertitel.textContent = [`Training ${volgendeSchema.code}`, duur, vorige].filter(Boolean).join(" · ");
   startKnop.textContent = `Start ${volgendeSchema.naam}`;
   startKnop.onclick = () => start(volgendeSchema.id);
 
@@ -53,11 +84,25 @@ function tekenTraining() {
     const knop = document.createElement("button");
     knop.type = "button";
     knop.className = "text-link set-extra";
-    knop.textContent = `Liever ${schema.naam}`;
+    knop.textContent = `Liever ${schema.code} · ${schema.naam}`;
     knop.addEventListener("click", () => start(schema.id));
     andereSchemas.append(knop);
   }
 }
+
+document.getElementById("fase-info").addEventListener("click", async (e) => {
+  const knop = e.target.closest("[data-deload]");
+  if (!knop) return;
+  const aan = knop.dataset.deload === "aan";
+  if (aan && !confirm("Een week deload: halve sets, zelfde gewicht. Handig als je herstel een paar trainingen slecht is. Starten?")) return;
+  try {
+    await api(`/api/programmas/${gegevens.programma.id}/deload`, { methode: "POST", body: { aan } });
+    gegevens = await api("/api/vandaag");
+    tekenTraining();
+  } catch (fout) {
+    startFout.textContent = foutTekst(fout);
+  }
+});
 
 function tekenGewicht() {
   const { gewicht } = gegevens;
@@ -81,7 +126,7 @@ function tekenRecent() {
       (t) => `
       <li>
         <a class="lijst-rij" href="/training.html?id=${encodeURIComponent(t.id)}">
-          <span><strong>${escapeHtml(t.schemaNaam)}</strong><br /><span class="lijst-meta">${datumKort(t.datum)} · ${t.aantalSets} sets</span></span>
+          <span><strong>${escapeHtml(t.schemaCode)} · ${escapeHtml(t.schemaNaam)}</strong><br /><span class="lijst-meta">${datumKort(t.datum)} · ${t.aantalSets} sets${t.fase === "deload" ? " · deload" : t.fase === "intro" ? " · intro" : ""}</span></span>
           ${t.status === "bezig" ? '<span class="badge badge-bezig">Bezig</span>' : '<span class="badge badge-succes">Klaar</span>'}
         </a>
       </li>`,

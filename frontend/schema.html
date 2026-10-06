@@ -19,8 +19,8 @@
 
   <main class="app-kolom">
     <div class="app-kop">
-      <p class="kicker">Schema</p>
-      <h1>Schema A en B</h1>
+      <p class="kicker" id="programma-naam">Schema</p>
+      <h1>Schema</h1>
       <p class="subtitle">Wijzigingen gelden vanaf je volgende training. Eerdere trainingen houden hun eigen schema.</p>
     </div>
 
@@ -34,7 +34,21 @@
       <button type="button" class="knop-groot ruimte-boven" id="opslaan">Schema opslaan</button>
       <p class="error" id="fout" role="alert"></p>
       <p class="success" id="succes" role="status"></p>
-      <p class="veld-hint">Min. sets: zoveel sets moeten op de bovenkant van de range zitten voordat het gewicht omhoog gaat. Superset: oefeningen met dezelfde letter of hetzelfde cijfer horen bij elkaar.</p>
+      <p class="veld-hint">Min. sets: zoveel sets moeten op de bovenkant van de range zitten voordat het gewicht omhoog gaat. RIR: zoveel reps moet je minstens over hebben. Superset: oefeningen met dezelfde letter of hetzelfde cijfer horen bij elkaar.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Programma's</h2>
+      <p class="subtitle">Laad een programma in als JSON-bestand (zie <a href="/wetenschap.html#programma-bestand">het formaat</a>). Een programma met dezelfde id wordt bijgewerkt.</p>
+      <ul class="lijst" id="programmas"></ul>
+      <label for="programma-bestand">Programma-bestand (.json)</label>
+      <input type="file" id="programma-bestand" accept="application/json,.json" />
+      <label class="vinkje"><input type="checkbox" id="programma-activeren" checked /> Meteen actief maken (begint opnieuw bij week 1, met introfase)</label>
+      <div class="knop-rij ruimte-boven">
+        <button type="button" id="programma-importeren" disabled>Inladen</button>
+      </div>
+      <p class="error" id="programma-fout" role="alert"></p>
+      <p class="success" id="programma-succes" role="status"></p>
     </section>
 
     <section class="panel">
@@ -51,17 +65,19 @@
           <label for="oefening-materiaal">Materiaal</label>
           <select id="oefening-materiaal">
             <option value="dumbbell">Dumbbell</option>
-            <option value="barbell">Stang / trap bar</option>
+            <option value="barbell">Stang</option>
+            <option value="trap_bar">Trap bar</option>
             <option value="kabel">Kabel</option>
             <option value="machine">Machine</option>
             <option value="lichaamsgewicht">Lichaamsgewicht</option>
           </select>
         </div>
         <div>
-          <label for="oefening-stap">Gewichtsstap (kg)</label>
+          <label for="oefening-stap">Gewichtsstap (kg, 0 = zonder)</label>
           <input id="oefening-stap" inputmode="decimal" autocomplete="off" />
         </div>
         <label class="vinkje breed"><input type="checkbox" id="oefening-perkant" /> Reps per kant / per been</label>
+        <label class="vinkje breed"><input type="checkbox" id="oefening-knie" /> Knie-gevoelig (de kniepijnregel geldt)</label>
         <div class="knop-rij breed ruimte-boven">
           <button type="submit" id="oefening-opslaan">Oefening toevoegen</button>
           <button type="button" class="text-link" id="oefening-annuleren" hidden>Annuleren</button>

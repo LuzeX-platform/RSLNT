@@ -1,10 +1,18 @@
 import "dotenv/config";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { prisma } from "./db.js";
 import { hashWachtwoord } from "./auth.js";
-import { STANDAARD_OEFENINGEN, STANDAARD_SCHEMAS } from "./standaardSchema.js";
+import { importeerProgramma, valideerProgramma } from "./programmaImport.js";
 
-// Maakt jouw account en het startschema aan. Idempotent — draait bij elke opstart (zie
-// Dockerfile), zelfde patroon als ACCRD en CMMNTY. Bestaande schema's blijven altijd staan.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Werkt vanuit src/ (tsx) en dist/ (productie): beide liggen één niveau onder backend/.
+const STANDAARD_PROGRAMMA = path.join(__dirname, "..", "programmas", "benen-push-pull.json");
+
+// Maakt jouw account aan en laadt het meegeleverde programma in. Idempotent — draait bij elke
+// opstart (zie Dockerfile), zelfde patroon als ACCRD en CMMNTY. Een programma dat al bestaat
+// (zelfde program.id) wordt niet opnieuw ingeladen of geactiveerd: wat je in de app aanpast blijft.
 async function main() {
   const email = (process.env.SEED_EMAIL ?? "ik@luzex.local").toLowerCase();
   const wachtwoord = process.env.SEED_WACHTWOORD ?? "wijzig-dit-meteen";
@@ -20,45 +28,15 @@ async function main() {
     }
   }
 
-  if ((await prisma.schema.count()) > 0) {
-    console.log("Schema's bestaan al; niets aangepast.");
+  const validatie = valideerProgramma(JSON.parse(await readFile(STANDAARD_PROGRAMMA, "utf8")));
+  if (!validatie.ok) throw new Error(`Meegeleverd programma klopt niet: ${validatie.fouten.join("; ")}`);
+  const sleutel = validatie.bestand.program.id;
+  if (await prisma.programma.findUnique({ where: { sleutel } })) {
+    console.log(`Programma ${sleutel} bestaat al; niets aangepast.`);
     return;
   }
-
-  // In één transactie: een halve seed (A wel, B niet) zou bij de volgende start als "bestaat al" gelden.
-  await prisma.$transaction(async (tx) => {
-    const ids = new Map<string, string>();
-    for (const o of STANDAARD_OEFENINGEN) {
-      const oefening = await tx.oefening.upsert({
-        where: { naam: o.naam },
-        update: {},
-        create: { naam: o.naam, materiaal: o.materiaal, gewichtsstap: o.gewichtsstap, perKant: o.perKant ?? false },
-      });
-      ids.set(o.naam, oefening.id);
-    }
-
-    for (const [volgorde, schema] of STANDAARD_SCHEMAS.entries()) {
-      await tx.schema.create({
-        data: {
-          id: schema.id,
-          naam: schema.naam,
-          volgorde,
-          oefeningen: {
-            create: schema.regels.map((r, i) => ({
-              oefeningId: ids.get(r.oefening)!,
-              volgorde: i,
-              aantalSets: r.aantalSets,
-              minSets: r.minSets,
-              repsMin: r.repsMin,
-              repsMax: r.repsMax,
-              supersetGroep: r.supersetGroep ?? null,
-            })),
-          },
-        },
-      });
-    }
-  });
-  console.log("Startschema A/B aangemaakt.");
+  await importeerProgramma(prisma, validatie.bestand, { activeren: true });
+  console.log(`Programma "${validatie.bestand.program.name}" ingeladen en actief gemaakt.`);
 }
 
 main()

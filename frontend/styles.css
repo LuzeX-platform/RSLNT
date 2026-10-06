@@ -857,8 +857,8 @@ input[type="checkbox"] {
 /* ---------- App-opbouw ---------- */
 
 body.app {
-  /* Ruimte voor de tabbalk onderaan plus de thuisbalk van de iPhone. */
-  padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  /* Ruimte voor de tabbalk (en de rusttimer erboven) plus de thuisbalk van de iPhone. */
+  padding-bottom: calc(176px + env(safe-area-inset-bottom));
 }
 
 .app-kolom {
@@ -1384,10 +1384,19 @@ a.knop-groot {
 .tabs {
   display: flex;
   gap: 6px;
-  margin-bottom: 16px;
+  margin: 0 -16px 16px;
+  padding: 2px 16px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .tabs button {
+  flex: 0 0 auto;
+  white-space: nowrap;
   min-height: 44px;
   padding: 0 20px;
   border-radius: var(--radius-pill);
@@ -1436,7 +1445,7 @@ a.knop-groot {
 
 .regel-velden {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
   margin-top: 10px;
 }
@@ -1479,4 +1488,255 @@ a.knop-groot {
 .app-kolom .error:empty,
 .app-kolom .success:empty {
   display: none;
+}
+
+/* ---------- Training: doel, cue, wisselen ---------- */
+
+.doel-meta {
+  margin: 2px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.cue {
+  margin: 8px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-strong);
+  font-size: 13.5px;
+  color: var(--text-secondary);
+}
+
+.badge-knie {
+  background: var(--warning-tint);
+  color: var(--warning);
+}
+
+.wissel-knop {
+  display: inline-block;
+  margin-top: 8px;
+  min-height: 36px;
+}
+
+.wissel-lijst {
+  margin-top: 10px;
+}
+
+.wissel-lijst .veld-label {
+  text-align: left;
+}
+
+.wissel-lijst .knop-rij button.secondary {
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+}
+
+.waarom {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fase-paneel p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.fase-paneel p + p {
+  margin-top: 8px;
+}
+
+.fase-deload {
+  border-color: color-mix(in srgb, var(--purple) 40%, transparent);
+}
+
+/* ---------- Rusttimer (boven de tabbalk) ---------- */
+
+.rusttimer {
+  position: fixed;
+  z-index: 31;
+  left: 50%;
+  bottom: calc(84px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(440px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 8px 8px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  box-shadow: var(--shadow-lg);
+}
+
+.rusttimer.klaar {
+  background: var(--success);
+  color: #fff;
+}
+
+.rust-tekst {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.rust-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rust-tijd {
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rusttimer button {
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-contrast);
+  color: var(--accent);
+}
+
+.rusttimer button.secondary {
+  background: transparent;
+  color: inherit;
+  border: 1px solid currentColor;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.rusttimer.klaar button {
+  background: #fff;
+  color: var(--success);
+}
+
+/* ---------- Vandaag: fase van het programma ---------- */
+
+.fase-info {
+  margin-bottom: 14px;
+  font-size: 14px;
+}
+
+.fase-info p {
+  margin: 0 0 6px;
+}
+
+.fase-info .text-link {
+  min-height: 36px;
+}
+
+.regel-velden .breed {
+  grid-column: 1 / -1;
+}
+
+.regel-velden .breed input {
+  text-align: left;
+  font-weight: 500;
+}
+
+/* ---------- Wetenschap ---------- */
+
+.inhoud {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 16px;
+}
+
+.inhoud a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glas-rand);
+  background: var(--glas-dun-bg);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bron-kaart {
+  scroll-margin-top: 96px;
+}
+
+.wetenschap .panel h2 {
+  font-size: 19px;
+  line-height: 1.3;
+  margin-bottom: 8px;
+}
+
+.wetenschap .panel p {
+  margin: 0 0 10px;
+}
+
+.wetenschap .kicker {
+  margin-bottom: 6px;
+}
+
+.in-rslnt {
+  padding: 11px 13px;
+  border-radius: var(--radius);
+  background: var(--accent-tint);
+}
+
+.zekerheid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.zekerheid-lijst,
+.bronnen {
+  margin: 8px 0 10px;
+  padding-left: 18px;
+  font-size: 14px;
+}
+
+.zekerheid-lijst {
+  list-style: none;
+  padding-left: 0;
+}
+
+.zekerheid-lijst li,
+.bronnen li {
+  margin-bottom: 8px;
+}
+
+.bronnen a {
+  font-weight: 600;
+}
+
+.bewijs-meta { background: var(--success-tint); color: var(--success); }
+.bewijs-studie { background: var(--info-tint); color: var(--info); }
+.bewijs-consensus { background: var(--purple-tint); color: var(--purple); }
+.bewijs-preprint { background: var(--warning-tint); color: var(--warning); }
+.bewijs-praktijk { background: var(--neutral-tint); color: var(--text-secondary); }
+
+.wetenschap code {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 13px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--neutral-tint);
+}
+
+#andere-schemas {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  margin-top: 6px;
+}
+
+#andere-schemas .set-extra {
+  margin-top: 0;
 }

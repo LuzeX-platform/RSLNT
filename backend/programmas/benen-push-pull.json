@@ -1,0 +1,1003 @@
+{
+  "schema_version": 1,
+  "program": {
+    "id": "split_legs_push_pull_v1",
+    "name": "Benen / Push / Pull",
+    "created": "2026-10-06",
+    "sessions_per_week": [
+      2,
+      3
+    ],
+    "schedule_mode": "rotation",
+    "rotation": [
+      "A",
+      "B",
+      "C"
+    ],
+    "rotation_note": "Volgende training = de volgende in de reeks na de laatst afgeronde, los van de weekdag. Bij 2x per week: A-B, C-A, B-C.",
+    "min_rest_days_between_sessions": 1,
+    "warmup": "5-10 min fietsen of roeien + 1-2 lichte opwarmsets van de eerste oefening.",
+    "goal": {
+      "bodyweight_start_kg": 81,
+      "bodyweight_target_kg": 90,
+      "rate_kg_per_week": [
+        0.25,
+        0.5
+      ]
+    }
+  },
+  "rules": {
+    "intro_phase": {
+      "weeks": 2,
+      "sets_override": 2,
+      "target_rir": 3,
+      "note": "Eerste 2 weken: 2 sets per oefening en ruim gewicht over, zodat pezen en knieën kunnen wennen."
+    },
+    "progression": {
+      "type": "double_progression",
+      "increase_when": "Alle werksets halen rep_max op de target_rir.",
+      "increase_by": "exercise.increment_kg",
+      "max_steps_up_per_session": 1,
+      "stall_rule": "Twee trainingen achter elkaar onder rep_min: 10% terug en opnieuw opbouwen."
+    },
+    "knee_rule": {
+      "applies_to": "exercise.knee_sensitive == true",
+      "trigger": "Kniepijn >= 4 (schaal 1-5) of hoger dan vorige training",
+      "action": "10% gewicht terug voor die oefening",
+      "overridable_by_ai": false
+    },
+    "deload": {
+      "every_n_weeks": 8,
+      "sets_multiplier": 0.5,
+      "load_multiplier": 1.0,
+      "note": "Halveer het aantal sets, zelfde gewicht. Eerder doen als herstel meerdere trainingen slecht is."
+    },
+    "ai_swap": "AI mag een oefening alleen wisselen voor een id uit exercise.alternatives."
+  },
+  "muscle_labels_nl": {
+    "quads": "Voorkant bovenbeen",
+    "glutes": "Billen",
+    "hamstrings": "Achterkant bovenbeen",
+    "calves": "Kuiten",
+    "adductors": "Binnenkant bovenbeen",
+    "chest": "Borst",
+    "front_delts": "Voorkant schouders",
+    "side_delts": "Zijkant schouders",
+    "rear_delts": "Achterkant schouders",
+    "triceps": "Triceps",
+    "biceps": "Biceps",
+    "forearms": "Onderarmen",
+    "lats": "Brede rugspier",
+    "upper_back": "Bovenrug",
+    "lower_back": "Onderrug",
+    "abs": "Buikspieren"
+  },
+  "workouts": [
+    {
+      "id": "A",
+      "name": "Benen",
+      "focus": [
+        "quads",
+        "glutes",
+        "hamstrings",
+        "calves"
+      ],
+      "estimated_minutes": 70,
+      "exercises": [
+        {
+          "order": 1,
+          "exercise_id": "trap_bar_deadlift",
+          "sets": 4,
+          "rep_min": 6,
+          "rep_max": 8,
+          "per_side": false,
+          "rest_seconds": 180,
+          "target_rir": 2,
+          "cue": "Heupen en knieën tegelijk strekken, rug neutraal, 3 sec zakken."
+        },
+        {
+          "order": 2,
+          "exercise_id": "leg_press",
+          "sets": 3,
+          "rep_min": 10,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 150,
+          "target_rir": 2,
+          "cue": "Voeten midden op het platform, zo diep als pijnvrij lukt, knieën niet op slot."
+        },
+        {
+          "order": 3,
+          "exercise_id": "bulgarian_split_squat",
+          "sets": 3,
+          "rep_min": 8,
+          "rep_max": 10,
+          "per_side": true,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "cue": "Voorste voet ver genoeg naar voren, 3 sec zakken."
+        },
+        {
+          "order": 4,
+          "exercise_id": "leg_extension",
+          "sets": 3,
+          "rep_min": 12,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 75,
+          "target_rir": 1,
+          "cue": "3 sec zakken, bovenin 1 sec vasthouden."
+        },
+        {
+          "order": 5,
+          "exercise_id": "seated_leg_curl",
+          "sets": 3,
+          "rep_min": 10,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 75,
+          "target_rir": 1,
+          "cue": "Heupen tegen de leuning, gecontroleerd terug."
+        },
+        {
+          "order": 6,
+          "exercise_id": "standing_calf_raise",
+          "sets": 4,
+          "rep_min": 10,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 60,
+          "target_rir": 1,
+          "cue": "Volledige rek onderin, 1 sec pauze."
+        }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Push",
+      "focus": [
+        "chest",
+        "front_delts",
+        "side_delts",
+        "triceps",
+        "abs"
+      ],
+      "estimated_minutes": 70,
+      "exercises": [
+        {
+          "order": 1,
+          "exercise_id": "db_bench_press",
+          "sets": 4,
+          "rep_min": 6,
+          "rep_max": 10,
+          "per_side": false,
+          "rest_seconds": 150,
+          "target_rir": 2,
+          "cue": "Schouderbladen naar achter en omlaag, ellebogen ~45°."
+        },
+        {
+          "order": 2,
+          "exercise_id": "incline_db_press",
+          "sets": 3,
+          "rep_min": 8,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "cue": "Bank op 30°."
+        },
+        {
+          "order": 3,
+          "exercise_id": "seated_db_shoulder_press",
+          "sets": 3,
+          "rep_min": 8,
+          "rep_max": 10,
+          "per_side": false,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "cue": "Rug tegen de leuning, niet doorbuigen."
+        },
+        {
+          "order": 4,
+          "exercise_id": "cable_fly",
+          "sets": 3,
+          "rep_min": 12,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 75,
+          "target_rir": 1,
+          "cue": "Lichte buiging in de ellebogen, focus op de rek."
+        },
+        {
+          "order": 5,
+          "exercise_id": "lateral_raise",
+          "sets": 4,
+          "rep_min": 12,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 60,
+          "target_rir": 1,
+          "cue": "Licht gewicht, leid met de ellebogen tot schouderhoogte."
+        },
+        {
+          "order": 6,
+          "exercise_id": "cable_overhead_triceps_extension",
+          "sets": 3,
+          "rep_min": 10,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 75,
+          "target_rir": 1,
+          "cue": "Ellebogen naast je hoofd, volledige rek."
+        },
+        {
+          "order": 7,
+          "exercise_id": "cable_crunch",
+          "sets": 3,
+          "rep_min": 10,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 60,
+          "target_rir": 1,
+          "cue": "Rol je romp op, heupen blijven stil."
+        }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Pull + achterkant benen",
+      "focus": [
+        "lats",
+        "upper_back",
+        "rear_delts",
+        "biceps",
+        "hamstrings",
+        "calves"
+      ],
+      "estimated_minutes": 70,
+      "exercises": [
+        {
+          "order": 1,
+          "exercise_id": "romanian_deadlift",
+          "sets": 3,
+          "rep_min": 8,
+          "rep_max": 10,
+          "per_side": false,
+          "rest_seconds": 150,
+          "target_rir": 2,
+          "cue": "Heupen naar achteren, stang langs de benen, stop bij rek in de hamstrings."
+        },
+        {
+          "order": 2,
+          "exercise_id": "lat_pulldown",
+          "sets": 4,
+          "rep_min": 8,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "cue": "Borst omhoog, ellebogen naar je zij."
+        },
+        {
+          "order": 3,
+          "exercise_id": "seated_cable_row",
+          "sets": 3,
+          "rep_min": 10,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 120,
+          "target_rir": 2,
+          "cue": "Eerst schouderbladen samen, niet zwaaien met je rug."
+        },
+        {
+          "order": 4,
+          "exercise_id": "face_pull",
+          "sets": 3,
+          "rep_min": 12,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 60,
+          "target_rir": 1,
+          "cue": "Touw naar je voorhoofd, ellebogen hoog."
+        },
+        {
+          "order": 5,
+          "exercise_id": "incline_db_curl",
+          "sets": 3,
+          "rep_min": 10,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 75,
+          "target_rir": 1,
+          "cue": "Bank op 45°, armen hangen achter je lichaam."
+        },
+        {
+          "order": 6,
+          "exercise_id": "hammer_curl",
+          "sets": 2,
+          "rep_min": 10,
+          "rep_max": 12,
+          "per_side": false,
+          "rest_seconds": 60,
+          "target_rir": 1,
+          "cue": "Duimen omhoog, ellebogen stil."
+        },
+        {
+          "order": 7,
+          "exercise_id": "seated_calf_raise",
+          "sets": 3,
+          "rep_min": 12,
+          "rep_max": 15,
+          "per_side": false,
+          "rest_seconds": 60,
+          "target_rir": 1,
+          "cue": "Volledige rek, 1 sec pauze bovenin."
+        }
+      ]
+    }
+  ],
+  "exercises": [
+    {
+      "id": "trap_bar_deadlift",
+      "name": "Trap bar deadlift",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "hamstrings",
+        "upper_back",
+        "forearms"
+      ],
+      "equipment": "trap_bar",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": true,
+      "increment_kg": 5,
+      "alternatives": [
+        "goblet_squat",
+        "hack_squat"
+      ]
+    },
+    {
+      "id": "leg_press",
+      "name": "Leg press",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "adductors"
+      ],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": true,
+      "increment_kg": 5,
+      "alternatives": [
+        "hack_squat",
+        "goblet_squat"
+      ]
+    },
+    {
+      "id": "bulgarian_split_squat",
+      "name": "Bulgarian split squat",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "adductors"
+      ],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": true,
+      "knee_sensitive": true,
+      "increment_kg": 2,
+      "alternatives": [
+        "reverse_lunge",
+        "step_up"
+      ]
+    },
+    {
+      "id": "leg_extension",
+      "name": "Leg extension",
+      "muscles_primary": [
+        "quads"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": true,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "goblet_squat"
+      ]
+    },
+    {
+      "id": "seated_leg_curl",
+      "name": "Seated leg curl",
+      "muscles_primary": [
+        "hamstrings"
+      ],
+      "muscles_secondary": [
+        "calves"
+      ],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "lying_leg_curl"
+      ]
+    },
+    {
+      "id": "standing_calf_raise",
+      "name": "Staande kuitraise",
+      "muscles_primary": [
+        "calves"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 5,
+      "alternatives": [
+        "leg_press_calf_raise",
+        "seated_calf_raise"
+      ]
+    },
+    {
+      "id": "db_bench_press",
+      "name": "Dumbbell bench press",
+      "muscles_primary": [
+        "chest"
+      ],
+      "muscles_secondary": [
+        "front_delts",
+        "triceps"
+      ],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2,
+      "alternatives": [
+        "machine_chest_press"
+      ]
+    },
+    {
+      "id": "incline_db_press",
+      "name": "Incline dumbbell press",
+      "muscles_primary": [
+        "chest",
+        "front_delts"
+      ],
+      "muscles_secondary": [
+        "triceps"
+      ],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2,
+      "alternatives": [
+        "incline_machine_press"
+      ]
+    },
+    {
+      "id": "seated_db_shoulder_press",
+      "name": "Seated dumbbell shoulder press",
+      "muscles_primary": [
+        "front_delts"
+      ],
+      "muscles_secondary": [
+        "side_delts",
+        "triceps"
+      ],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2,
+      "alternatives": [
+        "machine_shoulder_press"
+      ]
+    },
+    {
+      "id": "cable_fly",
+      "name": "Cable fly",
+      "muscles_primary": [
+        "chest"
+      ],
+      "muscles_secondary": [
+        "front_delts"
+      ],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "pec_deck"
+      ]
+    },
+    {
+      "id": "lateral_raise",
+      "name": "Lateral raise",
+      "muscles_primary": [
+        "side_delts"
+      ],
+      "muscles_secondary": [],
+      "equipment": "dumbbell",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 1,
+      "alternatives": [
+        "cable_lateral_raise"
+      ]
+    },
+    {
+      "id": "cable_overhead_triceps_extension",
+      "name": "Cable overhead triceps extension",
+      "muscles_primary": [
+        "triceps"
+      ],
+      "muscles_secondary": [],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "triceps_pushdown"
+      ]
+    },
+    {
+      "id": "cable_crunch",
+      "name": "Cable crunch",
+      "muscles_primary": [
+        "abs"
+      ],
+      "muscles_secondary": [],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "dead_bug"
+      ]
+    },
+    {
+      "id": "romanian_deadlift",
+      "name": "Romanian deadlift",
+      "muscles_primary": [
+        "hamstrings",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "lower_back",
+        "forearms"
+      ],
+      "equipment": "barbell",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "back_extension_45",
+        "lying_leg_curl"
+      ]
+    },
+    {
+      "id": "lat_pulldown",
+      "name": "Lat pulldown",
+      "muscles_primary": [
+        "lats"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "upper_back"
+      ],
+      "equipment": "cable",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "assisted_pull_up"
+      ]
+    },
+    {
+      "id": "seated_cable_row",
+      "name": "Seated cable row",
+      "muscles_primary": [
+        "upper_back",
+        "lats"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "rear_delts"
+      ],
+      "equipment": "cable",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "chest_supported_row"
+      ]
+    },
+    {
+      "id": "face_pull",
+      "name": "Face pull",
+      "muscles_primary": [
+        "rear_delts",
+        "upper_back"
+      ],
+      "muscles_secondary": [],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "reverse_pec_deck"
+      ]
+    },
+    {
+      "id": "incline_db_curl",
+      "name": "Incline dumbbell curl",
+      "muscles_primary": [
+        "biceps"
+      ],
+      "muscles_secondary": [],
+      "equipment": "dumbbell",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 1,
+      "alternatives": [
+        "ez_bar_curl"
+      ]
+    },
+    {
+      "id": "hammer_curl",
+      "name": "Hammer curl",
+      "muscles_primary": [
+        "biceps",
+        "forearms"
+      ],
+      "muscles_secondary": [],
+      "equipment": "dumbbell",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 1,
+      "alternatives": [
+        "rope_hammer_curl"
+      ]
+    },
+    {
+      "id": "seated_calf_raise",
+      "name": "Zittende kuitraise",
+      "muscles_primary": [
+        "calves"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": [
+        "standing_calf_raise",
+        "leg_press_calf_raise"
+      ]
+    },
+    {
+      "id": "goblet_squat",
+      "name": "Goblet squat",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "abs"
+      ],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": true,
+      "increment_kg": 2,
+      "alternatives": []
+    },
+    {
+      "id": "hack_squat",
+      "name": "Hack squat",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": true,
+      "increment_kg": 5,
+      "alternatives": []
+    },
+    {
+      "id": "reverse_lunge",
+      "name": "Reverse lunge",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "adductors"
+      ],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": true,
+      "knee_sensitive": true,
+      "increment_kg": 2,
+      "alternatives": []
+    },
+    {
+      "id": "step_up",
+      "name": "Step-up",
+      "muscles_primary": [
+        "quads",
+        "glutes"
+      ],
+      "muscles_secondary": [],
+      "equipment": "dumbbell",
+      "mechanic": "compound",
+      "unilateral": true,
+      "knee_sensitive": true,
+      "increment_kg": 2,
+      "alternatives": []
+    },
+    {
+      "id": "lying_leg_curl",
+      "name": "Lying leg curl",
+      "muscles_primary": [
+        "hamstrings"
+      ],
+      "muscles_secondary": [
+        "calves"
+      ],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "back_extension_45",
+      "name": "45° back extension",
+      "muscles_primary": [
+        "hamstrings",
+        "glutes"
+      ],
+      "muscles_secondary": [
+        "lower_back"
+      ],
+      "equipment": "bodyweight",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "leg_press_calf_raise",
+      "name": "Kuitraise op leg press",
+      "muscles_primary": [
+        "calves"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 5,
+      "alternatives": []
+    },
+    {
+      "id": "machine_chest_press",
+      "name": "Machine chest press",
+      "muscles_primary": [
+        "chest"
+      ],
+      "muscles_secondary": [
+        "front_delts",
+        "triceps"
+      ],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "incline_machine_press",
+      "name": "Incline machine press",
+      "muscles_primary": [
+        "chest",
+        "front_delts"
+      ],
+      "muscles_secondary": [
+        "triceps"
+      ],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "machine_shoulder_press",
+      "name": "Machine shoulder press",
+      "muscles_primary": [
+        "front_delts"
+      ],
+      "muscles_secondary": [
+        "side_delts",
+        "triceps"
+      ],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "pec_deck",
+      "name": "Pec deck",
+      "muscles_primary": [
+        "chest"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "cable_lateral_raise",
+      "name": "Cable lateral raise",
+      "muscles_primary": [
+        "side_delts"
+      ],
+      "muscles_secondary": [],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": true,
+      "knee_sensitive": false,
+      "increment_kg": 1.25,
+      "alternatives": []
+    },
+    {
+      "id": "triceps_pushdown",
+      "name": "Triceps pushdown",
+      "muscles_primary": [
+        "triceps"
+      ],
+      "muscles_secondary": [],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "dead_bug",
+      "name": "Dead bug",
+      "muscles_primary": [
+        "abs"
+      ],
+      "muscles_secondary": [],
+      "equipment": "bodyweight",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 0,
+      "alternatives": []
+    },
+    {
+      "id": "assisted_pull_up",
+      "name": "(Assisted) pull-up",
+      "muscles_primary": [
+        "lats"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "upper_back"
+      ],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 5,
+      "alternatives": []
+    },
+    {
+      "id": "chest_supported_row",
+      "name": "Chest-supported row",
+      "muscles_primary": [
+        "upper_back",
+        "lats"
+      ],
+      "muscles_secondary": [
+        "biceps",
+        "rear_delts"
+      ],
+      "equipment": "machine",
+      "mechanic": "compound",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "reverse_pec_deck",
+      "name": "Reverse pec deck",
+      "muscles_primary": [
+        "rear_delts",
+        "upper_back"
+      ],
+      "muscles_secondary": [],
+      "equipment": "machine",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "ez_bar_curl",
+      "name": "EZ-bar curl",
+      "muscles_primary": [
+        "biceps"
+      ],
+      "muscles_secondary": [
+        "forearms"
+      ],
+      "equipment": "barbell",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    },
+    {
+      "id": "rope_hammer_curl",
+      "name": "Cable rope hammer curl",
+      "muscles_primary": [
+        "biceps",
+        "forearms"
+      ],
+      "muscles_secondary": [],
+      "equipment": "cable",
+      "mechanic": "isolation",
+      "unilateral": false,
+      "knee_sensitive": false,
+      "increment_kg": 2.5,
+      "alternatives": []
+    }
+  ]
+}

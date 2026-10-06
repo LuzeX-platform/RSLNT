@@ -12,9 +12,20 @@ let detail = null;
 /** Per oefening (TrainingOefening-id) de rijen op het scherm. */
 const rijenPer = new Map();
 const opslaanTimers = new Map();
+/** Oefeningen waarvan de wissellijst openstaat. */
+const wisselOpen = new Set();
 
-function isLichaamsgewicht(o) {
-  return o.materiaal === "lichaamsgewicht" || o.gewichtsstap <= 0;
+/** Waar het onderzoek achter een voorstel staat (wetenschap.html). */
+function waaromAnker(v) {
+  if (v.kniepijnRegel) return "kniepijn";
+  if (v.actie === "terug") return "stagnatie";
+  if (v.actie === "deload") return "deload";
+  return "progressie";
+}
+
+/** Zonder gewichtsstap (dead bug) geen gewichtveld; een back extension met een schijf heeft er wel een. */
+function isZonderGewicht(o) {
+  return o.gewichtsstap <= 0;
 }
 
 function oefeningMetId(toId) {
@@ -33,13 +44,25 @@ function doelTekst(o) {
   return `${sets} × ${reps}${o.perKant ? " p/kant" : ""}`;
 }
 
+function minSec(seconden) {
+  return `${Math.floor(seconden / 60)}:${String(seconden % 60).padStart(2, "0")}`;
+}
+
+/** "RIR 2 · rust 3:00" */
+function doelMetaTekst(o) {
+  const delen = [];
+  if (o.doelRir !== null) delen.push(`RIR ${o.doelRir}`);
+  if (o.rustSeconden) delen.push(`rust ${minSec(o.rustSeconden)}`);
+  return delen.join(" · ");
+}
+
 function vorigeTekst(o) {
   if (!o.vorigeKeer) return "Nog niet eerder gedaan.";
   const sets = o.vorigeKeer.sets;
   const reps = sets.map((s) => s.reps).join(", ");
   const gewichten = [...new Set(sets.map((s) => s.gewicht))];
   let kern;
-  if (isLichaamsgewicht(o) || gewichten.every((g) => g === null)) kern = `${reps} reps`;
+  if (isZonderGewicht(o) || gewichten.every((g) => g === null)) kern = `${reps} reps`;
   else if (gewichten.length === 1) kern = `${kg(gewichten[0])} × ${reps}`;
   else kern = sets.map((s) => `${getal(s.gewicht)}×${s.reps}`).join(", ") + " (kg×reps)";
   const rir = sets.some((s) => s.rir !== null) ? ` · RIR ${sets.map((s) => s.rir ?? "–").join("/")}` : "";
@@ -57,6 +80,8 @@ function voorstelWaarde(v) {
       return v.gewicht === null ? "= Zelfde" : `= ${kg(v.gewicht)}`;
     case "moeilijker":
       return "↑ Moeilijker";
+    case "deload":
+      return v.gewicht === null ? "Deload" : `Deload · ${kg(v.gewicht)}`;
     default:
       return "Eerste keer";
   }
@@ -66,7 +91,7 @@ function voorstelHtml(v) {
   return `
     <div class="voorstel voorstel-${v.actie}">
       <span class="voorstel-waarde">${voorstelWaarde(v)}</span>
-      <span class="voorstel-reden">${escapeHtml(v.reden)}</span>
+      <span class="voorstel-reden">${escapeHtml(v.reden)} <a class="waarom" href="/wetenschap.html#${waaromAnker(v)}">Waarom?</a></span>
     </div>`;
 }
 
@@ -80,7 +105,7 @@ function werkgewichtVorigeKeer(o) {
 /** Wat er in een nog niet opgeslagen set vooraf staat. */
 function beginwaarden(o, nummer, vorigeRij) {
   let gewicht = null;
-  if (!isLichaamsgewicht(o)) {
+  if (!isZonderGewicht(o)) {
     gewicht = vorigeRij?.gewicht ?? o.voorstel.gewicht ?? werkgewichtVorigeKeer(o);
   }
   // Zelfde gewicht als vorige keer: begin bij wat je toen haalde, dan weet je wat je moet verbeteren.
@@ -116,7 +141,7 @@ function keuzesHtml(rij, veld, max) {
 }
 
 function setHtml(o, rij) {
-  const lg = isLichaamsgewicht(o);
+  const lg = isZonderGewicht(o);
   const gewichtVeld = lg
     ? ""
     : `<div>
@@ -162,16 +187,41 @@ function setHtml(o, rij) {
     </div>`;
 }
 
+function wisselHtml(o) {
+  const rijen = rijenPer.get(o.id);
+  const kanWisselen = detail.training.status === "bezig" && o.alternatieven.length > 0 && !rijen.some((r) => r.opgeslagen);
+  if (!kanWisselen) return "";
+  if (!wisselOpen.has(o.id)) {
+    return `<button type="button" class="text-link wissel-knop" data-actie="wissel-open">⇄ ${o.gewisseld ? "Andere oefening" : "Wisselen (machine bezet?)"}</button>`;
+  }
+  const knoppen = o.alternatieven
+    .map((a) => `<button type="button" class="secondary" data-actie="wissel-naar" data-oefening="${a.id}">${escapeHtml(a.naam)}</button>`)
+    .join("");
+  return `
+    <div class="wissel-lijst">
+      <span class="veld-label">Wisselen voor vandaag</span>
+      <div class="knop-rij">${knoppen}<button type="button" class="text-link" data-actie="wissel-open">Annuleren</button></div>
+    </div>`;
+}
+
 function oefeningHtml(o) {
   const rijen = rijenPer.get(o.id);
-  const superset = o.supersetGroep ? `<span class="badge superset-badge">Superset ${escapeHtml(o.supersetGroep)}</span>` : "";
+  const badges = [
+    o.supersetGroep ? `<span class="badge superset-badge">Superset ${escapeHtml(o.supersetGroep)}</span>` : "",
+    o.knieGevoelig ? '<span class="badge badge-knie">Knie-gevoelig</span>' : "",
+    o.gewisseld ? `<span class="badge">In plaats van ${escapeHtml(o.gewisseld.van)}</span>` : "",
+  ].join("");
+  const meta = doelMetaTekst(o);
   return `
     <section class="panel oefening" id="oefening-${o.id}" data-to="${o.id}">
       <div class="oefening-kop">
         <h2>${escapeHtml(o.naam)}</h2>
         <span class="doel">${doelTekst(o)}</span>
       </div>
-      ${superset ? `<div class="oefening-badges">${superset}</div>` : ""}
+      ${meta ? `<p class="doel-meta">${meta}</p>` : ""}
+      ${badges.trim() ? `<div class="oefening-badges">${badges}</div>` : ""}
+      ${o.cue ? `<p class="cue">${escapeHtml(o.cue)}</p>` : ""}
+      ${wisselHtml(o)}
       <p class="vorige">${vorigeTekst(o)}</p>
       ${voorstelHtml(o.voorstel)}
       <div class="sets">${rijen.map((rij) => setHtml(o, rij)).join("")}</div>
@@ -195,12 +245,12 @@ function verstuurSet(o, rij) {
     sleutel: `set:${o.id}:${rij.nummer}`,
     pad: setPad(o, rij.nummer),
     methode: "PUT",
-    body: { gewicht: isLichaamsgewicht(o) ? null : rij.gewicht, reps: rij.reps, rir: rij.rir, kniepijn: rij.kniepijn },
+    body: { gewicht: isZonderGewicht(o) ? null : rij.gewicht, reps: rij.reps, rir: rij.rir, kniepijn: rij.kniepijn },
   });
 }
 
 function controleer(o, rij) {
-  if (!isLichaamsgewicht(o) && (rij.gewicht === null || rij.gewicht < 0)) return "Vul een gewicht in.";
+  if (!isZonderGewicht(o) && (rij.gewicht === null || rij.gewicht < 0)) return "Vul een gewicht in.";
   if (rij.reps === null || rij.reps < 0 || !Number.isInteger(rij.reps)) return "Vul het aantal reps in.";
   return null;
 }
@@ -235,10 +285,11 @@ function slaOp(o, rij) {
   const rijen = rijenPer.get(o.id);
   const volgende = rijen.find((r) => r.nummer === rij.nummer + 1);
   if (volgende && !volgende.opgeslagen && !volgende.aangeraakt) {
-    if (!isLichaamsgewicht(o)) volgende.gewicht = rij.gewicht;
+    if (!isZonderGewicht(o)) volgende.gewicht = rij.gewicht;
     tekenSet(o, volgende);
   }
   scrollNaarVolgende(o, rij);
+  startRust(o);
 }
 
 /** Na een set: door naar de volgende open set, of naar de volgende oefening. Eén hand, geen gescroll. */
@@ -264,6 +315,18 @@ oefeningenEl.addEventListener("click", (e) => {
   const knop = e.target.closest("[data-actie]");
   if (!knop) return;
   const actie = knop.dataset.actie;
+
+  if (actie === "wissel-open" || actie === "wissel-naar") {
+    const o = oefeningMetId(knop.closest(".oefening").dataset.to);
+    if (actie === "wissel-open") {
+      if (wisselOpen.has(o.id)) wisselOpen.delete(o.id);
+      else wisselOpen.add(o.id);
+      teken();
+      return;
+    }
+    wissel(o, knop.dataset.oefening);
+    return;
+  }
 
   if (actie === "extra-set") {
     const o = oefeningMetId(knop.closest(".oefening").dataset.to);
@@ -356,6 +419,109 @@ window.addEventListener("wachtrij-fout", (e) => {
   foutEl.textContent = `Niet opgeslagen: ${e.detail.bericht}`;
 });
 
+// ---------- Wisselen ----------
+
+/** Wisselen moet direct naar de server: het voorstel en "vorige keer" horen bij de nieuwe oefening. */
+async function wissel(o, oefeningId) {
+  foutEl.textContent = "";
+  try {
+    detail = await api(`/api/trainingen/${trainingId}/oefeningen/${o.id}/wissel`, {
+      methode: "PATCH",
+      body: { oefeningId }, // terug naar de oefening uit het schema herkent de server zelf
+    });
+    pasWachtrijToe();
+    wisselOpen.delete(o.id);
+    rijenPer.delete(o.id);
+    teken();
+    document.getElementById(`oefening-${o.id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (fout) {
+    foutEl.textContent = foutTekst(fout);
+  }
+}
+
+// ---------- Rusttimer ----------
+// Start na elke opgeslagen set met de rusttijd van die oefening. Rekent met een eindtijd, zodat
+// hij klopt als je telefoon even op slot gaat. Trillen kan niet op een iPhone (Safari ondersteunt
+// dat niet); daar klinkt een kort signaal.
+
+const rustEl = document.createElement("div");
+rustEl.className = "rusttimer";
+rustEl.hidden = true;
+rustEl.setAttribute("role", "timer");
+rustEl.innerHTML = `
+  <span class="rust-tekst"><span class="rust-label"></span><span class="rust-tijd"></span></span>
+  <button type="button" class="secondary" data-rust="erbij">+30 s</button>
+  <button type="button" data-rust="stop">Stop</button>`;
+document.body.append(rustEl);
+
+let rust = null;
+let geluid = null;
+
+function startRust(o) {
+  if (!o.rustSeconden) return;
+  // Het geluid moet tijdens een tik worden klaargezet, anders blijft het op iOS stil.
+  try {
+    geluid ??= new AudioContext();
+    geluid.resume();
+  } catch {
+    geluid = null;
+  }
+  clearInterval(rust?.interval);
+  rust = { eind: Date.now() + o.rustSeconden * 1000, naam: o.naam, klaar: false };
+  rust.interval = setInterval(tekenRust, 250);
+  tekenRust();
+}
+
+function stopRust() {
+  clearInterval(rust?.interval);
+  rust = null;
+  rustEl.hidden = true;
+}
+
+function signaal() {
+  navigator.vibrate?.([200, 100, 200]);
+  if (!geluid) return;
+  for (const start of [0, 0.25]) {
+    const toon = geluid.createOscillator();
+    const volume = geluid.createGain();
+    toon.frequency.value = 880;
+    volume.gain.value = 0.15;
+    toon.connect(volume).connect(geluid.destination);
+    toon.start(geluid.currentTime + start);
+    toon.stop(geluid.currentTime + start + 0.15);
+  }
+}
+
+function tekenRust() {
+  if (!rust) return;
+  const over = Math.ceil((rust.eind - Date.now()) / 1000);
+  if (over <= 0 && !rust.klaar) {
+    rust.klaar = true;
+    signaal();
+  }
+  if (over <= -30) {
+    stopRust(); // na een halve minuut "klaar" vanzelf weg
+    return;
+  }
+  rustEl.hidden = false;
+  rustEl.classList.toggle("klaar", over <= 0);
+  rustEl.querySelector(".rust-label").textContent = over > 0 ? `Rust · ${rust.naam}` : "Tijd voor je volgende set";
+  rustEl.querySelector(".rust-tijd").textContent = over > 0 ? minSec(over) : "";
+  rustEl.querySelector('[data-rust="erbij"]').hidden = over <= 0;
+  rustEl.querySelector('[data-rust="stop"]').textContent = over > 0 ? "Stop" : "OK";
+}
+
+rustEl.addEventListener("click", (e) => {
+  const knop = e.target.closest("[data-rust]");
+  if (!knop || !rust) return;
+  if (knop.dataset.rust === "erbij") {
+    rust.eind += 30000;
+    tekenRust();
+  } else {
+    stopRust();
+  }
+});
+
 // ---------- Afronden, heropenen, verwijderen ----------
 
 afrondenKnop.addEventListener("click", async () => {
@@ -426,12 +592,29 @@ function pasWachtrijToe() {
   if (notitie) detail.training.notitie = notitie.body.notitie;
 }
 
+/** Introfase of deload, en het opwarmen, bovenaan de training. */
+function tekenFase(training, afgerond) {
+  const paneel = document.getElementById("fase-paneel");
+  const delen = [];
+  if (training.fase === "intro") {
+    delen.push(`<p><strong>Introfase · week ${training.week}.</strong> Minder sets en ruim reps over, zodat je pezen en knieën kunnen wennen. <a class="waarom" href="/wetenschap.html#introfase">Waarom?</a></p>`);
+  }
+  if (training.fase === "deload") {
+    delen.push('<p><strong>Deloadweek.</strong> Halve sets, zelfde gewicht. Herstellen hoort bij trainen. <a class="waarom" href="/wetenschap.html#deload">Waarom?</a></p>');
+  }
+  if (training.opwarmen && !afgerond) delen.push(`<p><strong>Opwarmen:</strong> ${escapeHtml(training.opwarmen)}</p>`);
+  paneel.innerHTML = delen.join("");
+  paneel.hidden = delen.length === 0;
+  paneel.classList.toggle("fase-deload", training.fase === "deload");
+}
+
 function teken() {
   const { training, oefeningen } = detail;
   const afgerond = training.status === "afgerond";
   document.title = `${training.schemaNaam} — LuzeX RSLNT`;
-  document.getElementById("kicker").textContent = afgerond ? "Afgerond" : "Bezig";
+  document.getElementById("kicker").textContent = `${afgerond ? "Afgerond" : "Bezig"} · Training ${training.schemaCode}`;
   document.getElementById("kop").textContent = training.schemaNaam;
+  tekenFase(training, afgerond);
 
   // Rijen alleen opnieuw opbouwen bij het laden, niet na afronden: dan blijft wat er staat staan.
   for (const o of oefeningen) if (!rijenPer.has(o.id)) rijenPer.set(o.id, maakRijen(o));

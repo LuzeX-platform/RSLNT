@@ -2,15 +2,17 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireIngelogd } from "../plugins/requireAuth.js";
+import { actiefProgramma } from "../trainingData.js";
 import { ongeldig } from "./auth.js";
 
-const MATERIALEN = ["dumbbell", "barbell", "kabel", "machine", "lichaamsgewicht"] as const;
+const MATERIALEN = ["dumbbell", "barbell", "trap_bar", "kabel", "machine", "lichaamsgewicht"] as const;
 
 const oefeningVelden = {
   naam: z.string().trim().min(1, "Naam is verplicht").max(80),
   materiaal: z.enum(MATERIALEN),
   gewichtsstap: z.number().min(0).max(50),
   perKant: z.boolean(),
+  knieGevoelig: z.boolean(),
 };
 
 const regelSchema = z
@@ -21,6 +23,9 @@ const regelSchema = z
     repsMin: z.number().int().min(1).max(100),
     repsMax: z.number().int().min(1).max(100),
     supersetGroep: z.string().trim().max(4).nullable().optional(),
+    rustSeconden: z.number().int().min(0).max(900).nullable().optional(),
+    doelRir: z.number().int().min(0).max(5).nullable().optional(),
+    cue: z.string().trim().max(300).optional(),
   })
   .refine((r) => r.repsMin <= r.repsMax, { message: "Reps: de onderkant is hoger dan de bovenkant", path: ["repsMin"] })
   .refine((r) => r.minSets <= r.aantalSets, { message: "Minimum sets is hoger dan het aantal sets", path: ["minSets"] });
@@ -29,6 +34,14 @@ const schemaPutSchema = z.object({
   naam: z.string().trim().min(1).max(40).optional(),
   oefeningen: z.array(regelSchema).max(20),
 });
+
+/** "Leg press (smal)" → leg_press_smal; bij een botsing komt er een volgnummer achter. */
+async function nieuweSleutel(naam: string): Promise<string> {
+  const basis = naam.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "oefening";
+  let sleutel = basis;
+  for (let i = 2; await prisma.oefening.findUnique({ where: { sleutel } }); i++) sleutel = `${basis}_${i}`;
+  return sleutel;
+}
 
 export async function schemaRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
@@ -44,7 +57,9 @@ export async function schemaRoutes(app: FastifyInstance) {
     if (await prisma.oefening.findUnique({ where: { naam: parsed.data.naam } })) {
       return reply.code(409).send({ errorCode: "OEFENING_BESTAAT_AL" });
     }
-    const oefening = await prisma.oefening.create({ data: normaliseer(parsed.data) });
+    const oefening = await prisma.oefening.create({
+      data: { sleutel: await nieuweSleutel(parsed.data.naam), ...parsed.data },
+    });
     return { oefening };
   });
 
@@ -58,19 +73,20 @@ export async function schemaRoutes(app: FastifyInstance) {
         return reply.code(409).send({ errorCode: "OEFENING_BESTAAT_AL" });
       }
     }
-    const oefening = await prisma.oefening.update({
-      where: { id: bestaand.id },
-      data: normaliseer({ materiaal: bestaand.materiaal, gewichtsstap: bestaand.gewichtsstap, ...parsed.data }),
-    });
+    const oefening = await prisma.oefening.update({ where: { id: bestaand.id }, data: parsed.data });
     return { oefening };
   });
 
+  // De trainingen (A, B, C …) van het actieve programma.
   app.get("/api/schemas", async () => {
+    const programma = await actiefProgramma();
+    if (!programma) return { programma: null, schemas: [] };
     const schemas = await prisma.schema.findMany({
+      where: { programmaId: programma.id, inRotatie: true },
       orderBy: { volgorde: "asc" },
       include: { oefeningen: { orderBy: { volgorde: "asc" }, include: { oefening: true } } },
     });
-    return { schemas };
+    return { programma: { id: programma.id, naam: programma.naam }, schemas };
   });
 
   // Vervangt de hele lijst in één keer (zelfde patroon als de tarievenlijst in ACCRD): de
@@ -105,6 +121,9 @@ export async function schemaRoutes(app: FastifyInstance) {
               repsMin: r.repsMin,
               repsMax: r.repsMax,
               supersetGroep: r.supersetGroep ? r.supersetGroep : null,
+              rustSeconden: r.rustSeconden ?? null,
+              doelRir: r.doelRir ?? null,
+              cue: r.cue ?? "",
             })),
           },
         },
@@ -112,9 +131,4 @@ export async function schemaRoutes(app: FastifyInstance) {
     ]);
     return { ok: true };
   });
-}
-
-/** Lichaamsgewicht heeft geen gewichtsstap; dat houden we op één plek consistent. */
-function normaliseer<T extends { materiaal: string; gewichtsstap: number }>(o: T): T {
-  return o.materiaal === "lichaamsgewicht" ? { ...o, gewichtsstap: 0 } : o;
 }

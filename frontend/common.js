@@ -70,6 +70,10 @@ const FOUTTEKSTEN = {
   OEFENING_BESTAAT_AL: "Er is al een oefening met deze naam.",
   SCHEMA_LEEG: "Dit schema heeft nog geen oefeningen.",
   ONGELDIGE_DATUM: "Die datum klopt niet.",
+  GEEN_ALTERNATIEF: "Die oefening staat niet bij de alternatieven.",
+  AL_SETS_GELOGD: "Je hebt al sets gelogd voor deze oefening. Wis die eerst om te wisselen.",
+  AL_IN_TRAINING: "Die oefening zit al in deze training.",
+  ONGELDIG_PROGRAMMA: "Het programmabestand klopt niet.",
 };
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */
@@ -204,12 +208,14 @@ const ICONEN = {
   vandaag: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/><path d="M10 21v-6h4v6"/></svg>',
   gewicht: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="4"/><path d="M8.5 10.5a5 5 0 0 1 7 0"/><path d="m12 11.5 1.5-2"/></svg>',
   schema: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/></svg>',
+  wetenschap: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z"/><path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5"/><path d="M9 8h7M9 12h5"/></svg>',
 };
 
 const TABS = [
   { href: "/", label: "Vandaag", icoon: "vandaag", match: (p) => p === "/" || p === "/index.html" || p.startsWith("/training") },
   { href: "/gewicht.html", label: "Gewicht", icoon: "gewicht", match: (p) => p.startsWith("/gewicht") },
   { href: "/schema.html", label: "Schema", icoon: "schema", match: (p) => p.startsWith("/schema") },
+  { href: "/wetenschap.html", label: "Wetenschap", icoon: "wetenschap", match: (p) => p.startsWith("/wetenschap") },
 ];
 
 function tekenBalk() {

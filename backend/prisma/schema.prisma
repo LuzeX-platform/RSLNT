@@ -22,27 +22,78 @@ model Gebruiker {
 }
 
 model Oefening {
-  id           String   @id @default(cuid())
-  naam         String   @unique
-  /// dumbbell | barbell | kabel | machine | lichaamsgewicht
-  materiaal    String
-  /// Kleinste gewichtsstap in kg (bij dumbbells: per dumbbell). 0 bij lichaamsgewicht.
-  gewichtsstap Float
+  id               String   @id @default(cuid())
+  /// Vaste sleutel, gelijk aan exercise_id in een programma-JSON (bijv. trap_bar_deadlift).
+  sleutel          String   @unique
+  naam             String   @unique
+  /// dumbbell | barbell | trap_bar | kabel | machine | lichaamsgewicht
+  materiaal        String
+  /// Kleinste gewichtsstap in kg (bij dumbbells: per dumbbell). 0 = zonder gewicht.
+  gewichtsstap     Float
   /// Reps tellen per kant/been (dead bug, Bulgarian split squat).
-  perKant      Boolean  @default(false)
-  aangemaaktOp DateTime @default(now())
+  perKant          Boolean  @default(false)
+  spierenPrimair   String[] @default([])
+  spierenSecundair String[] @default([])
+  /// compound | isolation
+  mechaniek        String?
+  unilateraal      Boolean  @default(false)
+  /// Alleen hierop geldt de kniepijnregel.
+  knieGevoelig     Boolean  @default(false)
+  /// Sleutels van oefeningen waarmee je deze mag wisselen.
+  alternatieven    String[] @default([])
+  aangemaaktOp     DateTime @default(now())
 
   schemaRegels   SchemaOefening[]
   trainingRegels TrainingOefening[]
 }
 
+/// Een trainingsprogramma (bijv. Benen / Push / Pull), meestal geïmporteerd uit een JSON-bestand.
+/// Er is er altijd hooguit één actief.
+model Programma {
+  id                String    @id @default(cuid())
+  /// program.id uit de JSON, bijv. split_legs_push_pull_v1
+  sleutel           String    @unique
+  naam              String
+  actief            Boolean   @default(false)
+  /// Begin van de introfase en van de deloadcyclus: de dag van activeren.
+  startdatum        DateTime  @db.Date
+  sessiesPerWeekMin Int       @default(2)
+  sessiesPerWeekMax Int       @default(3)
+  minRustdagen      Int       @default(0)
+  opwarmen          String    @default("")
+  introWeken        Int       @default(0)
+  introSets         Int?
+  introRir          Int?
+  /// Elke zoveelste week een deload; null = nooit automatisch.
+  deloadElkeWeken   Int?
+  deloadSetFactor   Float     @default(0.5)
+  /// Handmatige deload ("nu deloaden") tot en met deze dag.
+  deloadTot         DateTime? @db.Date
+  /// Het geïmporteerde bestand, ongewijzigd: voor export en voor latere fases (doel, regels).
+  bron              Json?
+  aangemaaktOp      DateTime  @default(now())
+
+  schemas Schema[]
+}
+
 model Schema {
-  /// "A" of "B"
-  id         String           @id
-  naam       String
-  volgorde   Int
+  /// "A"/"B" bij het eerste programma, daarna een cuid.
+  id          String           @id @default(cuid())
+  programmaId String
+  /// Letter in de rotatie: A, B, C …
+  code        String
+  naam        String
+  volgorde    Int
+  minuten     Int?
+  focus       String[]         @default([])
+  /// false = niet meer in de rotatie (bij een nieuwe versie van het programma weggevallen).
+  inRotatie   Boolean          @default(true)
+
+  programma  Programma        @relation(fields: [programmaId], references: [id], onDelete: Cascade)
   oefeningen SchemaOefening[]
   trainingen Training[]
+
+  @@unique([programmaId, code])
 }
 
 model SchemaOefening {
@@ -57,6 +108,9 @@ model SchemaOefening {
   repsMax       Int
   /// Oefeningen met dezelfde letter worden als superset getoond.
   supersetGroep String?
+  rustSeconden  Int?
+  doelRir       Int?
+  cue           String   @default("")
 
   schema   Schema   @relation(fields: [schemaId], references: [id], onDelete: Cascade)
   oefening Oefening @relation(fields: [oefeningId], references: [id])
@@ -71,6 +125,10 @@ model Training {
   notitie      String    @default("")
   /// bezig | afgerond
   status       String    @default("bezig")
+  /// normaal | intro | deload — vastgelegd bij het starten.
+  fase         String    @default("normaal")
+  /// Week van het programma (1 = eerste week), vastgelegd bij het starten.
+  week         Int?
   afgerondOp   DateTime?
   aangemaaktOp DateTime  @default(now())
 
@@ -92,6 +150,11 @@ model TrainingOefening {
   repsMin       Int
   repsMax       Int
   supersetGroep String?
+  rustSeconden  Int?
+  doelRir       Int?
+  cue           String  @default("")
+  /// Gezet als je deze oefening voor een alternatief hebt gewisseld: de oefening uit het schema.
+  origineleOefeningId String?
 
   training Training      @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   oefening Oefening      @relation(fields: [oefeningId], references: [id])

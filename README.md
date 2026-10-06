@@ -1,7 +1,8 @@
 # LuzeX RSLNT
 
-Persoonlijke trainings- en herstel-app: full body schema A/B loggen in de sportschool, met een
-voorstel voor de volgende training (dubbele progressie, met kniepijn als vangrail).
+Persoonlijke trainings- en herstel-app: je programma (nu Benen / Push / Pull) loggen in de
+sportschool, met een voorstel voor de volgende keer (dubbele progressie, met kniepijn als
+vangrail) en een Wetenschap-pagina die per regel laat zien waar die vandaan komt.
 Eén gebruiker, achter een login, gemaakt voor de iPhone (op het beginscherm als app).
 
 Dezelfde stack en huisstijl als ACCRD en CMMNTY, maar **volledig los** daarvan: eigen database,
@@ -19,48 +20,71 @@ eigen deployment, eigen geheimen.
 
 | Fase | Wat | Status |
 |------|-----|--------|
-| 1 | Loggen en progressie: schema A/B, sets, vorige keer, voorstel, lichaamsgewicht | **gebouwd** |
-| 2 | Dashboard: gewichtstrend vs. doel, e1RM per oefening, sets per spiergroep, herstelcheck | — |
-| 3 | Garmin: HRV, rusthartslag, slaap, Body Battery (7 vs. 60 dagen) | — |
-| 4 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
+| 1 | Loggen en progressie: sets, vorige keer, voorstel, lichaamsgewicht | **gebouwd** |
+| 1b | Programma's als JSON, A/B/C-rotatie, introfase, deload, stagnatieregel, doel-RIR, rusttimer, wisselen, Wetenschap-pagina | **gebouwd** |
+| 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel) en dashboard (gewicht vs. doel, e1RM, sets per spiergroep), herstelcheck | — |
+| 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | — |
+| 4 | Garmin: HRV, rusthartslag, slaap, Body Battery (7 vs. 60 dagen) | — |
+| 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
 
 Een fase begint pas als de vorige in de sportschool werkt.
 
-## Wat zit erin (fase 1)
+## Wat zit erin
 
-- **Vandaag** — welke training aan de beurt is (A → B → A …), starten of verder gaan, gewicht
-  invoeren met 7-daags gemiddelde, recente trainingen.
-- **Training** — per oefening: wat je vorige keer deed, het voorstel met de reden, en per set
-  gewicht, reps, RIR (0–4) en optioneel kniepijn (0–10). Grote +/−-knoppen, gewicht en reps
-  staan al ingevuld. Notitie per training. Na het afronden: het voorstel voor de volgende keer.
+- **Vandaag** — welke training aan de beurt is (A → B → C → A …, los van de weekdag), de duur,
+  de fase van je programma (introfase, deload, week), een rustdag-advies, gewicht invoeren met
+  7-daags gemiddelde, recente trainingen. Knop "Ik heb een deload nodig".
+- **Training** — per oefening: doel (sets × reps, RIR, rusttijd), techniek-cue, wat je vorige keer
+  deed, het voorstel met de reden en een link naar de onderbouwing. Per set gewicht, reps, RIR
+  (0–4) en optioneel kniepijn (0–10). Na elke set loopt de **rusttimer** (met +30 s).
+  **Wisselen** naar een alternatief uit je programma als een machine bezet is. Opwarmen bovenaan.
+  Na het afronden: het voorstel voor de volgende keer.
 - **Gewicht** — wegingen met het 7-daags gemiddelde per dag en het verschil met een week eerder.
-- **Schema** — A en B aanpassen: oefeningen, volgorde, sets, minimum sets, rep-range, superset.
-  Oefeningen toevoegen en per oefening de kleinste gewichtsstap instellen.
+- **Schema** — de trainingen van het actieve programma aanpassen (oefeningen, volgorde, sets,
+  min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en
+  "knie-gevoelig". **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
+  downloaden.
+- **Wetenschap** — per regel: wat het onderzoek zegt, wat RSLNT ermee doet, hoe zeker het is
+  (meta-analyse, studie, consensus, preprint, praktijkregel) en de bron. Openbaar leesbaar.
 - **Offline** — valt het bereik weg, dan blijven opgeslagen sets op de telefoon staan en gaan
   ze vanzelf door zodra er weer verbinding is. Pagina's die je al open had blijven werken.
 
-## De progressieregels
+## Programma's
 
-In `backend/src/progressie.ts`, pure functies met unittests. Per oefening, op basis van de
-vorige keer dat je die oefening deed:
+Een programma is een JSON-bestand met `schema_version: 1`: zie
+`backend/programmas/benen-push-pull.json` (het meegeleverde programma) en de uitleg op de
+Wetenschap-pagina onder "Het programmabestand". De seed laadt dit bestand bij de eerste start in
+en maakt het actief. Daarna beheer je programma's in de app.
 
-1. **Kniepijn gaat voor alles.** Hoogste kniepijn vorige keer **≥ 4**, of **stijgend** (≥ 2
-   punten hoger dan de keer daarvoor, of drie trainingen op rij hoger) → **10% terug**, naar
-   beneden afgerond op de gewichtsstap, minimaal één stap. Niet ingevulde kniepijn is onbekend,
-   niet 0.
-2. **Alle sets op de bovenkant van de range** (minstens "min. sets") → **één kleinste stap
-   omhoog**. Nooit meer dan één stap per training, hoe ver je ook boven de range zat.
-3. **Anders** → zelfde gewicht.
+- Zelfde `program.id` opnieuw inladen = bijwerken; oefeningen met hetzelfde `id` houden hun
+  geschiedenis.
+- Activeren begint het programma opnieuw bij week 1 (met de introfase).
+- Regels uit het bestand die RSLNT anders of (nog) niet uitvoert, komen als waarschuwing terug.
+  De kniepijnregel is altijd de afgesproken regel hieronder.
 
+## De regels
+
+In `backend/src/progressie.ts` en `backend/src/fase.ts`, pure functies met unittests. Per
+oefening, op basis van de vorige keer(en) dat je die oefening deed:
+
+1. **Kniepijn gaat voor alles** (alleen bij knie-gevoelige oefeningen). Hoogste kniepijn vorige
+   keer **≥ 4**, of **stijgend** (≥ 2 punten hoger dan de keer daarvoor, of drie trainingen op
+   rij hoger) → **10% terug**, naar beneden afgerond op de gewichtsstap, minimaal één stap.
+2. **Deloadweek** → zelfde gewicht, halve sets (naar boven afgerond). Automatisch elke 8e week
+   van het programma, of op verzoek voor 7 dagen.
+3. **Stagnatie**: twee trainingen op rij meer dan de helft van de sets onder de onderkant van de
+   range → 10% terug en opnieuw opbouwen.
+4. **Alle sets op de bovenkant van de range** (minstens het geplande minimum) **met minstens de
+   doel-RIR over** → **één kleinste stap omhoog**. Nooit meer dan één stap per training.
+5. **Anders** → zelfde gewicht.
+
+- **Introfase**: de eerste 2 weken van een programma 2 sets per oefening en RIR 3.
 - Werkgewicht bij wisselende gewichten: het laagste.
-- Het doel van nú telt: pas je de range aan, dan rekent de volgende training daarmee.
-- Lichaamsgewicht-oefeningen (dead bug): alle sets op de bovenkant → "moeilijkere variant".
+- De rep-range van nú telt; aantal sets en doel-RIR komen van de dag zelf (intro/deload).
+- Deloadtrainingen tellen niet mee voor stagnatie en progressie, wel voor de kniepijnregel.
+- Niet ingevulde RIR of kniepijn is onbekend, niet 0.
+- Zonder gewichtsstap (dead bug): alle sets op de bovenkant → "moeilijkere variant".
 - Eerste keer: geen voorstel, je kiest zelf.
-- RIR wordt gelogd en getoond, maar telt (nog) niet mee in de regel. Fase 2 gebruikt het voor
-  de geschatte 1RM, fase 4 voor de AI-coach.
-
-Standaard gewichtsstappen: dumbbells 2 kg (per dumbbell), stang/trap bar, kabel en machine
-2,5 kg. Aan te passen per oefening onder *Schema → Oefeningen*.
 
 ## Lokaal draaien
 
@@ -70,7 +94,7 @@ cd backend
 cp .env.example .env
 npm install
 npx prisma migrate deploy
-npm run seed                          # ik@luzex.local / wijzig-dit-meteen + schema A/B
+npm run seed                          # ik@luzex.local / wijzig-dit-meteen + Benen / Push / Pull
 npm run dev                           # http://localhost:4200
 ```
 
@@ -102,5 +126,5 @@ Render bouwt bij elke push naar `main` automatisch opnieuw.
 
 ### Kosten (Render, indicatief)
 
-Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. In fase 3 komt er een
+Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. In fase 4 komt er een
 cron voor de Garmin-sync bij (± $1).

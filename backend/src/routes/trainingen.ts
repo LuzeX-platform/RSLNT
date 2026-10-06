@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireIngelogd } from "../plugins/requireAuth.js";
-import { trainingDetail, volgendeSchema } from "../trainingData.js";
+import { actiefProgramma, faseInstellingen, faseVoor, trainingDetail, volgendeSchema } from "../trainingData.js";
+import { doelInFase } from "../fase.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
 import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { ongeldig } from "./auth.js";
@@ -28,36 +29,61 @@ export async function trainingRoutes(app: FastifyInstance) {
   // Alles voor het beginscherm in één verzoek: in de sportschool telt elke round-trip.
   app.get("/api/vandaag", async () => {
     const dag = vandaag();
-    const [bezig, recent, laatsteWeging, metingen, volgende, schemas] = await Promise.all([
+    const [programma, bezig, recent, laatsteWeging, metingen] = await Promise.all([
+      actiefProgramma(),
       prisma.training.findFirst({
         where: { status: "bezig" },
         orderBy: { datum: "desc" },
-        include: { schema: { select: { naam: true } } },
+        include: { schema: { select: { code: true, naam: true } } },
       }),
       prisma.training.findMany({
         orderBy: { datum: "desc" },
         take: 8,
         include: {
-          schema: { select: { naam: true } },
+          schema: { select: { code: true, naam: true } },
           oefeningen: { select: { _count: { select: { sets: true } } } },
         },
       }),
       prisma.lichaamsgewicht.findFirst({ orderBy: { datum: "desc" } }),
       prisma.lichaamsgewicht.findMany({ where: { datum: { gte: naarDatum(verschuifDag(dag, -6)) } } }),
-      volgendeSchema(),
-      prisma.schema.findMany({ orderBy: { volgorde: "asc" }, select: { id: true, naam: true } }),
     ]);
 
+    const volgende = programma ? await volgendeSchema(programma) : null;
+    const fase = programma ? faseVoor(programma, dag) : null;
+    const laatsteDag = recent[0] ? recent[0].datum.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" }) : null;
+    // Rustdagen tussen de vorige training en vandaag; het programma adviseert er minstens zoveel.
+    const rustdagen = laatsteDag ? Math.round((naarDatum(dag).getTime() - naarDatum(laatsteDag).getTime()) / 86400000) - 1 : null;
+
     return {
-      bezig: bezig && { id: bezig.id, schemaId: bezig.schemaId, schemaNaam: bezig.schema.naam, datum: bezig.datum },
-      volgendeSchema: volgende,
-      schemas,
+      programma: programma && {
+        id: programma.id,
+        naam: programma.naam,
+        opwarmen: programma.opwarmen,
+        introWeken: programma.introWeken,
+        introSets: programma.introSets,
+        introRir: programma.introRir,
+        deloadElkeWeken: programma.deloadElkeWeken,
+        minRustdagen: programma.minRustdagen,
+        fase,
+        rustAdvies: rustdagen !== null && rustdagen >= 0 && rustdagen < programma.minRustdagen && !bezig,
+      },
+      bezig: bezig && {
+        id: bezig.id,
+        schemaId: bezig.schemaId,
+        schemaCode: bezig.schema.code,
+        schemaNaam: bezig.schema.naam,
+        datum: bezig.datum,
+      },
+      volgendeSchema: volgende && { id: volgende.id, code: volgende.code, naam: volgende.naam, minuten: volgende.minuten },
+      schemas: (programma?.schemas ?? []).map((s) => ({ id: s.id, code: s.code, naam: s.naam })),
       recent: recent.map((t) => ({
         id: t.id,
         schemaId: t.schemaId,
+        schemaCode: t.schema.code,
         schemaNaam: t.schema.naam,
         datum: t.datum,
         status: t.status,
+        fase: t.fase,
         aantalSets: t.oefeningen.reduce((som, o) => som + o._count.sets, 0),
       })),
       gewicht: {
@@ -77,7 +103,7 @@ export async function trainingRoutes(app: FastifyInstance) {
       orderBy: { datum: "desc" },
       take: limiet,
       include: {
-        schema: { select: { naam: true } },
+        schema: { select: { code: true, naam: true } },
         oefeningen: { select: { _count: { select: { sets: true } } } },
       },
     });
@@ -85,7 +111,9 @@ export async function trainingRoutes(app: FastifyInstance) {
       trainingen: trainingen.map((t) => ({
         id: t.id,
         schemaId: t.schemaId,
+        schemaCode: t.schema.code,
         schemaNaam: t.schema.naam,
+        fase: t.fase,
         datum: t.datum,
         status: t.status,
         aantalSets: t.oefeningen.reduce((som, o) => som + o._count.sets, 0),
@@ -103,24 +131,35 @@ export async function trainingRoutes(app: FastifyInstance) {
 
     const schema = await prisma.schema.findUnique({
       where: { id: parsed.data.schemaId },
-      include: { oefeningen: { orderBy: { volgorde: "asc" } } },
+      include: { programma: true, oefeningen: { orderBy: { volgorde: "asc" } } },
     });
     if (!schema) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     if (schema.oefeningen.length === 0) return reply.code(400).send({ errorCode: "SCHEMA_LEEG" });
 
+    // De fase (intro/deload) wordt bij het starten vastgelegd, met het aangepaste doel per oefening.
+    const fase = faseVoor(schema.programma, vandaag());
+    const instellingen = faseInstellingen(schema.programma);
     const training = await prisma.training.create({
       data: {
         schemaId: schema.id,
+        fase: fase.fase,
+        week: fase.week,
         oefeningen: {
-          create: schema.oefeningen.map((r) => ({
-            oefeningId: r.oefeningId,
-            volgorde: r.volgorde,
-            aantalSets: r.aantalSets,
-            minSets: r.minSets,
-            repsMin: r.repsMin,
-            repsMax: r.repsMax,
-            supersetGroep: r.supersetGroep,
-          })),
+          create: schema.oefeningen.map((r) => {
+            const doel = doelInFase({ aantalSets: r.aantalSets, minSets: r.minSets, doelRir: r.doelRir }, fase.fase, instellingen);
+            return {
+              oefeningId: r.oefeningId,
+              volgorde: r.volgorde,
+              aantalSets: doel.aantalSets,
+              minSets: doel.minSets,
+              doelRir: doel.doelRir,
+              repsMin: r.repsMin,
+              repsMax: r.repsMax,
+              supersetGroep: r.supersetGroep,
+              rustSeconden: r.rustSeconden,
+              cue: r.cue,
+            };
+          }),
         },
       },
     });
@@ -176,6 +215,48 @@ export async function trainingRoutes(app: FastifyInstance) {
     if (count === 0) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     return { ok: true };
   });
+
+  // Een oefening voor deze ene training wisselen (machine bezet, knie zeurt), alleen voor een
+  // alternatief uit het programma. oefeningId null = terug naar de oefening uit het schema.
+  app.patch<{ Params: { id: string; toId: string } }>(
+    "/api/trainingen/:id/oefeningen/:toId/wissel",
+    async (request, reply) => {
+      const parsed = z.object({ oefeningId: z.string().min(1).nullable() }).safeParse(request.body);
+      if (!parsed.success) return ongeldig(reply, parsed.error);
+      const regel = await prisma.trainingOefening.findFirst({
+        where: { id: request.params.toId, trainingId: request.params.id },
+        include: { _count: { select: { sets: true } } },
+      });
+      if (!regel) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
+      if (regel._count.sets > 0) return reply.code(409).send({ errorCode: "AL_SETS_GELOGD" });
+
+      const origineelId = regel.origineleOefeningId ?? regel.oefeningId;
+      const doelId = parsed.data.oefeningId ?? origineelId;
+      if (doelId === origineelId) {
+        await prisma.trainingOefening.update({
+          where: { id: regel.id },
+          data: { oefeningId: origineelId, origineleOefeningId: null },
+        });
+        return trainingDetail(request.params.id);
+      }
+      const [origineel, doel] = await Promise.all([
+        prisma.oefening.findUnique({ where: { id: origineelId } }),
+        prisma.oefening.findUnique({ where: { id: doelId } }),
+      ]);
+      if (!origineel || !doel || !origineel.alternatieven.includes(doel.sleutel)) {
+        return reply.code(400).send({ errorCode: "GEEN_ALTERNATIEF" });
+      }
+      const alInTraining = await prisma.trainingOefening.findFirst({
+        where: { trainingId: request.params.id, oefeningId: doel.id, NOT: { id: regel.id } },
+      });
+      if (alInTraining) return reply.code(409).send({ errorCode: "AL_IN_TRAINING" });
+      await prisma.trainingOefening.update({
+        where: { id: regel.id },
+        data: { oefeningId: doel.id, origineleOefeningId: origineelId },
+      });
+      return trainingDetail(request.params.id);
+    },
+  );
 
   // Een set opslaan of overschrijven. PUT op een vaste plek (training/oefening/setnummer), zodat
   // dezelfde set twee keer versturen (offline-wachtrij, dubbele tik) nooit twee sets oplevert.

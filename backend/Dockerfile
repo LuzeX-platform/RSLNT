@@ -22,6 +22,8 @@ COPY --from=builder /app/backend/node_modules ./node_modules
 COPY --from=builder /app/backend/dist ./dist
 COPY --from=builder /app/backend/prisma ./prisma
 COPY backend/package.json ./
+# Het meegeleverde programma (Benen / Push / Pull); de seed laadt het in als het er nog niet is.
+COPY backend/programmas ./programmas
 COPY frontend /app/frontend
 EXPOSE 4200
 # Migraties + seed (account en startschema) zijn idempotent en draaien bij elke start — zelfde patroon als ACCRD en CMMNTY.

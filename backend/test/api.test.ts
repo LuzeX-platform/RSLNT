@@ -4,8 +4,10 @@
 //   TEST_DATABASE_URL=postgresql://…/rslnt_test npm test
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 const TEST_DB = process.env.TEST_DATABASE_URL;
+const PROGRAMMA = JSON.parse(readFileSync(new URL("../programmas/benen-push-pull.json", import.meta.url), "utf8"));
 
 describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   process.env.DATABASE_URL = TEST_DB;
@@ -20,44 +22,23 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     return app.inject({ method: method as "GET", url, payload: payload as object, headers: { cookie } });
   }
 
+  /** Logt sets voor één oefening in een training: [[gewicht, reps, rir, kniepijn], …]. */
+  async function log(trainingId: string, toId: string, sets: [number | null, number, number | null, number | null][]) {
+    for (const [i, [gewicht, reps, rir, kniepijn]] of sets.entries()) {
+      const res = await vraag("PUT", `/api/trainingen/${trainingId}/oefeningen/${toId}/sets/${i + 1}`, { gewicht, reps, rir, kniepijn });
+      assert.equal(res.statusCode, 200);
+    }
+  }
+
   before(async () => {
     ({ prisma } = await import("../src/db.js"));
     await prisma.$executeRawUnsafe(
-      'TRUNCATE "Gebruiker", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht" CASCADE',
+      'TRUNCATE "Gebruiker", "Programma", "Oefening", "Schema", "SchemaOefening", "Training", "TrainingOefening", "TrainingSet", "Lichaamsgewicht" CASCADE',
     );
     const { hashWachtwoord } = await import("../src/auth.js");
     await prisma.gebruiker.create({
       data: { email: "ik@test.nl", naam: "Ik", wachtwoordHash: await hashWachtwoord("goed-wachtwoord") },
     });
-    // Het echte startschema, zodat de test ook de seed-data controleert.
-    const { STANDAARD_OEFENINGEN, STANDAARD_SCHEMAS } = await import("../src/standaardSchema.js");
-    const ids = new Map<string, string>();
-    for (const o of STANDAARD_OEFENINGEN) {
-      const rij = await prisma.oefening.create({
-        data: { naam: o.naam, materiaal: o.materiaal, gewichtsstap: o.gewichtsstap, perKant: o.perKant ?? false },
-      });
-      ids.set(o.naam, rij.id);
-    }
-    for (const [volgorde, s] of STANDAARD_SCHEMAS.entries()) {
-      await prisma.schema.create({
-        data: {
-          id: s.id,
-          naam: s.naam,
-          volgorde,
-          oefeningen: {
-            create: s.regels.map((r, i) => ({
-              oefeningId: ids.get(r.oefening)!,
-              volgorde: i,
-              aantalSets: r.aantalSets,
-              minSets: r.minSets,
-              repsMin: r.repsMin,
-              repsMax: r.repsMax,
-              supersetGroep: r.supersetGroep ?? null,
-            })),
-          },
-        },
-      });
-    }
     const { bouwApp } = await import("../src/app.js");
     app = await bouwApp({ logger: false });
   });
@@ -79,8 +60,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(goed.statusCode, 200);
     const header = goed.headers["set-cookie"];
     cookie = (Array.isArray(header) ? header[0] : String(header)).split(";")[0];
-    const sessie = (await vraag("GET", "/api/auth/sessie")).json();
-    assert.equal(sessie.gebruiker.email, "ik@test.nl");
+    assert.equal((await vraag("GET", "/api/auth/sessie")).json().gebruiker.email, "ik@test.nl");
   });
 
   test("schrijven met een vreemde Origin wordt geweigerd", async () => {
@@ -93,109 +73,136 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(res.statusCode, 403);
   });
 
-  let trainingId = "";
-
-  test("eerste training: A is aan de beurt, nog geen voorstel", async () => {
+  test("zonder programma: niets aan de beurt", async () => {
     const vandaag = (await vraag("GET", "/api/vandaag")).json();
-    assert.equal(vandaag.volgendeSchema.id, "A");
-    assert.equal(vandaag.bezig, null);
-
-    const start = await vraag("POST", "/api/trainingen", { schemaId: "A" });
-    assert.equal(start.statusCode, 200);
-    trainingId = start.json().id;
-
-    const detail = (await vraag("GET", `/api/trainingen/${trainingId}`)).json();
-    assert.equal(detail.oefeningen.length, 7);
-    assert.equal(detail.oefeningen[0].naam, "Goblet squat");
-    assert.equal(detail.oefeningen[0].voorstel.actie, "eerste_keer");
-    assert.equal(detail.oefeningen[0].vorigeKeer, null);
+    assert.equal(vandaag.programma, null);
+    assert.equal(vandaag.volgendeSchema, null);
   });
 
-  test("een tweede training starten terwijl er een bezig is: 409 met het id", async () => {
-    const res = await vraag("POST", "/api/trainingen", { schemaId: "B" });
-    assert.equal(res.statusCode, 409);
-    assert.equal(res.json().id, trainingId);
+  test("programma-import: fouten worden benoemd, controle slaat niets op", async () => {
+    const kapot = structuredClone(PROGRAMMA);
+    kapot.workouts[0].exercises[0].exercise_id = "bestaat_niet";
+    kapot.exercises[0].alternatives.push("ook_niet");
+    const fout = await vraag("POST", "/api/programmas/import", { bestand: kapot });
+    assert.equal(fout.statusCode, 400);
+    assert.ok(fout.json().fouten.some((f: string) => f.includes("bestaat_niet")));
+    assert.ok(fout.json().fouten.some((f: string) => f.includes("ook_niet")));
+
+    const controle = await vraag("POST", "/api/programmas/import?controle=1", { bestand: PROGRAMMA });
+    assert.equal(controle.statusCode, 200);
+    assert.ok(controle.json().waarschuwingen.length > 0); // de kniepijnregel uit het bestand
+    assert.equal(await prisma.programma.count(), 0);
   });
 
-  test("sets loggen is idempotent en valideert de invoer", async () => {
-    const detail = (await vraag("GET", `/api/trainingen/${trainingId}`)).json();
-    const goblet = detail.oefeningen[0];
-    const squatUrl = (n: number) => `/api/trainingen/${trainingId}/oefeningen/${goblet.id}/sets/${n}`;
-
-    for (const n of [1, 2, 3]) {
-      const res = await vraag("PUT", squatUrl(n), { gewicht: 20, reps: 10, rir: 2, kniepijn: n === 3 ? 1 : null });
-      assert.equal(res.statusCode, 200);
-    }
-    // Dezelfde set nog eens (offline-wachtrij): overschrijft, geen vierde set.
-    await vraag("PUT", squatUrl(3), { gewicht: 20, reps: 10, rir: 1, kniepijn: 1 });
-
-    assert.equal((await vraag("PUT", squatUrl(4), { gewicht: 20, reps: 10, rir: 9, kniepijn: null })).statusCode, 400);
-    assert.equal((await vraag("PUT", squatUrl(4), { gewicht: 20, reps: 10, rir: 1, kniepijn: 11 })).statusCode, 400);
-
-    // Bench: één set onder de bovenkant.
-    const bench = detail.oefeningen[1];
-    for (const [n, reps] of [[1, 10], [2, 10], [3, 9]]) {
-      await vraag("PUT", `/api/trainingen/${trainingId}/oefeningen/${bench.id}/sets/${n}`, {
-        gewicht: 24, reps, rir: 1, kniepijn: null,
-      });
-    }
-
-    const na = (await vraag("GET", `/api/trainingen/${trainingId}`)).json();
-    assert.equal(na.oefeningen[0].sets.length, 3);
-    assert.equal(na.oefeningen[0].sets[2].rir, 1);
-
-    // Een set van een andere training kan niet via deze training.
-    const vreemd = await vraag("PUT", `/api/trainingen/onbekend/oefeningen/${goblet.id}/sets/1`, {
-      gewicht: 1, reps: 1, rir: null, kniepijn: null,
-    });
-    assert.equal(vreemd.statusCode, 404);
-  });
-
-  test("afronden geeft het voorstel voor de volgende keer", async () => {
-    await vraag("PATCH", `/api/trainingen/${trainingId}`, { notitie: "Knie voelde goed." });
-    const res = await vraag("POST", `/api/trainingen/${trainingId}/afronden`);
+  test("programma-import: Benen / Push / Pull wordt actief, met introfase", async () => {
+    const res = await vraag("POST", "/api/programmas/import", { bestand: PROGRAMMA, activeren: true });
     assert.equal(res.statusCode, 200);
-    const detail = res.json();
-    assert.equal(detail.training.status, "afgerond");
-    assert.equal(detail.training.notitie, "Knie voelde goed.");
+    assert.equal(res.json().nieuw, true);
+
+    const vandaag = (await vraag("GET", "/api/vandaag")).json();
+    assert.equal(vandaag.programma.naam, "Benen / Push / Pull");
+    assert.equal(vandaag.programma.fase.fase, "intro");
+    assert.equal(vandaag.programma.fase.week, 1);
+    assert.equal(vandaag.volgendeSchema.code, "A");
+    assert.equal(vandaag.volgendeSchema.naam, "Benen");
+    assert.deepEqual(vandaag.schemas.map((s: any) => s.code), ["A", "B", "C"]);
+
+    const trapBar = await prisma.oefening.findUnique({ where: { sleutel: "trap_bar_deadlift" } });
+    assert.equal(trapBar?.knieGevoelig, true);
+    assert.equal(trapBar?.gewichtsstap, 5);
+    assert.deepEqual(trapBar?.alternatieven, ["goblet_squat", "hack_squat"]);
+    const bss = await prisma.oefening.findUnique({ where: { sleutel: "bulgarian_split_squat" } });
+    assert.equal(bss?.perKant, true);
+  });
+
+  test("opnieuw importeren werkt het programma bij in plaats van een tweede te maken", async () => {
+    const res = await vraag("POST", "/api/programmas/import", { bestand: PROGRAMMA, activeren: true });
+    assert.equal(res.json().nieuw, false);
+    assert.equal(await prisma.programma.count(), 1);
+    assert.equal(await prisma.schema.count(), 3);
+  });
+
+  let benen = "";
+  let trapBarRegel = "";
+
+  test("training A in de introfase: 2 sets, RIR 3, rusttijd en cue", async () => {
+    const vandaag = (await vraag("GET", "/api/vandaag")).json();
+    benen = (await vraag("POST", "/api/trainingen", { schemaId: vandaag.volgendeSchema.id })).json().id;
+    const detail = (await vraag("GET", `/api/trainingen/${benen}`)).json();
+    assert.equal(detail.training.fase, "intro");
+    assert.equal(detail.training.schemaCode, "A");
+    assert.match(detail.training.opwarmen, /fietsen of roeien/);
+    const trapBar = detail.oefeningen[0];
+    trapBarRegel = trapBar.id;
+    assert.equal(trapBar.naam, "Trap bar deadlift");
+    assert.equal(trapBar.aantalSets, 2);
+    assert.equal(trapBar.minSets, 2);
+    assert.equal(trapBar.doelRir, 3);
+    assert.equal(trapBar.rustSeconden, 180);
+    assert.match(trapBar.cue, /3 sec zakken/);
+    assert.equal(trapBar.knieGevoelig, true);
+    assert.deepEqual(trapBar.alternatieven.map((a: any) => a.naam), ["Goblet squat", "Hack squat"]);
+  });
+
+  test("wisselen: alleen naar een alternatief, terug kan altijd, niet meer na een gelogde set", async () => {
+    const alternatieven = (await vraag("GET", `/api/trainingen/${benen}`)).json().oefeningen[0].alternatieven;
+    const goblet = alternatieven.find((a: any) => a.naam === "Goblet squat");
+    const latPulldown = await prisma.oefening.findUnique({ where: { sleutel: "lat_pulldown" } });
+
+    const ongeldig = await vraag("PATCH", `/api/trainingen/${benen}/oefeningen/${trapBarRegel}/wissel`, { oefeningId: latPulldown!.id });
+    assert.equal(ongeldig.statusCode, 400);
+
+    const gewisseld = (await vraag("PATCH", `/api/trainingen/${benen}/oefeningen/${trapBarRegel}/wissel`, { oefeningId: goblet.id })).json();
+    assert.equal(gewisseld.oefeningen[0].naam, "Goblet squat");
+    assert.equal(gewisseld.oefeningen[0].gewisseld.van, "Trap bar deadlift");
+    assert.ok(gewisseld.oefeningen[0].alternatieven.some((a: any) => a.naam === "Trap bar deadlift"));
+
+    const terug = (await vraag("PATCH", `/api/trainingen/${benen}/oefeningen/${trapBarRegel}/wissel`, { oefeningId: null })).json();
+    assert.equal(terug.oefeningen[0].naam, "Trap bar deadlift");
+    assert.equal(terug.oefeningen[0].gewisseld, null);
+
+    await log(benen, trapBarRegel, [[80, 8, 3, 1]]);
+    const teLaat = await vraag("PATCH", `/api/trainingen/${benen}/oefeningen/${trapBarRegel}/wissel`, { oefeningId: goblet.id });
+    assert.equal(teLaat.statusCode, 409);
+  });
+
+  test("introtraining op de bovenkant met RIR 3: de volgende keer één stap (5 kg) omhoog", async () => {
+    await log(benen, trapBarRegel, [[80, 8, 3, 1], [80, 8, 3, 1]]);
+    const detail = (await vraag("POST", `/api/trainingen/${benen}/afronden`)).json();
     assert.equal(detail.oefeningen[0].volgendeKeer.actie, "omhoog");
-    assert.equal(detail.oefeningen[0].volgendeKeer.gewicht, 22);
-    assert.equal(detail.oefeningen[1].volgendeKeer.actie, "gelijk");
-    assert.equal(detail.oefeningen[1].volgendeKeer.gewicht, 24);
-    // Overgeslagen oefening: nog steeds geen geschiedenis.
-    assert.equal(detail.oefeningen[2].volgendeKeer.actie, "eerste_keer");
+    assert.equal(detail.oefeningen[0].volgendeKeer.gewicht, 85);
   });
 
-  test("volgende training: B is aan de beurt; daarna A met het voorstel en de vorige keer", async () => {
-    assert.equal((await vraag("GET", "/api/vandaag")).json().volgendeSchema.id, "B");
-
-    const b = (await vraag("POST", "/api/trainingen", { schemaId: "B" })).json().id;
-    const bDetail = (await vraag("GET", `/api/trainingen/${b}`)).json();
-    assert.equal(bDetail.oefeningen.find((o: any) => o.naam === "Biceps curl").supersetGroep, "1");
-    await vraag("POST", `/api/trainingen/${b}/afronden`);
-
-    const a = (await vraag("POST", "/api/trainingen", { schemaId: "A" })).json().id;
-    const detail = (await vraag("GET", `/api/trainingen/${a}`)).json();
-    const goblet = detail.oefeningen[0];
-    assert.equal(goblet.voorstel.actie, "omhoog");
-    assert.equal(goblet.voorstel.gewicht, 22);
-    assert.deepEqual(goblet.vorigeKeer.sets.map((s: any) => s.reps), [10, 10, 10]);
-
-    // Kniepijn 5 in deze training → de keer daarna 10% terug, ook al zat alles op 10.
-    for (const n of [1, 2, 3]) {
-      await vraag("PUT", `/api/trainingen/${a}/oefeningen/${goblet.id}/sets/${n}`, {
-        gewicht: 22, reps: 10, rir: 1, kniepijn: n === 2 ? 5 : 2,
-      });
-    }
-    const na = (await vraag("POST", `/api/trainingen/${a}/afronden`)).json();
-    assert.equal(na.oefeningen[0].volgendeKeer.actie, "terug");
-    assert.equal(na.oefeningen[0].volgendeKeer.gewicht, 18); // 22 × 0,9 = 19,8 → 18 bij stappen van 2
-    assert.equal(na.oefeningen[0].volgendeKeer.kniepijnRegel, true);
+  test("rotatie: na A komt B, daarna C", async () => {
+    const b = (await vraag("GET", "/api/vandaag")).json().volgendeSchema;
+    assert.equal(b.code, "B");
+    const bId = (await vraag("POST", "/api/trainingen", { schemaId: b.id })).json().id;
+    await vraag("POST", `/api/trainingen/${bId}/afronden`);
+    assert.equal((await vraag("GET", "/api/vandaag")).json().volgendeSchema.code, "C");
   });
 
-  test("schema aanpassen raakt de geschiedenis niet", async () => {
+  test("nu deloaden: halve sets, zelfde gewicht als de laatste normale keer", async () => {
+    const { programma } = (await vraag("GET", "/api/vandaag")).json();
+    assert.equal((await vraag("POST", `/api/programmas/${programma.id}/deload`, { aan: true })).statusCode, 200);
+    assert.equal((await vraag("GET", "/api/vandaag")).json().programma.fase.fase, "deload");
+
+    const schemas = (await vraag("GET", "/api/vandaag")).json().schemas;
+    const a = schemas.find((s: any) => s.code === "A");
+    const deloadId = (await vraag("POST", "/api/trainingen", { schemaId: a.id })).json().id;
+    const detail = (await vraag("GET", `/api/trainingen/${deloadId}`)).json();
+    assert.equal(detail.training.fase, "deload");
+    assert.equal(detail.oefeningen[0].aantalSets, 2); // 4 × 0,5
+    assert.equal(detail.oefeningen[0].voorstel.actie, "deload");
+    assert.equal(detail.oefeningen[0].voorstel.gewicht, 80);
+    await vraag("DELETE", `/api/trainingen/${deloadId}`);
+
+    await vraag("POST", `/api/programmas/${programma.id}/deload`, { aan: false });
+    assert.equal((await vraag("GET", "/api/vandaag")).json().programma.fase.fase, "intro");
+  });
+
+  test("schema aanpassen (rust, RIR, cue) raakt de geschiedenis niet", async () => {
     const { schemas } = (await vraag("GET", "/api/schemas")).json();
-    const a = schemas.find((s: any) => s.id === "A");
+    const a = schemas.find((s: any) => s.code === "A");
     const regels = a.oefeningen.map((r: any) => ({
       oefeningId: r.oefeningId,
       aantalSets: r.aantalSets,
@@ -203,33 +210,40 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       repsMin: r.repsMin,
       repsMax: r.repsMax,
       supersetGroep: r.supersetGroep,
+      rustSeconden: r.rustSeconden,
+      doelRir: r.doelRir,
+      cue: r.cue,
     }));
-    regels[0].repsMax = 12;
-    regels.pop(); // dead bug eruit
-    assert.equal((await vraag("PUT", "/api/schemas/A", { oefeningen: regels })).statusCode, 200);
-
-    const fout = await vraag("PUT", "/api/schemas/A", { oefeningen: [{ ...regels[0], repsMin: 12, repsMax: 8 }] });
+    regels[0].rustSeconden = 240;
+    regels[0].cue = "Nieuwe cue";
+    assert.equal((await vraag("PUT", `/api/schemas/${a.id}`, { oefeningen: regels })).statusCode, 200);
+    const fout = await vraag("PUT", `/api/schemas/${a.id}`, { oefeningen: [{ ...regels[0], repsMin: 12, repsMax: 8 }] });
     assert.equal(fout.statusCode, 400);
-    const dubbel = await vraag("PUT", "/api/schemas/A", { oefeningen: [regels[0], regels[0]] });
-    assert.equal(dubbel.statusCode, 400);
 
-    const { trainingen } = (await vraag("GET", "/api/trainingen")).json();
-    const eerste = (await vraag("GET", `/api/trainingen/${trainingen.at(-1).id}`)).json();
-    assert.equal(eerste.oefeningen.length, 7);
-    assert.equal(eerste.oefeningen[0].repsMax, 10);
+    const oud = (await vraag("GET", `/api/trainingen/${benen}`)).json();
+    assert.equal(oud.oefeningen[0].rustSeconden, 180);
+    assert.match(oud.oefeningen[0].cue, /3 sec zakken/);
   });
 
-  test("oefening toevoegen en aanpassen", async () => {
+  test("oefening toevoegen krijgt een sleutel en kan knie-gevoelig zijn", async () => {
     const nieuw = await vraag("POST", "/api/oefeningen", {
-      naam: "Leg press", materiaal: "machine", gewichtsstap: 5, perKant: false,
+      naam: "Belt squat", materiaal: "machine", gewichtsstap: 5, perKant: false, knieGevoelig: true,
     });
     assert.equal(nieuw.statusCode, 200);
-    const id = nieuw.json().oefening.id;
-    assert.equal((await vraag("POST", "/api/oefeningen", {
-      naam: "Leg press", materiaal: "machine", gewichtsstap: 5, perKant: false,
-    })).statusCode, 409);
-    const gewijzigd = (await vraag("PATCH", `/api/oefeningen/${id}`, { materiaal: "lichaamsgewicht" })).json();
-    assert.equal(gewijzigd.oefening.gewichtsstap, 0);
+    assert.equal(nieuw.json().oefening.sleutel, "belt_squat");
+    assert.equal(nieuw.json().oefening.knieGevoelig, true);
+    const dubbel = await vraag("POST", "/api/oefeningen", {
+      naam: "Belt squat", materiaal: "machine", gewichtsstap: 5, perKant: false, knieGevoelig: true,
+    });
+    assert.equal(dubbel.statusCode, 409);
+  });
+
+  test("het programmabestand is terug te downloaden", async () => {
+    const { programmas } = (await vraag("GET", "/api/programmas")).json();
+    const res = await vraag("GET", `/api/programmas/${programmas[0].id}/bestand`);
+    assert.equal(res.statusCode, 200);
+    assert.match(String(res.headers["content-disposition"]), /split_legs_push_pull_v1\.json/);
+    assert.equal(res.json().program.id, "split_legs_push_pull_v1");
   });
 
   test("lichaamsgewicht met 7-daags gemiddelde", async () => {
