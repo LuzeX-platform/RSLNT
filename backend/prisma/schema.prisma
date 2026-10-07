@@ -38,6 +38,11 @@ model Gebruiker {
   /// (zie luzexEntitlement.ts); null bij een betaald Stripe-abonnement. Zo kan de cron een
   /// vervallen kruisproduct-Pro intrekken zonder ooit een betalend account te raken.
   proBron               String?
+  /// Kvk-nummer waarmee deze gebruiker gratis Pro claimde bij ACCRD (zie routes/kruisproduct.ts).
+  /// Alleen gezet als proBron "accrd" is; bewaard zodat kruisproductCron.ts dagelijks zonder
+  /// nieuwe invoer bij de gebruiker opnieuw bij ACCRD kan navragen. @unique: één kvk-nummer
+  /// claimt bij ACCRD precies één RSLNT-account, net zoals ACCRD het zelf afdwingt.
+  kruisproductKvkNummer String?   @unique @map("kruisproduct_kvk_nummer")
   stripeKlantId         String?   @unique @map("stripe_klant_id")
   stripeAbonnementId    String?   @unique @map("stripe_abonnement_id")
   aangemaaktOp          DateTime  @default(now())

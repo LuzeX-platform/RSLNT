@@ -83,6 +83,8 @@ const FOUTTEKSTEN = {
   PRO_VEREIST: "Dit onderdeel is voor Pro-leden.",
   ABONNEMENT_NIET_BESCHIKBAAR: "Betalen is op dit moment niet beschikbaar. Probeer het later opnieuw.",
   GEEN_ABONNEMENT: "Je hebt nog geen abonnement om te beheren.",
+  NIET_ACTIEF: "Dit KvK-nummer is niet gekoppeld aan een actief, betalend ACCRD-account.",
+  KRUISPRODUCT_NIET_BESCHIKBAAR: "Kon dit kvk-nummer nu niet controleren. Probeer het later opnieuw.",
 };
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */
