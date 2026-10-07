@@ -93,6 +93,11 @@ Een fase begint pas als de vorige in de sportschool werkt.
   RSLNT zelf. Alles daarbuiten — loggen, voortgang, lichaam, herstel, een eigen programma-JSON
   inladen — blijft gratis voor iedereen met een account. Het eigenaarsaccount (seed, rol admin)
   is altijd Pro, zonder dat daar een abonnement voor loopt. Zie `backend/src/entitlementsPro.ts`.
+  **Kruisproduct-Pro:** heb je bij het bevestigen van je e-mailadres een actief, betalend
+  ACCRD- of SCRNN-account (zelfde adres), dan krijg je Pro automatisch gratis — een dagelijkse
+  cron controleert dit opnieuw en trekt het in zodra dat account niet meer actief is, zonder
+  ooit een betaald Stripe-abonnement aan te raken. Zie `backend/src/luzexEntitlement.ts` en
+  hub/CLAUDE.md, "Kruisproduct-Pro".
 - **Wetenschap** — per regel: wat het onderzoek zegt, wat RSLNT ermee doet, hoe zeker het is
   (meta-analyse, studie, consensus, preprint, praktijkregel) en de bron. Openbaar leesbaar.
 - **Offline** — valt het bereik weg, dan blijven opgeslagen sets op de telefoon staan en gaan
@@ -229,6 +234,14 @@ staan — de rest van de app werkt gewoon door.
    te vervalsen. Lokaal testen zonder een publiek adres: de Stripe CLI
    (`stripe listen --forward-to localhost:4200/api/stripe/webhook`) geeft een eigen
    `whsec_…` voor die sessie.
+
+### Kruisproduct-Pro
+
+`LUZEX_INTERN_SLEUTEL` moet letterlijk gelijk zijn aan die in ACCRD, SCRNN en CMMNTY —
+genereer 'm één keer (bijv. `openssl rand -hex 32`) en zet dezelfde waarde in alle vier.
+`ACCRD_INTERN_URL` en `SCRNN_INTERN_URL` zijn de publieke adressen van die twee producten.
+Ontbreekt een van de drie waarden, dan doet RSLNT gewoon niet mee — niets gaat stuk, er wordt
+alleen nooit gratis Pro toegekend via die weg.
 
 ### Kosten (Render, indicatief)
 
