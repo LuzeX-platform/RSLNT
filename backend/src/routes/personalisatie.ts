@@ -21,6 +21,7 @@ import { valideerProgramma } from "../programmaImport.js";
 import { ALLE_SPIER_LABELS } from "../spieren.js";
 import { effectiefDoel, huidigGewicht, profiel } from "./lichaam.js";
 import { ongeldig } from "./auth.js";
+import { vereistPro } from "../entitlementsPro.js";
 
 /** De ene rij met voorkeuren; bestaat die nog niet, dan met de standaardwaarden. */
 export async function voorkeuren(gebruikerId: string) {
@@ -121,7 +122,9 @@ export async function personalisatieRoutes(app: FastifyInstance) {
 
   // Een schemavoorstel op basis van je opgeslagen voorkeuren. Er wordt niets opgeslagen: inladen
   // gaat via POST /api/programmas/import met het bestand uit dit antwoord.
-  app.post("/api/voorstel", async (request) => {
+  // Het schema op maat zelf is Pro; je voorkeuren instellen en bekijken (hierboven) niet — zo
+  // kan iemand zonder Pro alvast zien wat hij zou instellen, maar niet het voorstel ophalen.
+  app.post("/api/voorstel", { preHandler: vereistPro }, async (request) => {
     const g = gid(request);
     const dag = vandaag();
     const v = await voorkeuren(g);

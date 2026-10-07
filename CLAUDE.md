@@ -29,18 +29,22 @@ backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeN
 data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licentie van de bron
   src/datum.ts        kalenderdagen in Europe/Amsterdam (de server draait in UTC)
   src/mailer.ts       SMTP via nodemailer (zoals CMMNTY); zonder SMTP_HOST gelogd en in testPostvak
+  src/stripe.ts       Stripe-client + de Price-id van Pro, allebei lazy uit env (null/throw zonder)
+  src/entitlementsPro.ts  vereistPro(): preHandler voor Pro-only routes, fail-closed (zie "Afspraken")
   src/plugins/requireAuth.ts  sessiecookie + controle in de database (bestaat, bevestigd, sessieVersie); gid()
   src/trainingData.ts database rond een training: geschiedenis ophalen, voorstel laten berekenen
+  src/routes/abonnement.ts  Stripe Checkout + Billing Portal (redirects) en de webhook die pro zet
 programmas/         meegeleverde programma's (JSON); de seed laadt benen-push-pull.json in
   test/               node:test via tsx; api.test.ts draait alleen met TEST_DATABASE_URL
 frontend/           losse HTML + één script per pagina, geen build-stap
   styles.css          design tokens 1-op-1 uit CMMNTY/ACCRD + RSLNT-componenten
   common.js           balk, tabbalk (Vandaag, Lichaam, Voortgang, Schema, Wetenschap), api(),
-                      sessie, offline-wachtrij — door elke pagina geladen
+                      sessie, offline-wachtrij, 402 PRO_VEREIST → /pro.html — door elke pagina geladen
   grafiek.js          SVG-grafieken zonder bibliotheek: tijdGrafiek (punten, lijn, band) en staafGrafiek
                       (met referentielijn of een doel per rij)
-  bibliotheek.js      lijst (filters in de URL) en detail (?id=) van de oefeningenbibliotheek
-  personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import
+  bibliotheek.js      lijst (filters in de URL) en detail (?id=) van de oefeningenbibliotheek, Pro
+  personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import, voorstel Pro
+  pro.js              upgraden en abonnement beheren, beide een redirect naar Stripe
   sw.js               service worker: netwerk eerst, cache als terugval
   wetenschap.html     openbare pagina: per regel het onderzoek, de zekerheid en de bron
   welkom.html         openbaar portaal; auth.js voor inloggen/registreren/bevestigen/wachtwoord-pagina's
@@ -56,7 +60,13 @@ frontend/           losse HTML + één script per pagina, geen build-stap
   via programma/training). **Elke query filtert erop**: `gid(request)` achter `requireIngelogd`,
   en zoek nooit op alleen een id (`findFirst({ where: { id, gebruikerId } })`, niet `findUnique`).
   Sleutels en namen van oefeningen zijn uniek per account. De isolatietest in api.test.ts
-  ("twee accounts") hoort elke nieuwe route te dekken.
+  ("twee accounts") hoort elke nieuwe route te dekken; account B is daar met opzet `pro: true`
+  gezet (direct in de database), zodat die test isolatie test en niet toevallig de paywall.
+- **Pro is fail-closed**, in tegenstelling tot ACCRD's entitlements.ts dat bewust fail-open is.
+  `vereistPro()` (entitlementsPro.ts) laat alleen door bij `pro: true` of rol `admin`; een
+  ontbrekend of onbekend record betekent "geen Pro", niet "toegang bij twijfel" — dat is hier
+  juist de paywall zelf, niet een bestaand betalend account. `Gebruiker.pro` wordt uitsluitend
+  gezet door de Stripe-webhook (routes/abonnement.ts), nooit door een route rechtstreeks.
 - **Accounts zoals CMMNTY**: registreren met bevestigingsmail, eenmalige tokens alleen als
   sha256-hash, vergrendeling na vijf missers, antwoorden verraden niet of een adres bestaat.
   `sessieVersie` gaat omhoog bij een nieuw wachtwoord: oudere sessies vervallen. Het

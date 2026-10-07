@@ -20,6 +20,7 @@ import { actiefProgramma } from "../trainingData.js";
 import { nieuweSleutel } from "./schemas.js";
 import { voorkeuren } from "./personalisatie.js";
 import { ongeldig } from "./auth.js";
+import { vereistPro } from "../entitlementsPro.js";
 
 const PER_PAGINA = 40;
 
@@ -64,6 +65,8 @@ async function oefeningVoor(gebruikerId: string, o: BibliotheekOefening, tx: Pri
 
 export async function bibliotheekRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
+  // De hele oefeningenbibliotheek is Pro — zie de productkaart op luzex.nl.
+  app.addHook("preHandler", vereistPro);
 
   app.get<{
     Querystring: { zoek?: string; spier?: string; materiaal?: string; patroon?: string; knie?: string; lijst?: string; pagina?: string };

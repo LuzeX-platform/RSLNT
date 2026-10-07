@@ -50,6 +50,14 @@ services:
         sync: false
       - key: SMTP_AFZENDER
         sync: false
+      # Stripe (Pro-abonnement, Checkout + Billing Portal + webhook). Zonder STRIPE_GEHEIME_SLEUTEL
+      # geven /api/abonnement/* en de webhook 503 — zie README.md.
+      - key: STRIPE_GEHEIME_SLEUTEL
+        sync: false
+      - key: STRIPE_PRIJS_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_GEHEIM
+        sync: false
 
 databases:
   - name: luzex-rslnt-db

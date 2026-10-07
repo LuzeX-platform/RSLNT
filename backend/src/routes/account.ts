@@ -5,6 +5,7 @@ import { verifieerWachtwoord } from "../auth.js";
 import { vandaag } from "../datum.js";
 import { gid, requireIngelogd, wisSessieCookie } from "../plugins/requireAuth.js";
 import { AUTH_LIMIET, ongeldig } from "./auth.js";
+import { stripeClient } from "../stripe.js";
 
 // Je account en je rechten onder de AVG: je naam wijzigen, al je gegevens downloaden (inzage en
 // overdraagbaarheid) en je account met alles verwijderen.
@@ -14,7 +15,7 @@ export async function alleGegevens(gebruikerId: string) {
   const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen] = await Promise.all([
     prisma.gebruiker.findUniqueOrThrow({
       where: { id: gebruikerId },
-      select: { naam: true, email: true, rol: true, aangemaaktOp: true, emailBevestigdOp: true, toestemmingOp: true, privacyVersie: true },
+      select: { naam: true, email: true, rol: true, pro: true, aangemaaktOp: true, emailBevestigdOp: true, toestemmingOp: true, privacyVersie: true },
     }),
     prisma.profiel.findUnique({ where: { gebruikerId } }),
     prisma.voorkeuren.findUnique({ where: { gebruikerId } }),
@@ -49,9 +50,17 @@ export async function alleGegevens(gebruikerId: string) {
 
 /**
  * Verwijdert een account met alles erop en eraan, in een volgorde die de verwijzingen tussen
- * trainingen, schema's en oefeningen respecteert.
+ * trainingen, schema's en oefeningen respecteert. Heeft iemand een lopend Pro-abonnement, dan
+ * zegt deze dat eerst bij Stripe op — anders zou iemand kunnen blijven betalen voor een account
+ * dat niet meer bestaat. Lukt dat niet (Stripe niet bereikbaar, al opgezegd), dan gaat de
+ * accountverwijdering gewoon door; de webhook ruimt stripeAbonnementId dan later zelf op.
  */
 export async function verwijderAccount(gebruikerId: string) {
+  const g = await prisma.gebruiker.findUnique({ where: { id: gebruikerId }, select: { stripeAbonnementId: true } });
+  const stripe = stripeClient();
+  if (stripe && g?.stripeAbonnementId) {
+    await stripe.subscriptions.cancel(g.stripeAbonnementId).catch(() => {});
+  }
   await prisma.$transaction([
     prisma.training.deleteMany({ where: { gebruikerId } }),
     prisma.programma.deleteMany({ where: { gebruikerId } }),

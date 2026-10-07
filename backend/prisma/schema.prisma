@@ -30,6 +30,11 @@ model Gebruiker {
   sessieVersie          Int       @default(0)
   mislukteInlogpogingen Int       @default(0)
   vergrendeldTot        DateTime?
+  /// Pro-status komt alléén van de Stripe-webhook (checkout/subscription-events), nooit
+  /// rechtstreeks gezet door een route — zo kan een client 'm niet zelf aanzetten.
+  pro                   Boolean   @default(false)
+  stripeKlantId         String?   @unique @map("stripe_klant_id")
+  stripeAbonnementId    String?   @unique @map("stripe_abonnement_id")
   aangemaaktOp          DateTime  @default(now())
   bijgewerktOp          DateTime  @default(now()) @updatedAt
 

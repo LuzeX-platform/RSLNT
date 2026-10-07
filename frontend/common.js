@@ -53,6 +53,9 @@ async function api(pad, { methode = "GET", body } = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (response.status === 401 && !pad.startsWith("/api/auth/")) naarInloggen();
+  if (response.status === 402 && data.errorCode === "PRO_VEREIST" && location.pathname !== "/pro.html") {
+    window.location.href = "/pro.html";
+  }
   if (!response.ok) {
     const fout = new Error(data.bericht || data.errorCode || `Fout ${response.status}`);
     fout.status = response.status;
@@ -77,6 +80,9 @@ const FOUTTEKSTEN = {
   EMAIL_NIET_BEVESTIGD: "Je e-mailadres is nog niet bevestigd. Klik op de link in de mail die we je stuurden.",
   TOKEN_ONGELDIG: "Deze link is ongeldig, verlopen of al gebruikt.",
   ADMIN_NIET_VERWIJDERBAAR: "Het eigenaarsaccount kan niet verwijderd worden.",
+  PRO_VEREIST: "Dit onderdeel is voor Pro-leden.",
+  ABONNEMENT_NIET_BESCHIKBAAR: "Betalen is op dit moment niet beschikbaar. Probeer het later opnieuw.",
+  GEEN_ABONNEMENT: "Je hebt nog geen abonnement om te beheren.",
 };
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */

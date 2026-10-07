@@ -490,7 +490,11 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const bevestigd = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(tweede.tekst) });
     assert.equal(bevestigd.statusCode, 200);
     cookieB = sessieCookie(bevestigd);
-    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid" });
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid", pro: false });
+    // Pro rechtstreeks in de database zetten: zonder een echte Stripe-betaling is dit de enige
+    // manier om B voorbij de paywall te krijgen, en de "twee accounts"-test hieronder test
+    // isolatie, niet de paywall — die heeft zijn eigen test verderop.
+    await prisma.gebruiker.update({ where: { email: "bo@test.nl" }, data: { pro: true } });
 
     // Een bestaand, bevestigd adres: zelfde antwoord, geen mail (niets te raden).
     const aantal = testPostvak.length;
@@ -589,6 +593,43 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(laptop, "GET", "/api/vandaag")).statusCode, 401);
     cookieB = sessieCookie(res);
     assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 200);
+  });
+
+  test("Pro-paywall: bibliotheek en schema op maat alleen voor Pro-leden", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    const cas = await prisma.gebruiker.create({
+      data: {
+        email: "cas@test.nl",
+        naam: "Cas",
+        wachtwoordHash: await hashWachtwoord("cas-wachtwoord-1"),
+        rol: "lid",
+        emailBevestigdOp: new Date(),
+      },
+    });
+    const ingelogd = await vraagAls("", "POST", "/api/auth/inloggen", { email: "cas@test.nl", wachtwoord: "cas-wachtwoord-1" });
+    const cookieCas = sessieCookie(ingelogd);
+
+    // Zonder Pro: 402 op de bibliotheek en het schema op maat, maar voorkeuren instellen mag wel.
+    const zonderPro = await vraagAls(cookieCas, "GET", "/api/bibliotheek");
+    assert.equal(zonderPro.statusCode, 402);
+    assert.equal(zonderPro.json().errorCode, "PRO_VEREIST");
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/bibliotheek/Leg_Press")).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/bibliotheek/Leg_Press/toevoegen", { schemaId: "iets" })).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/voorstel")).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/voorkeuren")).statusCode, 200);
+
+    // Pro wordt alleen door de Stripe-webhook gezet (zie entitlementsPro.ts) — hier direct in de
+    // database, want er is geen echte Stripe-omgeving in deze test.
+    await prisma.gebruiker.update({ where: { id: cas.id }, data: { pro: true } });
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/bibliotheek")).statusCode, 200);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/voorstel")).statusCode, 200);
+
+    // Het eigenaarsaccount (A, admin) is altijd Pro, zonder dat er ooit `pro: true` voor staat.
+    assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { id: ikId } })).pro, false);
+    assert.equal((await vraag("GET", "/api/bibliotheek")).statusCode, 200);
+    assert.equal((await vraag("GET", "/api/auth/sessie")).json().gebruiker.pro, true);
+
+    await prisma.gebruiker.delete({ where: { id: cas.id } });
   });
 
   test("account: gegevens downloaden en verwijderen met alles erop en eraan", async () => {
