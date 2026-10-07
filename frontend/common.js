@@ -286,8 +286,38 @@ function tekenTabbalk() {
   document.body.append(nav);
 }
 
+// Alleen op de openbare pagina's (welkom, privacy) staat een #voet-element — in de app zelf is
+// er geen ruimte voor en zit de navigatie al in de tabbalk. Zelfde opbouw als CMMNTY: het
+// LuzeX-logo in de voettekst verwijst naar luzex.nl, net als in ACCRD en CMMNTY.
+function tekenVoet() {
+  const voet = document.getElementById("voet");
+  if (!voet) return;
+  voet.className = "voet";
+  voet.innerHTML = `
+    <div class="voet-boven">
+      <div class="voet-merk">
+        <a href="https://luzex.nl" class="brand-logo" role="img" aria-label="LuzeX — Imagination Innovation Illumination"></a>
+        <p class="voet-tagline">Sterker worden, zonder giswerk. Een app van LuzeX.</p>
+      </div>
+      <div class="voet-kolom">
+        <p class="voet-kop">RSLNT</p>
+        <a href="/registreren.html">Gratis account maken</a>
+        <a href="/wetenschap.html">Wetenschap</a>
+        <a href="/privacy.html">Privacy</a>
+      </div>
+      <div class="voet-kolom">
+        <p class="voet-kop">LuzeX</p>
+        <a href="https://luzex.nl" target="_blank" rel="noopener">luzex.nl</a>
+        <a href="https://accrd.luzex.nl" target="_blank" rel="noopener">ACCRD</a>
+        <a href="mailto:info@luzex.nl">Contact</a>
+      </div>
+    </div>
+    <p class="voet-copyright">© ${new Date().getFullYear()} LuzeX. Alle rechten voorbehouden.</p>`;
+}
+
 tekenBalk();
 tekenTabbalk();
+tekenVoet();
 meldWachtrij();
 verwerkWachtrij();
 
