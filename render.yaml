@@ -38,7 +38,7 @@ services:
       # Publieke adres van de app: voor de links in de bevestigings- en resetmail.
       - key: APP_URL
         sync: false
-      # Mailgun (EU) of SendGrid via SMTP, zoals CMMNTY — zie README.md. Zonder SMTP_HOST worden
+      # Mailgun (EU), SendGrid of Resend via SMTP — zie README.md. Zonder SMTP_HOST worden
       # mails alleen gelogd en kan niemand zijn account bevestigen.
       - key: SMTP_HOST
         sync: false
