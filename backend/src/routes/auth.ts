@@ -19,7 +19,7 @@ const RESET_TTL_MS = 60 * 60 * 1000;
 const ONBEVESTIGD_BEWAREN_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Versie van de privacyverklaring waarvoor iemand toestemming gaf (frontend/privacy.html). */
-export const PRIVACY_VERSIE = "2026-10-06";
+export const PRIVACY_VERSIE = "2026-10-07";
 
 const email = z.string().trim().toLowerCase().email("Ongeldig e-mailadres").max(200);
 const nieuwWachtwoord = z.string().min(10, "Wachtwoord moet minimaal 10 tekens zijn").max(200);
@@ -152,9 +152,11 @@ export async function authRoutes(app: FastifyInstance) {
     if (!sessie) return { gebruiker: null };
     const gebruiker = await prisma.gebruiker.findUnique({
       where: { id: sessie.gebruikerId },
-      select: { email: true, naam: true, rol: true },
+      select: { email: true, naam: true, rol: true, pro: true },
     });
-    return { gebruiker };
+    // Het eigenaarsaccount is altijd "Pro" in de UI, net als vereistPro() het op de server al
+    // altijd doorlaat — zie entitlementsPro.ts.
+    return { gebruiker: gebruiker ? { ...gebruiker, pro: gebruiker.rol === "admin" ? true : gebruiker.pro } : null };
   });
 
   app.post("/api/auth/wachtwoord-vergeten", { config: AUTH_LIMIET }, async (request, reply) => {

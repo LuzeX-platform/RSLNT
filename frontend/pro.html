@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pro — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">RSLNT Pro</p>
+      <h1>Je schema op maat, en de hele bibliotheek.</h1>
+      <p class="subtitle">Loggen, voortgang en je herstelcheck blijven altijd gratis. Pro voegt het automatisch gegenereerde schema en de oefeningenbibliotheek toe.</p>
+    </div>
+
+    <section class="panel" id="status-paneel" hidden>
+      <span class="badge badge-succes">Pro</span>
+      <p class="subtitle ruimte-boven">Je hebt Pro. Bedankt!</p>
+      <button type="button" class="knop-link" id="beheer-knop">Abonnement beheren</button>
+      <p class="error" id="beheer-fout" role="alert"></p>
+    </section>
+
+    <section class="panel" id="upgrade-paneel" hidden>
+      <h2>Wat je erbij krijgt</h2>
+      <ul>
+        <li>Een schema op maat, gegenereerd uit je doel, dagen per week en materiaal.</li>
+        <li>De hele oefeningenbibliotheek: 876 oefeningen met uitleg, foto's en alternatieven.</li>
+      </ul>
+      <button type="button" class="knop-link knop-groot" id="upgrade-knop">Upgrade naar Pro</button>
+      <p class="error" id="upgrade-fout" role="alert"></p>
+    </section>
+
+    <p class="lijst-meta" id="afgerekend-melding" hidden>Betaling ontvangen — dit duurt soms een paar seconden om te verwerken. Ververs de pagina als je hieronder nog geen Pro ziet.</p>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/pro.js"></script>
+</body>
+</html>
