@@ -68,6 +68,13 @@ export async function requireIngelogd(request: FastifyRequest, reply: FastifyRep
   request.gebruiker = gebruiker;
 }
 
+/** preHandler voor admin-only routes. Altijd ná requireIngelogd, nooit los. */
+export async function requireAdmin(request: FastifyRequest, reply: FastifyReply) {
+  if (request.gebruiker?.rol !== "admin") {
+    return reply.code(403).send({ errorCode: "GEEN_TOEGANG" });
+  }
+}
+
 /** Het account van dit verzoek. Alleen te gebruiken achter requireIngelogd. */
 export function gid(request: FastifyRequest): string {
   const id = request.gebruiker?.gebruikerId;

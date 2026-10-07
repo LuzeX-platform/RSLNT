@@ -48,6 +48,11 @@ Een fase begint pas als de vorige in de sportschool werkt.
   maat; "Dit schema gebruiken" zet het actief en je staat op Vandaag.
 - **Account** — naam en wachtwoord wijzigen, al je gegevens downloaden (JSON), uitloggen (wist
   ook de offline-kopieën op de telefoon) en je account met alles verwijderen.
+- **Beheer** (`/beheer.html`, alleen het eigenaarsaccount) — hoeveel mensen zich hebben
+  aangemeld, hoeveel daarvan hun e-mailadres bevestigd hebben, hoeveel Pro hebben (betaald of
+  via Kruisproduct-Pro) en de laatste 50 aanmeldingen. `GET /api/admin/overzicht`, met
+  `requireAdmin` erachter — niet alleen een verborgen link, de server weigert het ook voor
+  iedereen met rol `lid`.
 - **Privacy** (`/privacy.html`) — wat we bewaren, waarom, waar en je rechten. Contact:
   info@luzex.nl.
 
