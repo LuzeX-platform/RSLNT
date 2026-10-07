@@ -490,7 +490,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const bevestigd = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(tweede.tekst) });
     assert.equal(bevestigd.statusCode, 200);
     cookieB = sessieCookie(bevestigd);
-    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid", pro: false });
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid", pro: false, proBron: null });
     // Pro rechtstreeks in de database zetten: zonder een echte Stripe-betaling is dit de enige
     // manier om B voorbij de paywall te krijgen, en de "twee accounts"-test hieronder test
     // isolatie, niet de paywall — die heeft zijn eigen test verderop.
@@ -630,6 +630,49 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraag("GET", "/api/auth/sessie")).json().gebruiker.pro, true);
 
     await prisma.gebruiker.delete({ where: { id: cas.id } });
+  });
+
+  test("kruisproduct-Pro: een actief ACCRD-account geeft gratis Pro bij bevestigen", async () => {
+    // Nep-ACCRD: antwoordt "actief" voor daan@test.nl, "niet actief" voor ieder ander adres.
+    const http = await import("node:http");
+    const nepAccrd = http.createServer((req, res) => {
+      const url = new URL(req.url!, "http://nep");
+      const juisteSleutel = req.headers["x-luzex-intern-sleutel"] === "test-sleutel";
+      const actief = juisteSleutel && url.searchParams.get("email") === "daan@test.nl";
+      res.setHeader("content-type", "application/json");
+      res.end(JSON.stringify({ actief }));
+    });
+    await new Promise<void>((resolve) => nepAccrd.listen(0, resolve));
+    const poort = (nepAccrd.address() as import("node:net").AddressInfo).port;
+    process.env.ACCRD_INTERN_URL = `http://127.0.0.1:${poort}`;
+    process.env.LUZEX_INTERN_SLEUTEL = "test-sleutel";
+
+    try {
+      const { testPostvak } = await import("../src/mailer.js");
+      await vraagAls("", "POST", "/api/auth/registreren", {
+        naam: "Daan",
+        email: "Daan@Test.nl",
+        wachtwoord: "daan-wachtwoord-1",
+        toestemming: true,
+      });
+      const mail = testPostvak.at(-1)!;
+      const bevestig = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(mail.tekst) });
+      assert.equal(bevestig.statusCode, 200);
+      const cookieDaan = sessieCookie(bevestig);
+
+      const sessie = (await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker;
+      assert.equal(sessie.pro, true);
+      assert.equal(sessie.proBron, "accrd");
+      assert.equal((await vraagAls(cookieDaan, "GET", "/api/bibliotheek")).statusCode, 200);
+
+      const daan = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "daan@test.nl" } });
+      assert.equal(daan.proBron, "accrd");
+      await prisma.gebruiker.delete({ where: { id: daan.id } });
+    } finally {
+      delete process.env.ACCRD_INTERN_URL;
+      delete process.env.LUZEX_INTERN_SLEUTEL;
+      await new Promise((resolve) => nepAccrd.close(resolve));
+    }
   });
 
   test("account: gegevens downloaden en verwijderen met alles erop en eraan", async () => {

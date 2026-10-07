@@ -58,6 +58,42 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_GEHEIM
         sync: false
+      # Kruisproduct-Pro (hub/CLAUDE.md): een actief ACCRD- of SCRNN-account geeft gratis Pro
+      # op RSLNT. LUZEX_INTERN_SLEUTEL moet letterlijk gelijk zijn aan die van ACCRD en SCRNN.
+      # Ontbreken de URL's, dan doet dit product gewoon niet mee — niets gaat stuk.
+      - key: LUZEX_INTERN_SLEUTEL
+        sync: false
+      - key: ACCRD_INTERN_URL
+        value: https://accrd.luzex.nl
+      - key: SCRNN_INTERN_URL
+        sync: false
+
+  # Kruisproduct-Pro opnieuw controleren: wie zijn ACCRD/SCRNN-account kwijtraakt verliest hier
+  # zijn gratis RSLNT-Pro weer, en wie er pas later een koppeling bij kreeg, krijgt 'm hier
+  # alsnog. Draait dagelijks om 06:00 UTC. Raakt nooit een betaald Stripe-abonnement aan (zie
+  # kruisproductCron.ts).
+  - name: luzex-rslnt-kruisproduct
+    type: cron
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    schedule: "0 6 * * *"
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    dockerCommand: node dist/kruisproductCron.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: luzex-rslnt-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: LUZEX_INTERN_SLEUTEL
+        sync: false
+      - key: ACCRD_INTERN_URL
+        value: https://accrd.luzex.nl
+      - key: SCRNN_INTERN_URL
+        sync: false
 
 databases:
   - name: luzex-rslnt-db

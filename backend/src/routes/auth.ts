@@ -4,6 +4,7 @@ import { prisma } from "../db.js";
 import { hashToken, hashWachtwoord, maakEenmaligToken, maakSessieToken, verifieerWachtwoord } from "../auth.js";
 import { appUrl, verstuurBevestigingsmail, verstuurWachtwoordResetMail } from "../mailer.js";
 import { geldigeSessie, gid, requireIngelogd, wisSessieCookie, zetSessieCookie } from "../plugins/requireAuth.js";
+import { controleerKruisproductPro } from "../luzexEntitlement.js";
 
 // Accounts zoals CMMNTY: registreren met een bevestigingsmail, inloggen met vergrendeling na vijf
 // missers, wachtwoord vergeten via een resetmail. Antwoorden verraden nooit of een e-mailadres
@@ -84,9 +85,19 @@ export async function authRoutes(app: FastifyInstance) {
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const gebruiker = await prisma.gebruiker.findUnique({ where: { bevestigTokenHash: hashToken(parsed.data.token) } });
     if (!gebruiker) return reply.code(400).send({ errorCode: "TOKEN_ONGELDIG" });
+    // Kruisproduct-Pro: een actief ACCRD- of SCRNN-account met hetzelfde e-mailadres geeft
+    // gratis Pro, zie luzexEntitlement.ts. Pas hier gecontroleerd (niet al bij registreren):
+    // dit is het moment waarop het adres bevestigd is, dus ook het moment waarop we zeker
+    // weten dat het van deze persoon is. Alleen bij een nog niet-Pro account: nooit een
+    // bestaand (betaald) Pro-abonnement overschrijven.
+    const bron = gebruiker.pro ? null : await controleerKruisproductPro(gebruiker.email);
     const bijgewerkt = await prisma.gebruiker.update({
       where: { id: gebruiker.id },
-      data: { emailBevestigdOp: gebruiker.emailBevestigdOp ?? new Date(), bevestigTokenHash: null },
+      data: {
+        emailBevestigdOp: gebruiker.emailBevestigdOp ?? new Date(),
+        bevestigTokenHash: null,
+        ...(bron ? { pro: true, proBron: bron } : {}),
+      },
     });
     // Meteen ingelogd: wie net op de link klikte, hoeft niet nog eens zijn wachtwoord te typen.
     logIn(reply, bijgewerkt);
@@ -152,7 +163,7 @@ export async function authRoutes(app: FastifyInstance) {
     if (!sessie) return { gebruiker: null };
     const gebruiker = await prisma.gebruiker.findUnique({
       where: { id: sessie.gebruikerId },
-      select: { email: true, naam: true, rol: true, pro: true },
+      select: { email: true, naam: true, rol: true, pro: true, proBron: true },
     });
     // Het eigenaarsaccount is altijd "Pro" in de UI, net als vereistPro() het op de server al
     // altijd doorlaat — zie entitlementsPro.ts.

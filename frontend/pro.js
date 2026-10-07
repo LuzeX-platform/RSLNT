@@ -8,6 +8,13 @@ vereisSessie().then((g) => {
   document.getElementById("afgerekend-melding").hidden = !afgerekend || g.pro;
   document.getElementById("status-paneel").hidden = !g.pro;
   document.getElementById("upgrade-paneel").hidden = g.pro;
+  if (g.pro && g.proBron) {
+    document.getElementById("pro-bron-tekst").textContent = `Je hebt gratis Pro via je account bij ${g.proBron === "accrd" ? "ACCRD" : "SCRNN"}.`;
+    document.getElementById("beheer-knop").hidden = true;
+  } else if (g.pro && g.rol === "admin") {
+    document.getElementById("pro-bron-tekst").textContent = "Je bent de eigenaar van RSLNT: altijd Pro, zonder abonnement.";
+    document.getElementById("beheer-knop").hidden = true;
+  }
 });
 
 document.getElementById("upgrade-knop").addEventListener("click", async () => {

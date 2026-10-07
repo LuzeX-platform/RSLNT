@@ -83,7 +83,9 @@ export async function abonnementRoutes(app: FastifyInstance) {
         if (sessie.mode === "subscription" && typeof sessie.customer === "string" && typeof sessie.subscription === "string") {
           await prisma.gebruiker.updateMany({
             where: { stripeKlantId: sessie.customer },
-            data: { pro: true, stripeAbonnementId: sessie.subscription },
+            // proBron op null: een echte betaling maakt Stripe leidend, niet kruisproductCron.ts
+            // (zie proBron in schema.prisma).
+            data: { pro: true, proBron: null, stripeAbonnementId: sessie.subscription },
           });
         }
         break;
@@ -97,7 +99,7 @@ export async function abonnementRoutes(app: FastifyInstance) {
           const actief = abonnement.status === "active" || abonnement.status === "trialing";
           await prisma.gebruiker.updateMany({
             where: { stripeKlantId: abonnement.customer },
-            data: { pro: actief, stripeAbonnementId: actief ? abonnement.id : null },
+            data: { pro: actief, proBron: null, stripeAbonnementId: actief ? abonnement.id : null },
           });
         }
         break;
