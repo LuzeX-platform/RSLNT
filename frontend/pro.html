@@ -41,6 +41,21 @@
       <p class="error" id="upgrade-fout" role="alert"></p>
     </section>
 
+    <section class="panel" id="kruisproduct-paneel" hidden>
+      <h2>Al een betalend ACCRD-account?</h2>
+      <p class="subtitle">Een actief, betalend account bij ACCRD geeft gratis Pro op RSLNT. Vul het kvk-nummer van dat account in om te claimen.</p>
+      <form id="kruisproduct-formulier">
+        <label for="kvk-invoer">KvK-nummer</label>
+        <input type="text" id="kvk-invoer" name="kvkNummer" inputmode="numeric" autocomplete="off" required />
+        <button type="submit" class="knop-link">Claim gratis Pro</button>
+      </form>
+      <p class="error" id="kruisproduct-fout" role="alert"></p>
+      <div id="kruisproduct-wisselen" hidden>
+        <p class="lijst-meta">Dit kvk-nummer heeft al gratis Pro op CMMNTY. Wil je wisselen naar RSLNT? Dat zet die keuze op CMMNTY uit.</p>
+        <button type="button" class="knop-link" id="kruisproduct-wisselen-knop">Ja, wissel naar RSLNT</button>
+      </div>
+    </section>
+
     <p class="lijst-meta" id="afgerekend-melding" hidden>Betaling ontvangen — dit duurt soms een paar seconden om te verwerken. Ververs de pagina als je hieronder nog geen Pro ziet.</p>
   </main>
 

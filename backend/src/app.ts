@@ -17,6 +17,7 @@ import { voortgangRoutes } from "./routes/voortgang.js";
 import { bibliotheekRoutes } from "./routes/bibliotheek.js";
 import { personalisatieRoutes } from "./routes/personalisatie.js";
 import { abonnementRoutes } from "./routes/abonnement.js";
+import { kruisproductRoutes } from "./routes/kruisproduct.js";
 import { adminRoutes } from "./routes/admin.js";
 
 declare module "fastify" {
@@ -124,6 +125,7 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(bibliotheekRoutes);
   await app.register(personalisatieRoutes);
   await app.register(abonnementRoutes);
+  await app.register(kruisproductRoutes);
   await app.register(adminRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });

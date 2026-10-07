@@ -58,19 +58,18 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_GEHEIM
         sync: false
-      # Kruisproduct-Pro (hub/CLAUDE.md): een actief ACCRD- of SCRNN-account geeft gratis Pro
-      # op RSLNT. LUZEX_INTERN_SLEUTEL moet letterlijk gelijk zijn aan die van ACCRD en SCRNN.
-      # Ontbreken de URL's, dan doet dit product gewoon niet mee — niets gaat stuk.
+      # Kruisproduct-Pro v2 (hub/CLAUDE.md): een actief, betalend ACCRD-account geeft gratis Pro
+      # op RSLNT, geclaimd met een kvk-nummer (SCRNN speelt hier bewust geen rol in meer).
+      # LUZEX_INTERN_SLEUTEL moet letterlijk gelijk zijn aan die van ACCRD. Ontbreekt de URL,
+      # dan doet dit product gewoon niet mee — niets gaat stuk.
       - key: LUZEX_INTERN_SLEUTEL
         sync: false
       - key: ACCRD_INTERN_URL
         value: https://accrd.luzex.nl
-      - key: SCRNN_INTERN_URL
-        sync: false
 
-  # Kruisproduct-Pro opnieuw controleren: wie zijn ACCRD/SCRNN-account kwijtraakt verliest hier
-  # zijn gratis RSLNT-Pro weer, en wie er pas later een koppeling bij kreeg, krijgt 'm hier
-  # alsnog. Draait dagelijks om 06:00 UTC. Raakt nooit een betaald Stripe-abonnement aan (zie
+  # Kruisproduct-Pro opnieuw controleren: wie zijn gekoppelde kvk-nummer bij ACCRD kwijtraakt
+  # verliest hier zijn gratis RSLNT-Pro weer, en wie opnieuw gekoppeld is, krijgt 'm hier alsnog.
+  # Draait dagelijks om 06:00 UTC. Raakt nooit een betaald Stripe-abonnement aan (zie
   # kruisproductCron.ts).
   - name: luzex-rslnt-kruisproduct
     type: cron
@@ -92,8 +91,6 @@ services:
         sync: false
       - key: ACCRD_INTERN_URL
         value: https://accrd.luzex.nl
-      - key: SCRNN_INTERN_URL
-        sync: false
 
 databases:
   - name: luzex-rslnt-db

@@ -32,7 +32,8 @@ data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licent
   src/mailer.ts       SMTP via nodemailer (zoals CMMNTY); zonder SMTP_HOST gelogd en in testPostvak
   src/stripe.ts       Stripe-client + de Price-id van Pro, allebei lazy uit env (null/throw zonder)
   src/entitlementsPro.ts  vereistPro(): preHandler voor Pro-only routes, fail-closed (zie "Afspraken")
-  src/luzexEntitlement.ts  Kruisproduct-Pro: controleert of een e-mailadres een actief ACCRD/SCRNN-account is
+  src/luzexKruisproduct.ts  Kruisproduct-Pro v2: claimt/controleert bij ACCRD op kvk-nummer (SCRNN speelt hier geen rol meer in)
+  src/routes/kruisproduct.ts  POST /api/account/kruisproduct-claim: de klant vult zelf zijn kvk-nummer in
   src/kruisproductCron.ts  dagelijkse Render-cron die Kruisproduct-Pro opnieuw controleert
   src/plugins/requireAuth.ts  sessiecookie + controle in de database (bestaat, bevestigd, sessieVersie); gid(); requireAdmin
   src/trainingData.ts database rond een training: geschiedenis ophalen, voorstel laten berekenen
@@ -72,10 +73,13 @@ frontend/           losse HTML + één script per pagina, geen build-stap
   juist de paywall zelf, niet een bestaand betalend account. `Gebruiker.pro` wordt uitsluitend
   gezet door de Stripe-webhook (routes/abonnement.ts) of Kruisproduct-Pro (hierboven), nooit
   door een route rechtstreeks.
-- **Kruisproduct-Pro** (zie hub/CLAUDE.md voor de volledige afspraak): `proBron` is alleen
-  "accrd"/"scrnn" als Pro daarvandaan kwam, en moet dan ook altijd expliciet op `null` zodra
-  een echte Stripe-betaling binnenkomt (de webhook doet dit al) — anders draait
-  `kruisproductCron.ts` een betalend abonnement de volgende dag terug naar "geen Pro".
+- **Kruisproduct-Pro v2** (zie hub/CLAUDE.md voor de volledige afspraak): uitsluitend ACCRD, op
+  kvk-nummer, en nooit automatisch — de klant claimt zelf via `POST /api/account/kruisproduct-claim`.
+  `kruisproductKvkNummer` (niet `proBron`) is het filter waarop `kruisproductCron.ts` mag
+  intrekken: een echte Stripe-betaling zet dat veld nooit, dus moet het ook nooit per ongeluk
+  gezet worden buiten die route om. `proBron` is alleen `"accrd"` als Pro daarvandaan kwam, en
+  moet dan ook altijd expliciet op `null` zodra een echte Stripe-betaling binnenkomt (de webhook
+  doet dit al).
 - **Accounts zoals CMMNTY**: registreren met bevestigingsmail, eenmalige tokens alleen als
   sha256-hash, vergrendeling na vijf missers, antwoorden verraden niet of een adres bestaat.
   `sessieVersie` gaat omhoog bij een nieuw wachtwoord: oudere sessies vervallen. Het

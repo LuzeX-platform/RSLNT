@@ -655,15 +655,29 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     await prisma.gebruiker.delete({ where: { id: cas.id } });
   });
 
-  test("kruisproduct-Pro: een actief ACCRD-account geeft gratis Pro bij bevestigen", async () => {
-    // Nep-ACCRD: antwoordt "actief" voor daan@test.nl, "niet actief" voor ieder ander adres.
+  test("kruisproduct-Pro v2: een actief ACCRD-account geeft gratis Pro op kvk-nummer, nooit automatisch bij bevestigen", async () => {
+    // Nep-ACCRD: toegekend voor kvk 11112222, al_gekozen (cmmnty) voor 33334444, anders niet_actief.
     const http = await import("node:http");
     const nepAccrd = http.createServer((req, res) => {
-      const url = new URL(req.url!, "http://nep");
       const juisteSleutel = req.headers["x-luzex-intern-sleutel"] === "test-sleutel";
-      const actief = juisteSleutel && url.searchParams.get("email") === "daan@test.nl";
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ actief }));
+      if (!juisteSleutel) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ errorCode: "ONGELDIGE_SLEUTEL" }));
+        return;
+      }
+      let body = "";
+      req.on("data", (stuk) => (body += stuk));
+      req.on("end", () => {
+        const data = body ? JSON.parse(body) : {};
+        if (data.kvkNummer === "33334444" && !data.wisselen) {
+          res.end(JSON.stringify({ status: "al_gekozen", huidigeKeuze: "cmmnty" }));
+        } else if (data.kvkNummer === "11112222" || (data.kvkNummer === "33334444" && data.wisselen)) {
+          res.end(JSON.stringify({ status: "toegekend" }));
+        } else {
+          res.end(JSON.stringify({ status: "niet_actief" }));
+        }
+      });
     });
     await new Promise<void>((resolve) => nepAccrd.listen(0, resolve));
     const poort = (nepAccrd.address() as import("node:net").AddressInfo).port;
@@ -683,6 +697,24 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       assert.equal(bevestig.statusCode, 200);
       const cookieDaan = sessieCookie(bevestig);
 
+      // Bevestigen alléén kent nooit meer automatisch Pro toe — dat is nu altijd een expliciete claim.
+      assert.equal((await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker.pro, false);
+
+      // Een kvk-nummer dat niet aan een actief ACCRD-account hangt: afgewezen, geen Pro.
+      const nietActief = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "00000000" });
+      assert.equal(nietActief.statusCode, 400);
+      assert.equal(nietActief.json().errorCode, "NIET_ACTIEF");
+
+      // Een kvk-nummer dat al CMMNTY gekozen heeft: zonder wisselen geweigerd met de huidige keuze.
+      const algekozen = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444" });
+      assert.equal(algekozen.statusCode, 409);
+      assert.equal(algekozen.json().huidigeKeuze, "cmmnty");
+      assert.equal((await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker.pro, false);
+
+      // Expliciet wisselen: nu wel toegekend.
+      const wissel = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444", wisselen: true });
+      assert.equal(wissel.statusCode, 200);
+
       const sessie = (await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker;
       assert.equal(sessie.pro, true);
       assert.equal(sessie.proBron, "accrd");
@@ -690,6 +722,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
 
       const daan = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "daan@test.nl" } });
       assert.equal(daan.proBron, "accrd");
+      assert.equal(daan.kruisproductKvkNummer, "33334444");
       await prisma.gebruiker.delete({ where: { id: daan.id } });
     } finally {
       delete process.env.ACCRD_INTERN_URL;

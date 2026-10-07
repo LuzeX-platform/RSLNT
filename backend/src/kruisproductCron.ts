@@ -1,28 +1,32 @@
 import "dotenv/config";
 import { prisma } from "./db.js";
-import { controleerKruisproductPro } from "./luzexEntitlement.js";
+import { controleerKruisproductStatus } from "./luzexKruisproduct.js";
 
-// Draait dagelijks als losse Render-cronjob (zie render.yaml). Alleen gebruikers met proBron
-// gezet komen hier aan bod — een betaald Stripe-abonnement (proBron null, zie
-// routes/abonnement.ts) raakt dit script nooit aan. Wie zijn ACCRD- of SCRNN-account kwijtraakt
-// verliest hier zijn gratis RSLNT-Pro weer; wie een nieuwe koppeling kreeg sinds de vorige run,
-// krijgt 'm hier alsnog.
+// Draait dagelijks als losse Render-cronjob (zie render.yaml). Het filter op
+// kruisproductKvkNummer (niet proBron) is de hele veiligheid hier: een echt betaald
+// Stripe-abonnement (routes/abonnement.ts) zet dat veld nooit, dus die rijen komen deze query
+// nooit tegen, hoe vaak hij ook draait. Wie zijn ACCRD-koppeling kwijtraakt verliest hier zijn
+// gratis RSLNT-Pro weer; wie opnieuw gekoppeld is sinds de vorige run, krijgt 'm hier terug.
 async function main() {
   const gebruikers = await prisma.gebruiker.findMany({
-    where: { proBron: { not: null } },
-    select: { id: true, email: true, pro: true, proBron: true },
+    where: { kruisproductKvkNummer: { not: null } },
+    select: { id: true, pro: true, kruisproductKvkNummer: true },
   });
   let ingetrokken = 0;
   let bevestigd = 0;
   for (const g of gebruikers) {
-    const bron = await controleerKruisproductPro(g.email);
-    if (bron) {
-      if (!g.pro || g.proBron !== bron) {
-        await prisma.gebruiker.update({ where: { id: g.id }, data: { pro: true, proBron: bron } });
+    // not-null gefilterd in de query hierboven, maar TypeScript weet dat niet.
+    const actief = await controleerKruisproductStatus(g.kruisproductKvkNummer!);
+    if (actief) {
+      if (!g.pro) {
+        await prisma.gebruiker.update({ where: { id: g.id }, data: { pro: true, proBron: "accrd" } });
       }
       bevestigd++;
     } else {
-      await prisma.gebruiker.update({ where: { id: g.id }, data: { pro: false, proBron: null } });
+      await prisma.gebruiker.update({
+        where: { id: g.id },
+        data: { pro: false, proBron: null, kruisproductKvkNummer: null },
+      });
       ingetrokken++;
     }
   }
