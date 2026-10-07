@@ -11,7 +11,8 @@ backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeN
                       schemas (+ oefeningen), programmas (import/activeren/deload),
                       trainingen (+ sets, wisselen, /api/vandaag), lichaamsgewicht,
                       lichaam (profiel, metingen, /api/lichaam), herstel, voortgang,
-                      bibliotheek (zoeken, detail, favoriet, toevoegen), personalisatie (voorkeuren, voorstel)
+                      bibliotheek (zoeken, detail, favoriet, toevoegen), personalisatie (voorkeuren, voorstel),
+                      admin (/api/admin/overzicht, alleen rol admin: aantal aanmeldingen, Pro)
   src/progressie.ts   pure logica: voorstel volgende keer (dubbele progressie, kniepijn, stagnatie, deload, RIR)
   src/fase.ts         pure logica: programmaweek, introfase, deload en het doel in die fase
   src/programmaImport.ts  programma-JSON (schema_version 1) valideren en inladen
@@ -33,7 +34,7 @@ data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licent
   src/entitlementsPro.ts  vereistPro(): preHandler voor Pro-only routes, fail-closed (zie "Afspraken")
   src/luzexEntitlement.ts  Kruisproduct-Pro: controleert of een e-mailadres een actief ACCRD/SCRNN-account is
   src/kruisproductCron.ts  dagelijkse Render-cron die Kruisproduct-Pro opnieuw controleert
-  src/plugins/requireAuth.ts  sessiecookie + controle in de database (bestaat, bevestigd, sessieVersie); gid()
+  src/plugins/requireAuth.ts  sessiecookie + controle in de database (bestaat, bevestigd, sessieVersie); gid(); requireAdmin
   src/trainingData.ts database rond een training: geschiedenis ophalen, voorstel laten berekenen
   src/routes/abonnement.ts  Stripe Checkout + Billing Portal (redirects) en de webhook die pro zet
 programmas/         meegeleverde programma's (JSON); de seed laadt benen-push-pull.json in
@@ -47,6 +48,7 @@ frontend/           losse HTML + één script per pagina, geen build-stap
   bibliotheek.js      lijst (filters in de URL) en detail (?id=) van de oefeningenbibliotheek, Pro
   personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import, voorstel Pro
   pro.js              upgraden en abonnement beheren, beide een redirect naar Stripe
+  beheer.js           alleen rol admin: aantal aanmeldingen, bevestigd, Pro en de laatste 50
   sw.js               service worker: netwerk eerst, cache als terugval
   wetenschap.html     openbare pagina: per regel het onderzoek, de zekerheid en de bron
   welkom.html         openbaar portaal; auth.js voor inloggen/registreren/bevestigen/wachtwoord-pagina's

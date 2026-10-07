@@ -2416,3 +2416,27 @@ body.portaal {
     grid-column: 1 / -1;
   }
 }
+
+/* Statgetallen op /beheer.html. 1-op-1 uit CMMNTY overgenomen (.stat-rij/.stat-waarde/
+   .stat-label bestonden daar al voor hetzelfde doel). */
+.stat-rij {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.stat {
+  margin: 0;
+}
+
+.stat-waarde {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}

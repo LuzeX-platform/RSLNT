@@ -595,6 +595,29 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 200);
   });
 
+  test("Beheer: alleen het eigenaarsaccount ziet /api/admin/overzicht", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    const zus = await prisma.gebruiker.create({
+      data: {
+        email: "zus@test.nl",
+        naam: "Zus",
+        wachtwoordHash: await hashWachtwoord("zus-wachtwoord-1"),
+        rol: "lid",
+        emailBevestigdOp: new Date(),
+      },
+    });
+    const ingelogd = await vraagAls("", "POST", "/api/auth/inloggen", { email: "zus@test.nl", wachtwoord: "zus-wachtwoord-1" });
+    const cookieZus = sessieCookie(ingelogd);
+    assert.equal((await vraagAls(cookieZus, "GET", "/api/admin/overzicht")).statusCode, 403);
+
+    const overzicht = (await vraag("GET", "/api/admin/overzicht")).json();
+    assert.ok(overzicht.totaal >= 1);
+    assert.equal(typeof overzicht.bevestigd, "number");
+    assert.ok(overzicht.recent.some((r: { email: string }) => r.email === "zus@test.nl"));
+
+    await prisma.gebruiker.delete({ where: { id: zus.id } });
+  });
+
   test("Pro-paywall: bibliotheek en schema op maat alleen voor Pro-leden", async () => {
     const { hashWachtwoord } = await import("../src/auth.js");
     const cas = await prisma.gebruiker.create({

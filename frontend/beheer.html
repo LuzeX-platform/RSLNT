@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Beheer — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker">Beheer</p>
+      <h1>Aanmeldingen</h1>
+      <p class="subtitle">Alleen zichtbaar voor het eigenaarsaccount.</p>
+    </div>
+
+    <section class="panel">
+      <div class="stat-rij" id="stats"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Laatste aanmeldingen</h2>
+      <div class="tabel-scroll">
+        <table class="tabel">
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>E-mailadres</th>
+              <th>Bevestigd</th>
+              <th>Pro</th>
+              <th>Aangemeld</th>
+            </tr>
+          </thead>
+          <tbody id="rijen"></tbody>
+        </table>
+      </div>
+      <p class="lijst-meta ruimte-boven">Laatste 50 aanmeldingen.</p>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/beheer.js"></script>
+</body>
+</html>
