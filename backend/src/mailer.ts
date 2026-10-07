@@ -1,9 +1,11 @@
 import nodemailer, { type Transporter } from "nodemailer";
 
-// Zelfde aanpak als ACCRD en CMMNTY: gewone SMTP via nodemailer. Mailgun én SendGrid bieden allebei
-// SMTP aan, dus overstappen is alleen een kwestie van andere SMTP_*-waarden, geen code.
+// Zelfde aanpak als ACCRD en CMMNTY: gewone SMTP via nodemailer. Mailgun, SendGrid én Resend
+// bieden allemaal SMTP aan, dus overstappen is alleen een kwestie van andere SMTP_*-waarden,
+// geen code.
 //   Mailgun:  SMTP_HOST=smtp.eu.mailgun.org  SMTP_USER=postmaster@mg.luzex.nl
 //   SendGrid: SMTP_HOST=smtp.sendgrid.net    SMTP_USER=apikey
+//   Resend:   SMTP_HOST=smtp.resend.com      SMTP_USER=resend
 // Zonder SMTP_HOST (lokaal) wordt niets verstuurd maar de mail gelogd, zodat links uit
 // bevestigings- en resetmails altijd te testen zijn.
 let transporter: Transporter | null = null;

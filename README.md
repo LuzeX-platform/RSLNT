@@ -17,7 +17,7 @@ eigen deployment, eigen geheimen.
 | Database    | PostgreSQL 16 via Prisma 5 |
 | Frontend    | Losse HTML/CSS/JS, geserveerd door dezelfde server (geen build-stap) |
 | Inloggen    | E-mail + wachtwoord (Argon2id), sessie in een httpOnly-cookie (90 dagen) |
-| Mail        | SMTP via nodemailer, Mailgun (EU) of SendGrid, zoals CMMNTY |
+| Mail        | SMTP via nodemailer, Mailgun (EU), SendGrid of Resend |
 | Hosting     | Render (Blueprint in `render.yaml`), regio Frankfurt |
 
 ## Fases
@@ -182,24 +182,30 @@ GitHub Actions draait beide bij elke push (`.github/workflows/test.yml`).
 
 Render bouwt bij elke push naar `main` automatisch opnieuw.
 
-### Mail (Mailgun of SendGrid), zoals CMMNTY
+### Mail (Mailgun, SendGrid of Resend)
 
-Zonder `SMTP_HOST` worden mails alleen in de log gezet en kan niemand zijn account bevestigen.
+Zonder `SMTP_HOST` worden mails alleen in de log gezet en kan niemand zijn account bevestigen —
+de bevestigingsmail bij registreren gaat hier al via (`verstuurBevestigingsmail` in
+`src/routes/auth.ts`), er is geen code nodig, alleen deze omgevingsvariabelen.
 
-| | Mailgun (EU) | SendGrid |
-|---|---|---|
-| `SMTP_HOST` | `smtp.eu.mailgun.org` | `smtp.sendgrid.net` |
-| `SMTP_PORT` | `587` | `587` |
-| `SMTP_USER` | `postmaster@mg.luzex.nl` | `apikey` |
-| `SMTP_WACHTWOORD` | SMTP-wachtwoord uit Mailgun | de API-key |
-| `SMTP_AFZENDER` | `LuzeX RSLNT <rslnt@mg.luzex.nl>` | idem, geverifieerd adres |
+| | Mailgun (EU) | SendGrid | Resend |
+|---|---|---|---|
+| `SMTP_HOST` | `smtp.eu.mailgun.org` | `smtp.sendgrid.net` | `smtp.resend.com` |
+| `SMTP_PORT` | `587` | `587` | `587` |
+| `SMTP_USER` | `postmaster@mg.luzex.nl` | `apikey` | `resend` |
+| `SMTP_WACHTWOORD` | SMTP-wachtwoord uit Mailgun | de API-key | de API-key |
+| `SMTP_AFZENDER` | `LuzeX RSLNT <rslnt@mg.luzex.nl>` | idem, geverifieerd adres | idem, geverifieerd adres |
 
 Gebruikt CMMNTY al Mailgun, dan kun je hetzelfde domein en dezelfde gegevens gebruiken (met een
-eigen afzender). Zet SPF/DKIM goed voor het afzenddomein, anders belandt de bevestigingsmail in
-spam. Mailgun EU houdt de data in de EU.
+eigen afzender). Bij Resend verifieer je het afzenddomein (bijv. `mail.luzex.nl`) eerst onder
+*Domains* in het Resend-dashboard — pas daarna accepteert Resend mail van dat domein. Zet
+SPF/DKIM goed voor het afzenddomein, anders belandt de bevestigingsmail in spam (Resend zet de
+benodigde DNS-records zelf klaar bij het toevoegen van het domein). Mailgun EU houdt de data in
+de EU; Resend is Amerikaans — kies Mailgun als AVG-dataresidentie in de EU een harde eis is.
 
 ### Kosten (Render, indicatief)
 
-Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. Mailgun of SendGrid: gratis
-tot een paar duizend mails per maand. Met veel gebruikers wordt de database van 1 GB te klein;
+Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. Mailgun, SendGrid of
+Resend: gratis tot een paar duizend mails per maand. Met veel gebruikers wordt de database van
+1 GB te klein;
 vergroten kan in Render.
