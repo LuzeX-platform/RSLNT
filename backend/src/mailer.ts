@@ -25,9 +25,27 @@ function afzender(): string {
   return process.env.SMTP_AFZENDER ?? "LuzeX RSLNT <rslnt@mail.luzex.nl>";
 }
 
-/** Het publieke adres van de app, voor links in mails. */
+/**
+ * Het publieke adres van de app, voor links in mails. APP_URL als die er is (bijv. het eigen domein),
+ * anders het adres dat Render zelf meegeeft (RENDER_EXTERNAL_URL). Nooit localhost in productie:
+ * een link naar localhost opent op de telefoon van een ander niets.
+ */
 export function appUrl(): string {
-  return (process.env.APP_URL ?? `http://localhost:${process.env.PORT ?? 4200}`).replace(/\/+$/, "");
+  const basis = process.env.APP_URL || process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT ?? 4200}`;
+  return basis.trim().replace(/\/+$/, "");
+}
+
+/** Waarschuwingen bij het starten: zonder deze instellingen kan niemand zijn account bevestigen. */
+export function mailWaarschuwingen(): string[] {
+  if (process.env.NODE_ENV !== "production") return [];
+  const meldingen: string[] = [];
+  if (!process.env.SMTP_HOST) {
+    meldingen.push("SMTP_HOST ontbreekt: bevestigings- en resetmails worden NIET verstuurd. De links staan in deze log ([mailer]).");
+  }
+  if (!process.env.APP_URL) {
+    meldingen.push(`APP_URL ontbreekt: links in mails gebruiken ${appUrl()}. Zet APP_URL op je eigen domein (bijv. https://rslnt.luzex.nl).`);
+  }
+  return meldingen;
 }
 
 interface Mail {

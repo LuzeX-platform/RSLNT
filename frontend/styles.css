@@ -2350,3 +2350,12 @@ body.portaal {
 .gevaar-zone {
   border: 1px solid var(--danger);
 }
+
+.welkom-paneel h2 {
+  margin-top: 0;
+}
+
+.welkom-paneel .knop-link {
+  width: 100%;
+  margin-top: 14px;
+}

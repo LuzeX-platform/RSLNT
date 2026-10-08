@@ -66,11 +66,17 @@ function tekenTraining() {
     return;
   }
   if (!volgendeSchema) {
-    kop.textContent = "Welkom bij RSLNT";
-    ondertitel.textContent = "Je hebt nog geen schema. In een paar minuten maak je er een die past bij je doel, je tijd en je lichaam.";
-    startKnop.hidden = false;
-    startKnop.textContent = "Beginnen";
-    startKnop.onclick = () => (window.location.href = "/start.html");
+    startKnop.hidden = true;
+    if (!programma) {
+      // Nieuw account: welkom bovenaan, met één knop. Het trainingsblok is dan leeg en verdwijnt.
+      kop.textContent = "Welkom bij RSLNT";
+      ondertitel.textContent = "Je hebt nog geen schema. Begin hieronder.";
+      document.getElementById("welkom-paneel").hidden = false;
+      document.getElementById("training-paneel").hidden = true;
+      return;
+    }
+    kop.textContent = "Nog geen trainingen in je programma";
+    ondertitel.innerHTML = 'Voeg oefeningen toe onder <a href="/schema.html">Schema</a>, of maak een <a href="/personaliseren.html">schema op maat</a>.';
     return;
   }
 
@@ -182,7 +188,10 @@ function tekenHerstelForm() {
 }
 
 function tekenHerstel() {
-  const { herstel } = gegevens;
+  const { herstel, programma } = gegevens;
+  // Zonder schema is er nog geen training om je op voor te bereiden: eerst de eerste stap.
+  document.getElementById("herstel-paneel").hidden = !programma;
+  if (!programma) return;
   const form = document.getElementById("herstel-form");
   const signalenEl = document.getElementById("herstel-signalen");
   if (!herstel.check) {
