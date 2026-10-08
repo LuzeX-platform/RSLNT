@@ -9,8 +9,10 @@ vereisSessie().then((g) => {
   document.getElementById("kop").textContent = g.naam;
   document.getElementById("email").textContent = g.email;
   document.getElementById("naam").value = g.naam;
+  document.getElementById("pro-status").textContent = g.pro ? "Je hebt Pro." : "Geen Pro: het schema op maat en de oefeningenbibliotheek zijn op dit moment niet beschikbaar.";
   // Het eigenaarsaccount beheert de app en kan niet zichzelf verwijderen.
   document.getElementById("verwijder-paneel").hidden = g.rol === "admin";
+  document.getElementById("beheer-paneel").hidden = g.rol !== "admin";
 });
 
 document.getElementById("naam-form").addEventListener("submit", async (e) => {

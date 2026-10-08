@@ -490,7 +490,11 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const bevestigd = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(tweede.tekst) });
     assert.equal(bevestigd.statusCode, 200);
     cookieB = sessieCookie(bevestigd);
-    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid" });
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid", pro: false, proBron: null });
+    // Pro rechtstreeks in de database zetten: zonder een echte Stripe-betaling is dit de enige
+    // manier om B voorbij de paywall te krijgen, en de "twee accounts"-test hieronder test
+    // isolatie, niet de paywall — die heeft zijn eigen test verderop.
+    await prisma.gebruiker.update({ where: { email: "bo@test.nl" }, data: { pro: true } });
 
     // Een bestaand, bevestigd adres: zelfde antwoord, geen mail (niets te raden).
     const aantal = testPostvak.length;
@@ -589,6 +593,142 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(laptop, "GET", "/api/vandaag")).statusCode, 401);
     cookieB = sessieCookie(res);
     assert.equal((await vraagAls(cookieB, "GET", "/api/vandaag")).statusCode, 200);
+  });
+
+  test("Beheer: alleen het eigenaarsaccount ziet /api/admin/overzicht", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    const zus = await prisma.gebruiker.create({
+      data: {
+        email: "zus@test.nl",
+        naam: "Zus",
+        wachtwoordHash: await hashWachtwoord("zus-wachtwoord-1"),
+        rol: "lid",
+        emailBevestigdOp: new Date(),
+      },
+    });
+    const ingelogd = await vraagAls("", "POST", "/api/auth/inloggen", { email: "zus@test.nl", wachtwoord: "zus-wachtwoord-1" });
+    const cookieZus = sessieCookie(ingelogd);
+    assert.equal((await vraagAls(cookieZus, "GET", "/api/admin/overzicht")).statusCode, 403);
+
+    const overzicht = (await vraag("GET", "/api/admin/overzicht")).json();
+    assert.ok(overzicht.totaal >= 1);
+    assert.equal(typeof overzicht.bevestigd, "number");
+    assert.ok(overzicht.recent.some((r: { email: string }) => r.email === "zus@test.nl"));
+
+    await prisma.gebruiker.delete({ where: { id: zus.id } });
+  });
+
+  test("Pro-paywall: bibliotheek en schema op maat alleen voor Pro-leden", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    const cas = await prisma.gebruiker.create({
+      data: {
+        email: "cas@test.nl",
+        naam: "Cas",
+        wachtwoordHash: await hashWachtwoord("cas-wachtwoord-1"),
+        rol: "lid",
+        emailBevestigdOp: new Date(),
+      },
+    });
+    const ingelogd = await vraagAls("", "POST", "/api/auth/inloggen", { email: "cas@test.nl", wachtwoord: "cas-wachtwoord-1" });
+    const cookieCas = sessieCookie(ingelogd);
+
+    // Zonder Pro: 402 op de bibliotheek en het schema op maat, maar voorkeuren instellen mag wel.
+    const zonderPro = await vraagAls(cookieCas, "GET", "/api/bibliotheek");
+    assert.equal(zonderPro.statusCode, 402);
+    assert.equal(zonderPro.json().errorCode, "PRO_VEREIST");
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/bibliotheek/Leg_Press")).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/bibliotheek/Leg_Press/toevoegen", { schemaId: "iets" })).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/voorstel")).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/voorkeuren")).statusCode, 200);
+
+    // Pro wordt alleen door de Stripe-webhook gezet (zie entitlementsPro.ts) — hier direct in de
+    // database, want er is geen echte Stripe-omgeving in deze test.
+    await prisma.gebruiker.update({ where: { id: cas.id }, data: { pro: true } });
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/bibliotheek")).statusCode, 200);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/voorstel")).statusCode, 200);
+
+    // Het eigenaarsaccount (A, admin) is altijd Pro, zonder dat er ooit `pro: true` voor staat.
+    assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { id: ikId } })).pro, false);
+    assert.equal((await vraag("GET", "/api/bibliotheek")).statusCode, 200);
+    assert.equal((await vraag("GET", "/api/auth/sessie")).json().gebruiker.pro, true);
+
+    await prisma.gebruiker.delete({ where: { id: cas.id } });
+  });
+
+  test("kruisproduct-Pro v2: een actief ACCRD-account geeft gratis Pro op kvk-nummer, nooit automatisch bij bevestigen", async () => {
+    // Nep-ACCRD: toegekend voor kvk 11112222, al_gekozen (cmmnty) voor 33334444, anders niet_actief.
+    const http = await import("node:http");
+    const nepAccrd = http.createServer((req, res) => {
+      const juisteSleutel = req.headers["x-luzex-intern-sleutel"] === "test-sleutel";
+      res.setHeader("content-type", "application/json");
+      if (!juisteSleutel) {
+        res.statusCode = 401;
+        res.end(JSON.stringify({ errorCode: "ONGELDIGE_SLEUTEL" }));
+        return;
+      }
+      let body = "";
+      req.on("data", (stuk) => (body += stuk));
+      req.on("end", () => {
+        const data = body ? JSON.parse(body) : {};
+        if (data.kvkNummer === "33334444" && !data.wisselen) {
+          res.end(JSON.stringify({ status: "al_gekozen", huidigeKeuze: "cmmnty" }));
+        } else if (data.kvkNummer === "11112222" || (data.kvkNummer === "33334444" && data.wisselen)) {
+          res.end(JSON.stringify({ status: "toegekend" }));
+        } else {
+          res.end(JSON.stringify({ status: "niet_actief" }));
+        }
+      });
+    });
+    await new Promise<void>((resolve) => nepAccrd.listen(0, resolve));
+    const poort = (nepAccrd.address() as import("node:net").AddressInfo).port;
+    process.env.ACCRD_INTERN_URL = `http://127.0.0.1:${poort}`;
+    process.env.LUZEX_INTERN_SLEUTEL = "test-sleutel";
+
+    try {
+      const { testPostvak } = await import("../src/mailer.js");
+      await vraagAls("", "POST", "/api/auth/registreren", {
+        naam: "Daan",
+        email: "Daan@Test.nl",
+        wachtwoord: "daan-wachtwoord-1",
+        toestemming: true,
+      });
+      const mail = testPostvak.at(-1)!;
+      const bevestig = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(mail.tekst) });
+      assert.equal(bevestig.statusCode, 200);
+      const cookieDaan = sessieCookie(bevestig);
+
+      // Bevestigen alléén kent nooit meer automatisch Pro toe — dat is nu altijd een expliciete claim.
+      assert.equal((await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker.pro, false);
+
+      // Een kvk-nummer dat niet aan een actief ACCRD-account hangt: afgewezen, geen Pro.
+      const nietActief = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "00000000" });
+      assert.equal(nietActief.statusCode, 400);
+      assert.equal(nietActief.json().errorCode, "NIET_ACTIEF");
+
+      // Een kvk-nummer dat al CMMNTY gekozen heeft: zonder wisselen geweigerd met de huidige keuze.
+      const algekozen = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444" });
+      assert.equal(algekozen.statusCode, 409);
+      assert.equal(algekozen.json().huidigeKeuze, "cmmnty");
+      assert.equal((await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker.pro, false);
+
+      // Expliciet wisselen: nu wel toegekend.
+      const wissel = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444", wisselen: true });
+      assert.equal(wissel.statusCode, 200);
+
+      const sessie = (await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker;
+      assert.equal(sessie.pro, true);
+      assert.equal(sessie.proBron, "accrd");
+      assert.equal((await vraagAls(cookieDaan, "GET", "/api/bibliotheek")).statusCode, 200);
+
+      const daan = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "daan@test.nl" } });
+      assert.equal(daan.proBron, "accrd");
+      assert.equal(daan.kruisproductKvkNummer, "33334444");
+      await prisma.gebruiker.delete({ where: { id: daan.id } });
+    } finally {
+      delete process.env.ACCRD_INTERN_URL;
+      delete process.env.LUZEX_INTERN_SLEUTEL;
+      await new Promise((resolve) => nepAccrd.close(resolve));
+    }
   });
 
   test("account: gegevens downloaden en verwijderen met alles erop en eraan", async () => {

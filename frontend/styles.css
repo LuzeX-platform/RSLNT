@@ -2359,3 +2359,93 @@ body.portaal {
   width: 100%;
   margin-top: 14px;
 }
+
+/* Voettekst op de openbare pagina's (welkom, privacy): 1-op-1 uit CMMNTY overgenomen, zodat het
+   LuzeX-logo ook hier naar luzex.nl verwijst, net als in ACCRD en CMMNTY. */
+.voet {
+  max-width: 1200px;
+  width: 100%;
+  margin: 48px auto 0;
+  padding: 32px 24px 48px;
+}
+
+.voet-boven {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: 32px;
+  padding-bottom: 32px;
+  border-bottom: 1px solid var(--border);
+}
+
+.voet-merk {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voet-tagline {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 14px;
+  max-width: 34ch;
+}
+
+.voet-kolom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.voet-kop {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.voet-kolom a {
+  font-size: 14px;
+  color: var(--text);
+}
+
+.voet-copyright {
+  margin: 20px 0 0;
+  color: var(--text-tertiary);
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .voet-boven {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .voet-merk {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Statgetallen op /beheer.html. 1-op-1 uit CMMNTY overgenomen (.stat-rij/.stat-waarde/
+   .stat-label bestonden daar al voor hetzelfde doel). */
+.stat-rij {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.stat {
+  margin: 0;
+}
+
+.stat-waarde {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--text-secondary);
+}

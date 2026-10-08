@@ -38,7 +38,7 @@ services:
       # Publieke adres van de app: voor de links in de bevestigings- en resetmail.
       - key: APP_URL
         sync: false
-      # Mailgun (EU) of SendGrid via SMTP, zoals CMMNTY — zie README.md. Zonder SMTP_HOST worden
+      # Mailgun (EU), SendGrid of Resend via SMTP — zie README.md. Zonder SMTP_HOST worden
       # mails alleen gelogd en kan niemand zijn account bevestigen.
       - key: SMTP_HOST
         sync: false
@@ -50,6 +50,47 @@ services:
         sync: false
       - key: SMTP_AFZENDER
         sync: false
+      # Stripe (Pro-abonnement, Checkout + Billing Portal + webhook). Zonder STRIPE_GEHEIME_SLEUTEL
+      # geven /api/abonnement/* en de webhook 503 — zie README.md.
+      - key: STRIPE_GEHEIME_SLEUTEL
+        sync: false
+      - key: STRIPE_PRIJS_ID
+        sync: false
+      - key: STRIPE_WEBHOOK_GEHEIM
+        sync: false
+      # Kruisproduct-Pro v2 (hub/CLAUDE.md): een actief, betalend ACCRD-account geeft gratis Pro
+      # op RSLNT, geclaimd met een kvk-nummer (SCRNN speelt hier bewust geen rol in meer).
+      # LUZEX_INTERN_SLEUTEL moet letterlijk gelijk zijn aan die van ACCRD. Ontbreekt de URL,
+      # dan doet dit product gewoon niet mee — niets gaat stuk.
+      - key: LUZEX_INTERN_SLEUTEL
+        sync: false
+      - key: ACCRD_INTERN_URL
+        value: https://accrd.luzex.nl
+
+  # Kruisproduct-Pro opnieuw controleren: wie zijn gekoppelde kvk-nummer bij ACCRD kwijtraakt
+  # verliest hier zijn gratis RSLNT-Pro weer, en wie opnieuw gekoppeld is, krijgt 'm hier alsnog.
+  # Draait dagelijks om 06:00 UTC. Raakt nooit een betaald Stripe-abonnement aan (zie
+  # kruisproductCron.ts).
+  - name: luzex-rslnt-kruisproduct
+    type: cron
+    runtime: docker
+    region: frankfurt
+    plan: starter
+    schedule: "0 6 * * *"
+    dockerfilePath: backend/Dockerfile
+    dockerContext: .
+    dockerCommand: node dist/kruisproductCron.js
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: luzex-rslnt-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+      - key: LUZEX_INTERN_SLEUTEL
+        sync: false
+      - key: ACCRD_INTERN_URL
+        value: https://accrd.luzex.nl
 
 databases:
   - name: luzex-rslnt-db

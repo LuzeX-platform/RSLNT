@@ -17,7 +17,8 @@ eigen deployment, eigen geheimen.
 | Database    | PostgreSQL 16 via Prisma 5 |
 | Frontend    | Losse HTML/CSS/JS, geserveerd door dezelfde server (geen build-stap) |
 | Inloggen    | E-mail + wachtwoord (Argon2id), sessie in een httpOnly-cookie (90 dagen) |
-| Mail        | SMTP via nodemailer, Mailgun (EU) of SendGrid, zoals CMMNTY |
+| Mail        | SMTP via nodemailer, Mailgun (EU), SendGrid of Resend |
+| Betalen     | Stripe (Checkout + Billing Portal, gehost door Stripe — geen Stripe.js) |
 | Hosting     | Render (Blueprint in `render.yaml`), regio Frankfurt |
 
 ## Fases
@@ -29,6 +30,7 @@ eigen deployment, eigen geheimen.
 | 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel, tempo en doeldatum), dashboard (gewicht vs. doeltempo, e1RM, sets per spiergroep, volle trainingen), herstelcheck | **gebouwd** |
 | 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | **gebouwd** |
 | 4 | Accounts: portaal, registreren met bevestigingsmail, wachtwoord vergeten, alle data per persoon, privacyverklaring, gegevens downloaden en account verwijderen | **gebouwd** |
+| 4b | Pro-paywall via Stripe: schema op maat en de oefeningenbibliotheek zijn Pro, loggen/voortgang/herstel blijven gratis | **gebouwd** |
 | — | Garmin | geschrapt |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
 
@@ -46,6 +48,11 @@ Een fase begint pas als de vorige in de sportschool werkt.
   maat; "Dit schema gebruiken" zet het actief en je staat op Vandaag.
 - **Account** — naam en wachtwoord wijzigen, al je gegevens downloaden (JSON), uitloggen (wist
   ook de offline-kopieën op de telefoon) en je account met alles verwijderen.
+- **Beheer** (`/beheer.html`, alleen het eigenaarsaccount) — hoeveel mensen zich hebben
+  aangemeld, hoeveel daarvan hun e-mailadres bevestigd hebben, hoeveel Pro hebben (betaald of
+  via Kruisproduct-Pro) en de laatste 50 aanmeldingen. `GET /api/admin/overzicht`, met
+  `requireAdmin` erachter — niet alleen een verborgen link, de server weigert het ook voor
+  iedereen met rol `lid`.
 - **Privacy** (`/privacy.html`) — wat we bewaren, waarom, waar en je rechten. Contact:
   info@luzex.nl.
 
@@ -75,17 +82,27 @@ Een fase begint pas als de vorige in de sportschool werkt.
   min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en
   "knie-gevoelig". **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
   downloaden.
-- **Oefeningen** (via Schema) — 876 oefeningen uit Free Exercise DB met foto's en uitleg (Engels),
-  zoeken ook in het Nederlands ("bankdrukken", "kuit"), filters op spiergroep, materiaal,
-  beweging en knievriendelijk. Per oefening: spieren, materiaal, cue, favoriet of "niet voor
-  mij", toevoegen aan een training en vergelijkbare oefeningen. In een training en in de
-  schema-editor staat bij elke gekoppelde oefening een link naar de uitleg.
-- **Schema op maat** (via Schema) — doel, ervaring, dagen per week, minuten per training,
-  materiaal, klachten (knie, schouder, onderrug), extra aandacht en doelgewicht met datum. Je
-  krijgt een voorstel met per training de oefeningen, sets, reps, RIR en rust, het weekvolume
-  per spiergroep naast het doel, en wat er niet past. Downloaden als JSON, of inladen als
-  programma "Op maat" (met of zonder activeren). Oefeningen die je al deed houden hun sleutel
-  en dus hun geschiedenis. Hoe het werkt: Wetenschap → "Schema op maat".
+- **Oefeningen** (via Schema, **Pro**) — 876 oefeningen uit Free Exercise DB met foto's en uitleg
+  (Engels), zoeken ook in het Nederlands ("bankdrukken", "kuit"), filters op spiergroep,
+  materiaal, beweging en knievriendelijk. Per oefening: spieren, materiaal, cue, favoriet of
+  "niet voor mij", toevoegen aan een training en vergelijkbare oefeningen. In een training en in
+  de schema-editor staat bij elke gekoppelde oefening een link naar de uitleg.
+- **Schema op maat** (via Schema, **Pro**) — doel, ervaring, dagen per week, minuten per
+  training, materiaal, klachten (knie, schouder, onderrug), extra aandacht en doelgewicht met
+  datum. Je krijgt een voorstel met per training de oefeningen, sets, reps, RIR en rust, het
+  weekvolume per spiergroep naast het doel, en wat er niet past. Downloaden als JSON, of inladen
+  als programma "Op maat" (met of zonder activeren). Oefeningen die je al deed houden hun
+  sleutel en dus hun geschiedenis. Hoe het werkt: Wetenschap → "Schema op maat".
+- **Pro** (`/pro.html`) — upgraden (Stripe Checkout) en je abonnement beheren (Stripe Billing
+  Portal), allebei een redirect naar een door Stripe gehoste pagina; er draait geen Stripe.js in
+  RSLNT zelf. Alles daarbuiten — loggen, voortgang, lichaam, herstel, een eigen programma-JSON
+  inladen — blijft gratis voor iedereen met een account. Het eigenaarsaccount (seed, rol admin)
+  is altijd Pro, zonder dat daar een abonnement voor loopt. Zie `backend/src/entitlementsPro.ts`.
+  **Kruisproduct-Pro:** heb je bij het bevestigen van je e-mailadres een actief, betalend
+  ACCRD- of SCRNN-account (zelfde adres), dan krijg je Pro automatisch gratis — een dagelijkse
+  cron controleert dit opnieuw en trekt het in zodra dat account niet meer actief is, zonder
+  ooit een betaald Stripe-abonnement aan te raken. Zie `backend/src/luzexEntitlement.ts` en
+  hub/CLAUDE.md, "Kruisproduct-Pro".
 - **Wetenschap** — per regel: wat het onderzoek zegt, wat RSLNT ermee doet, hoe zeker het is
   (meta-analyse, studie, consensus, preprint, praktijkregel) en de bron. Openbaar leesbaar.
 - **Offline** — valt het bereik weg, dan blijven opgeslagen sets op de telefoon staan en gaan
@@ -173,8 +190,8 @@ GitHub Actions draait beide bij elke push (`.github/workflows/test.yml`).
 1. Render → **New + → Blueprint** → kies deze repository → **Apply**.
 2. Vul bij het aanmaken in: `SEED_EMAIL`, `SEED_WACHTWOORD` (minimaal 10 tekens) en `SEED_NAAM`.
    Dat is het eigenaarsaccount (admin), met Benen / Push / Pull; het wachtwoord wijzig je daarna
-   in de app onder *Account*. Verder `APP_URL` (bijv. `https://rslnt.luzex.nl`) en de
-   `SMTP_*`-waarden hieronder.
+   in de app onder *Account*. Verder `APP_URL` (bijv. `https://rslnt.luzex.nl`), de
+   `SMTP_*`-waarden hieronder en de `STRIPE_*`-waarden voor Pro.
 3. Eigen domein: in Render *Settings → Custom Domains* `rslnt.luzex.nl` toevoegen en bij Vimexx
    een CNAME `rslnt` → `luzex-rslnt.onrender.com.` aanmaken.
 4. Op de iPhone: open het adres in Safari → deelknop → **Zet op beginscherm**, en log daar één
@@ -182,24 +199,59 @@ GitHub Actions draait beide bij elke push (`.github/workflows/test.yml`).
 
 Render bouwt bij elke push naar `main` automatisch opnieuw.
 
-### Mail (Mailgun of SendGrid), zoals CMMNTY
+### Mail (Mailgun, SendGrid of Resend)
 
-Zonder `SMTP_HOST` worden mails alleen in de log gezet en kan niemand zijn account bevestigen.
+Zonder `SMTP_HOST` worden mails alleen in de log gezet en kan niemand zijn account bevestigen —
+de bevestigingsmail bij registreren gaat hier al via (`verstuurBevestigingsmail` in
+`src/routes/auth.ts`), er is geen code nodig, alleen deze omgevingsvariabelen.
 
-| | Mailgun (EU) | SendGrid |
-|---|---|---|
-| `SMTP_HOST` | `smtp.eu.mailgun.org` | `smtp.sendgrid.net` |
-| `SMTP_PORT` | `587` | `587` |
-| `SMTP_USER` | `postmaster@mg.luzex.nl` | `apikey` |
-| `SMTP_WACHTWOORD` | SMTP-wachtwoord uit Mailgun | de API-key |
-| `SMTP_AFZENDER` | `LuzeX RSLNT <rslnt@mg.luzex.nl>` | idem, geverifieerd adres |
+| | Mailgun (EU) | SendGrid | Resend |
+|---|---|---|---|
+| `SMTP_HOST` | `smtp.eu.mailgun.org` | `smtp.sendgrid.net` | `smtp.resend.com` |
+| `SMTP_PORT` | `587` | `587` | `587` |
+| `SMTP_USER` | `postmaster@mg.luzex.nl` | `apikey` | `resend` |
+| `SMTP_WACHTWOORD` | SMTP-wachtwoord uit Mailgun | de API-key | de API-key |
+| `SMTP_AFZENDER` | `LuzeX RSLNT <rslnt@mg.luzex.nl>` | idem, geverifieerd adres | idem, geverifieerd adres |
 
 Gebruikt CMMNTY al Mailgun, dan kun je hetzelfde domein en dezelfde gegevens gebruiken (met een
-eigen afzender). Zet SPF/DKIM goed voor het afzenddomein, anders belandt de bevestigingsmail in
-spam. Mailgun EU houdt de data in de EU.
+eigen afzender). Bij Resend verifieer je het afzenddomein (bijv. `mail.luzex.nl`) eerst onder
+*Domains* in het Resend-dashboard — pas daarna accepteert Resend mail van dat domein. Zet
+SPF/DKIM goed voor het afzenddomein, anders belandt de bevestigingsmail in spam (Resend zet de
+benodigde DNS-records zelf klaar bij het toevoegen van het domein). Mailgun EU houdt de data in
+de EU; Resend is Amerikaans — kies Mailgun als AVG-dataresidentie in de EU een harde eis is.
+
+### Stripe (Pro-abonnement)
+
+Zonder `STRIPE_GEHEIME_SLEUTEL` geven `/api/abonnement/*` 503 en blijft iedereen op "geen Pro"
+staan — de rest van de app werkt gewoon door.
+
+1. In het Stripe-dashboard (Producten) een product "RSLNT Pro" aanmaken met een terugkerende
+   prijs (bedrag en periode naar keuze) → kopieer de **Price-id** (`price_…`) naar
+   `STRIPE_PRIJS_ID`.
+2. Onder *Developers → API keys* de **secret key** (`sk_live_…` in productie) naar
+   `STRIPE_GEHEIME_SLEUTEL`.
+3. Onder *Developers → Webhooks* een endpoint toevoegen: `https://rslnt.luzex.nl/api/stripe/webhook`,
+   met de events `checkout.session.completed`, `customer.subscription.updated` en
+   `customer.subscription.deleted`. Kopieer het **signing secret** (`whsec_…`) naar
+   `STRIPE_WEBHOOK_GEHEIM`.
+4. De Pro-status zelf staat nooit in een route, alleen in de webhook-handler
+   (`src/routes/abonnement.ts`): zo kan een client 'm niet zelf aanzetten door een route-respons
+   te vervalsen. Lokaal testen zonder een publiek adres: de Stripe CLI
+   (`stripe listen --forward-to localhost:4200/api/stripe/webhook`) geeft een eigen
+   `whsec_…` voor die sessie.
+
+### Kruisproduct-Pro
+
+`LUZEX_INTERN_SLEUTEL` moet letterlijk gelijk zijn aan die in ACCRD, SCRNN en CMMNTY —
+genereer 'm één keer (bijv. `openssl rand -hex 32`) en zet dezelfde waarde in alle vier.
+`ACCRD_INTERN_URL` en `SCRNN_INTERN_URL` zijn de publieke adressen van die twee producten.
+Ontbreekt een van de drie waarden, dan doet RSLNT gewoon niet mee — niets gaat stuk, er wordt
+alleen nooit gratis Pro toegekend via die weg.
 
 ### Kosten (Render, indicatief)
 
-Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. Mailgun of SendGrid: gratis
-tot een paar duizend mails per maand. Met veel gebruikers wordt de database van 1 GB te klein;
-vergroten kan in Render.
+Web service *starter* ± $7 en database *basic-256mb* ± $6 per maand. Mailgun, SendGrid of
+Resend: gratis tot een paar duizend mails per maand. Stripe rekent geen vaste kosten, alleen een
+percentage (plus een vast bedrag) per geslaagde betaling — zie stripe.com/pricing voor het
+actuele tarief. Met veel gebruikers wordt de database van 1 GB te klein; vergroten kan in
+Render.

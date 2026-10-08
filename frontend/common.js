@@ -53,6 +53,9 @@ async function api(pad, { methode = "GET", body } = {}) {
   });
   const data = await response.json().catch(() => ({}));
   if (response.status === 401 && !pad.startsWith("/api/auth/")) naarInloggen();
+  if (response.status === 402 && data.errorCode === "PRO_VEREIST" && location.pathname !== "/pro.html") {
+    window.location.href = "/pro.html";
+  }
   if (!response.ok) {
     const fout = new Error(data.bericht || data.errorCode || `Fout ${response.status}`);
     fout.status = response.status;
@@ -77,6 +80,11 @@ const FOUTTEKSTEN = {
   EMAIL_NIET_BEVESTIGD: "Je e-mailadres is nog niet bevestigd. Klik op de link in de mail die we je stuurden.",
   TOKEN_ONGELDIG: "Deze link is ongeldig, verlopen of al gebruikt.",
   ADMIN_NIET_VERWIJDERBAAR: "Het eigenaarsaccount kan niet verwijderd worden.",
+  PRO_VEREIST: "Dit onderdeel is voor Pro-leden.",
+  ABONNEMENT_NIET_BESCHIKBAAR: "Betalen is op dit moment niet beschikbaar. Probeer het later opnieuw.",
+  GEEN_ABONNEMENT: "Je hebt nog geen abonnement om te beheren.",
+  NIET_ACTIEF: "Dit KvK-nummer is niet gekoppeld aan een actief, betalend ACCRD-account.",
+  KRUISPRODUCT_NIET_BESCHIKBAAR: "Kon dit kvk-nummer nu niet controleren. Probeer het later opnieuw.",
 };
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */
@@ -286,8 +294,38 @@ function tekenTabbalk() {
   document.body.append(nav);
 }
 
+// Alleen op de openbare pagina's (welkom, privacy) staat een #voet-element — in de app zelf is
+// er geen ruimte voor en zit de navigatie al in de tabbalk. Zelfde opbouw als CMMNTY: het
+// LuzeX-logo in de voettekst verwijst naar luzex.nl, net als in ACCRD en CMMNTY.
+function tekenVoet() {
+  const voet = document.getElementById("voet");
+  if (!voet) return;
+  voet.className = "voet";
+  voet.innerHTML = `
+    <div class="voet-boven">
+      <div class="voet-merk">
+        <a href="https://luzex.nl" class="brand-logo" role="img" aria-label="LuzeX — Imagination Innovation Illumination"></a>
+        <p class="voet-tagline">Sterker worden, zonder giswerk. Een app van LuzeX.</p>
+      </div>
+      <div class="voet-kolom">
+        <p class="voet-kop">RSLNT</p>
+        <a href="/registreren.html">Gratis account maken</a>
+        <a href="/wetenschap.html">Wetenschap</a>
+        <a href="/privacy.html">Privacy</a>
+      </div>
+      <div class="voet-kolom">
+        <p class="voet-kop">LuzeX</p>
+        <a href="https://luzex.nl" target="_blank" rel="noopener">luzex.nl</a>
+        <a href="https://accrd.luzex.nl" target="_blank" rel="noopener">ACCRD</a>
+        <a href="mailto:info@luzex.nl">Contact</a>
+      </div>
+    </div>
+    <p class="voet-copyright">© ${new Date().getFullYear()} LuzeX. Alle rechten voorbehouden.</p>`;
+}
+
 tekenBalk();
 tekenTabbalk();
+tekenVoet();
 meldWachtrij();
 verwerkWachtrij();
 

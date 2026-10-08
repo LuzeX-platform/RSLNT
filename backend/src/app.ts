@@ -16,6 +16,15 @@ import { herstelRoutes } from "./routes/herstel.js";
 import { voortgangRoutes } from "./routes/voortgang.js";
 import { bibliotheekRoutes } from "./routes/bibliotheek.js";
 import { personalisatieRoutes } from "./routes/personalisatie.js";
+import { abonnementRoutes } from "./routes/abonnement.js";
+import { kruisproductRoutes } from "./routes/kruisproduct.js";
+import { adminRoutes } from "./routes/admin.js";
+
+declare module "fastify" {
+  interface FastifyRequest {
+    rawBody?: Buffer;
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Werkt vanuit zowel src/ (tsx) als dist/ (productie): beide liggen twee niveaus onder de repo.
@@ -30,6 +39,22 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   const app = Fastify({ logger: opties.logger ?? true, trustProxy: true });
 
   await app.register(fastifyCookie);
+
+  // De Stripe-webhook (routes/abonnement.ts) moet de ruwe body hebben om de handtekening te
+  // verifiëren — daarna pas vertrouwen we 'm. We bewaren de ruwe buffer naast de normale
+  // JSON-parse in plaats van een aparte content-type-parser alleen voor die ene route: zo
+  // blijft elke andere route ongemoeid en hoeft er geen volgorde tussen plugins geregeld te
+  // worden.
+  app.addContentTypeParser("application/json", { parseAs: "buffer" }, (request, body, done) => {
+    const buffer = body as Buffer;
+    request.rawBody = buffer;
+    if (buffer.length === 0) return done(null, undefined);
+    try {
+      done(null, JSON.parse(buffer.toString("utf8")));
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  });
 
   // Zelfde strenge CSP als ACCRD en CMMNTY: geen inline scripts, alles van 'self'.
   await app.register(fastifyHelmet, {
@@ -99,6 +124,9 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(voortgangRoutes);
   await app.register(bibliotheekRoutes);
   await app.register(personalisatieRoutes);
+  await app.register(abonnementRoutes);
+  await app.register(kruisproductRoutes);
+  await app.register(adminRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });
 
