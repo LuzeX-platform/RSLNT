@@ -44,8 +44,10 @@ Een fase begint pas als de vorige in de sportschool werkt.
   gezondheidsgegevens; bevestigen via een mail (daarna meteen ingelogd en naar de start);
   inloggen met vergrendeling na vijf missers; wachtwoord vergeten via een resetmail (andere
   sessies vervallen). Niet bevestigde accounts verdwijnen na 7 dagen.
-- **Start** (nieuw account) — geslacht, geboortedatum, lengte en gewicht, daarna het schema op
-  maat; "Dit schema gebruiken" zet het actief en je staat op Vandaag.
+- **Start** (nieuw account) — geslacht, geboortedatum, lengte en gewicht, daarna je schema:
+  gratis het **standaardschema** (2× of 3× full body, 4× boven/onder; sportschool, 60 minuten,
+  beginnersvriendelijk), met Pro het schema op maat. Via Schema → Standaardschema kies je later
+  een ander aantal dagen (`POST /api/standaardschema`, programma "standaard").
 - **Account** — naam en wachtwoord wijzigen, al je gegevens downloaden (JSON), uitloggen (wist
   ook de offline-kopieën op de telefoon) en je account met alles verwijderen.
 - **Beheer** (`/beheer.html`, alleen het eigenaarsaccount) — hoeveel mensen zich hebben

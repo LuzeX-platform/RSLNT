@@ -17,7 +17,7 @@ import {
   type Voorkeuren,
 } from "../generator.js";
 import { aanbevolenTempo, haalbaarheid } from "../lichaam.js";
-import { valideerProgramma } from "../programmaImport.js";
+import { importeerProgramma, valideerProgramma } from "../programmaImport.js";
 import { ALLE_SPIER_LABELS } from "../spieren.js";
 import { effectiefDoel, huidigGewicht, profiel } from "./lichaam.js";
 import { ongeldig } from "./auth.js";
@@ -76,6 +76,65 @@ async function haalbaarheidNu(gebruikerId: string, dag: string) {
   };
 }
 
+/** Alles wat de generator van dit account nodig heeft: bestaande oefeningen (met of zonder geschiedenis) en het lichaamsdoel. */
+async function generatorInvoer(g: string, v: Voorkeuren, favorieten: string[], dag: string) {
+  const [oefeningen, gelogd, lichaam] = await Promise.all([
+    prisma.oefening.findMany({ where: { gebruikerId: g } }),
+    prisma.trainingOefening.findMany({
+      where: { training: { gebruikerId: g }, sets: { some: {} } },
+      select: { oefeningId: true },
+      distinct: ["oefeningId"],
+    }),
+    haalbaarheidNu(g, dag),
+  ]);
+  const metGeschiedenis = new Set(gelogd.map((x) => x.oefeningId));
+  const { perId } = bibliotheek();
+  return {
+    lichaam,
+    invoer: {
+      voorkeuren: v,
+      bestaand: oefeningen.map((o) => ({
+        sleutel: o.sleutel,
+        naam: o.naam,
+        materiaal: o.materiaal,
+        gewichtsstap: o.gewichtsstap,
+        perKant: o.perKant,
+        spierenPrimair: o.spierenPrimair,
+        spierenSecundair: o.spierenSecundair,
+        mechaniek: o.mechaniek,
+        unilateraal: o.unilateraal,
+        knieGevoelig: o.knieGevoelig,
+        alternatieven: o.alternatieven,
+        bibliotheekId: o.bibliotheekId,
+        heeftGeschiedenis: metGeschiedenis.has(o.id),
+      })),
+      bibliotheekFavorieten: favorieten.map((id) => perId.get(id)).filter((o) => o !== undefined),
+      dag,
+      doelLichaam: {
+        startKg: lichaam.kg,
+        doelKg: lichaam.doelgewicht,
+        tempo: lichaam.tempo ?? (lichaam.kg !== null ? ([aanbevolenTempo(lichaam.kg).min, aanbevolenTempo(lichaam.kg).max] as [number, number]) : null),
+      },
+    },
+  };
+}
+
+/**
+ * Het gratis standaardschema: dezelfde generator, met vaste keuzes die voor de meeste mensen in een
+ * gewone sportschool passen. Alleen het aantal dagen kies je zelf. Op maat (doel, tijd, materiaal,
+ * klachten, favorieten) is Pro.
+ */
+export const STANDAARD_VOORKEUREN: Omit<Voorkeuren, "dagenPerWeek"> = {
+  doel: "spiermassa",
+  ervaring: "beginner",
+  minutenPerTraining: 60,
+  materiaal: ["dumbbell", "barbell", "kabel", "machine", "stang"],
+  blessures: [],
+  favorieten: [],
+  uitgesloten: [],
+  focus: [],
+};
+
 export async function personalisatieRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
 
@@ -128,43 +187,11 @@ export async function personalisatieRoutes(app: FastifyInstance) {
     const g = gid(request);
     const dag = vandaag();
     const v = await voorkeuren(g);
-    const [oefeningen, gelogd, lichaam, bestaatAl] = await Promise.all([
-      prisma.oefening.findMany({ where: { gebruikerId: g } }),
-      prisma.trainingOefening.findMany({
-        where: { training: { gebruikerId: g }, sets: { some: {} } },
-        select: { oefeningId: true },
-        distinct: ["oefeningId"],
-      }),
-      haalbaarheidNu(g, dag),
+    const [{ lichaam, invoer }, bestaatAl] = await Promise.all([
+      generatorInvoer(g, alsVoorkeuren(v), v.favorieten, dag),
       prisma.programma.findUnique({ where: { gebruikerId_sleutel: { gebruikerId: g, sleutel: "op_maat" } }, select: { id: true, actief: true } }),
     ]);
-    const metGeschiedenis = new Set(gelogd.map((g) => g.oefeningId));
-    const { perId } = bibliotheek();
-    const voorstel = maakVoorstel({
-      voorkeuren: alsVoorkeuren(v),
-      bestaand: oefeningen.map((o) => ({
-        sleutel: o.sleutel,
-        naam: o.naam,
-        materiaal: o.materiaal,
-        gewichtsstap: o.gewichtsstap,
-        perKant: o.perKant,
-        spierenPrimair: o.spierenPrimair,
-        spierenSecundair: o.spierenSecundair,
-        mechaniek: o.mechaniek,
-        unilateraal: o.unilateraal,
-        knieGevoelig: o.knieGevoelig,
-        alternatieven: o.alternatieven,
-        bibliotheekId: o.bibliotheekId,
-        heeftGeschiedenis: metGeschiedenis.has(o.id),
-      })),
-      bibliotheekFavorieten: v.favorieten.map((id) => perId.get(id)).filter((o) => o !== undefined),
-      dag,
-      doelLichaam: {
-        startKg: lichaam.kg,
-        doelKg: lichaam.doelgewicht,
-        tempo: lichaam.tempo ?? (lichaam.kg !== null ? [aanbevolenTempo(lichaam.kg).min, aanbevolenTempo(lichaam.kg).max] : null),
-      },
-    });
+    const voorstel = maakVoorstel(invoer);
     const controle = valideerProgramma(voorstel.bestand);
     return {
       split: voorstel.split,
@@ -176,5 +203,22 @@ export async function personalisatieRoutes(app: FastifyInstance) {
       lichaam,
       bestaatAl,
     };
+  });
+
+  // Gratis: een vast standaardschema voor 2, 3 of 4 dagen per week, meteen actief. Zelfde
+  // generator als het schema op maat, maar zonder persoonlijke keuzes. Opnieuw kiezen werkt het
+  // programma "standaard" bij (andere dagen), zodat er maar één standaardschema is.
+  app.post("/api/standaardschema", async (request, reply) => {
+    const parsed = z.object({ dagenPerWeek: z.number().int().min(2).max(4) }).safeParse(request.body);
+    if (!parsed.success) return ongeldig(reply, parsed.error);
+    const g = gid(request);
+    const { invoer } = await generatorInvoer(g, { ...STANDAARD_VOORKEUREN, dagenPerWeek: parsed.data.dagenPerWeek }, [], vandaag());
+    const voorstel = maakVoorstel(invoer);
+    const programma = voorstel.bestand.program as Record<string, unknown>;
+    const bestand = { ...voorstel.bestand, program: { ...programma, id: "standaard", name: `Standaard: ${voorstel.split.naam}` } };
+    const controle = valideerProgramma(bestand);
+    if (!controle.ok) throw new Error(`Standaardschema klopt niet: ${controle.fouten.join("; ")}`);
+    const { id } = await importeerProgramma(prisma, controle.bestand, { activeren: true, gebruikerId: g });
+    return { id, naam: controle.bestand.program.name, split: voorstel.split };
   });
 }

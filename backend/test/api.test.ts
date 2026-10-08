@@ -655,6 +655,40 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     await prisma.gebruiker.delete({ where: { id: cas.id } });
   });
 
+  test("gratis account: standaardschema zonder Pro, meteen actief, opnieuw kiezen werkt het bij", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    const dirk = await prisma.gebruiker.create({
+      data: { email: "dirk@test.nl", naam: "Dirk", wachtwoordHash: await hashWachtwoord("dirk-wachtwoord-1"), emailBevestigdOp: new Date() },
+    });
+    const cookieDirk = sessieCookie(await vraagAls("", "POST", "/api/auth/inloggen", { email: "dirk@test.nl", wachtwoord: "dirk-wachtwoord-1" }));
+    assert.equal((await vraagAls(cookieDirk, "GET", "/api/vandaag")).json().programma, null);
+    assert.equal((await vraagAls(cookieDirk, "POST", "/api/voorstel")).statusCode, 402, "op maat blijft Pro");
+
+    for (const dagen of [1, 5, "3"]) {
+      assert.equal((await vraagAls(cookieDirk, "POST", "/api/standaardschema", { dagenPerWeek: dagen })).statusCode, 400, `dagen ${dagen}`);
+    }
+    const drie = await vraagAls(cookieDirk, "POST", "/api/standaardschema", { dagenPerWeek: 3 });
+    assert.equal(drie.statusCode, 200, JSON.stringify(drie.json()));
+    assert.equal(drie.json().naam, "Standaard: Full body 3×");
+    const scherm = (await vraagAls(cookieDirk, "GET", "/api/vandaag")).json();
+    assert.equal(scherm.programma.naam, "Standaard: Full body 3×");
+    assert.equal(scherm.volgendeSchema.code, "A");
+    assert.equal(scherm.schemas.length, 3);
+
+    // Andere dagen: hetzelfde programma bijgewerkt, geen tweede.
+    assert.equal((await vraagAls(cookieDirk, "POST", "/api/standaardschema", { dagenPerWeek: 4 })).statusCode, 200);
+    const programmas = (await vraagAls(cookieDirk, "GET", "/api/programmas")).json().programmas;
+    assert.equal(programmas.length, 1);
+    assert.equal(programmas[0].naam, "Standaard: Boven / onder 4×");
+    assert.equal(programmas[0].schemas.length, 4);
+    // Alleen van Dirk: A's programma's zijn niet geraakt.
+    assert.ok((await prisma.programma.count({ where: { gebruikerId: ikId } })) >= 1);
+    assert.equal((await prisma.programma.findFirstOrThrow({ where: { gebruikerId: ikId, actief: true } })).sleutel !== "standaard", true);
+
+    await vraagAls(cookieDirk, "DELETE", "/api/account", { wachtwoord: "dirk-wachtwoord-1" });
+    assert.equal(await prisma.gebruiker.count({ where: { id: dirk.id } }), 0);
+  });
+
   test("kruisproduct-Pro v2: een actief ACCRD-account geeft gratis Pro op kvk-nummer, nooit automatisch bij bevestigen", async () => {
     // Nep-ACCRD: toegekend voor kvk 11112222, al_gekozen (cmmnty) voor 33334444, anders niet_actief.
     const http = await import("node:http");

@@ -20,9 +20,9 @@
 
   <main class="app-kolom">
     <div class="app-kop">
-      <p class="kicker">Stap 1 van 2</p>
+      <p class="kicker" id="stap">Stap 1 van 2</p>
       <h1 id="kop">Welkom</h1>
-      <p class="subtitle">Een paar dingen over jou, zodat RSLNT je gewicht, energie en tempo goed kan berekenen. Alles is later aan te passen onder Lichaam.</p>
+      <p class="subtitle" id="uitleg">Een paar dingen over jou, zodat RSLNT je gewicht, energie en tempo goed kan berekenen. Alles is later aan te passen onder Lichaam.</p>
     </div>
 
     <form id="start-form" novalidate>
@@ -53,6 +53,28 @@
       <button type="submit" class="knop-groot" id="verder">Verder naar je schema</button>
       <p class="error" id="fout" role="alert"></p>
     </form>
+
+    <!-- Stap 2: het gratis standaardschema, of (Pro) een schema op maat. -->
+    <div id="stap-schema" hidden>
+      <section class="panel">
+        <h2>Standaardschema</h2>
+        <p class="subtitle">Een onderbouwd schema voor een gewone sportschool, met bij elke oefening een voorstel voor vandaag. Je eerste twee weken zijn rustig, zodat je kunt wennen.</p>
+        <p class="vraag ruimte-boven">Hoe vaak per week train je?</p>
+        <div class="keuzes keuzes-tekst keuzes-3" id="keuze-dagen" role="radiogroup" aria-label="Trainingen per week">
+          <button type="button" class="keuze" role="radio" data-dagen="2" aria-checked="false">2× · full body</button>
+          <button type="button" class="keuze" role="radio" data-dagen="3" aria-checked="true">3× · full body</button>
+          <button type="button" class="keuze" role="radio" data-dagen="4" aria-checked="false">4× · boven/onder</button>
+        </div>
+        <button type="button" class="knop-groot ruimte-boven" id="standaard">Start met dit schema</button>
+        <p class="error" id="standaard-fout" role="alert"></p>
+      </section>
+
+      <section class="panel">
+        <h2>Liever op maat?</h2>
+        <p class="subtitle" id="op-maat-uitleg">Een schema dat past bij je doel, je tijd, je materiaal en klachten als een gevoelige knie, met de oefeningenbibliotheek erbij.</p>
+        <a class="knop-link secondary" id="op-maat" href="/pro.html">Schema op maat</a>
+      </section>
+    </div>
   </main>
 
   <script src="/common.js"></script>
