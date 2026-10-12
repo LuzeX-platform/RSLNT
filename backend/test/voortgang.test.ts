@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { besteE1rm, e1rm, fractioneleSets, teVolPerTraining, weekStart } from "../src/voortgang.js";
+import { besteE1rm, e1rm, fractioneleSets, teVolPerTraining } from "../src/voortgang.js";
 import { herstelSignalen, deloadOverwegen, status } from "../src/herstel.js";
 
 test("e1RM volgens Epley, met RIR erbij", () => {
@@ -10,13 +10,6 @@ test("e1RM volgens Epley, met RIR erbij", () => {
   assert.equal(e1rm(100, 18, 4), null); // boven 20 onbetrouwbaar
   assert.equal(e1rm(null, 10, 2), null);
   assert.equal(besteE1rm([{ gewicht: 80, reps: 8, rir: 3 }, { gewicht: 85, reps: 6, rir: 2 }]), 109.3); // 80 × (1 + 11/30) wint van 85 × (1 + 8/30)
-});
-
-test("week begint op maandag", () => {
-  assert.equal(weekStart("2026-10-05"), "2026-10-05");
-  assert.equal(weekStart("2026-10-06"), "2026-10-05");
-  assert.equal(weekStart("2026-10-11"), "2026-10-05");
-  assert.equal(weekStart("2026-10-12"), "2026-10-12");
 });
 
 test("fractionele sets: hoofdspier 1, hulpspier ½", () => {

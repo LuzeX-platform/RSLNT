@@ -89,8 +89,10 @@ Een fase begint pas als de vorige in de sportschool werkt.
   activiteit, doelgewicht, doeltempo). Doel en tempo komen uit je programma tenzij je ze zelf
   instelt. Alle wegingen staan op een eigen pagina (`/gewicht.html`).
 - **Voortgang** — per 4 weken tot 1 jaar: gewicht met 7-daags gemiddelde naast een doeltempoband,
-  sets per spiergroep per week (fractioneel, met een lijn bij 10), trainingen die voor één spier
-  boven ~11 sets uitkomen, geschatte 1RM per oefening en records. Grafieken zijn eigen SVG
+  sets per spiergroep (fractioneel, met een lijn bij 10): je laatste 7 dagen als staaf, zodat
+  elke training meteen zichtbaar is, met je gemiddelde per week daarvoor als streepje;
+  trainingen die voor één spier boven ~11 sets uitkomen, geschatte 1RM per oefening (opent op
+  wat je het laatst deed) en records. Grafieken zijn eigen SVG
   (geen bibliotheek), met tooltip, tabelweergave en een eigen donkere modus.
 - **Schema** — de trainingen van het actieve programma aanpassen (oefeningen, volgorde, sets,
   min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en

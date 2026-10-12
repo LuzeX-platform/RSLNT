@@ -178,7 +178,8 @@ function tijdGrafiek(houder, o) {
 
 /**
  * Liggende staven met een referentielijn (bijv. 10 sets per week).
- *   rijen [{ label, waarde, tooltip: [{ waarde, label }] }]
+ *   rijen [{ label, waarde, doel?, tooltip: [{ waarde, label }] }]
+ *     doel: optioneel streepje dwars door de staaf (een weekdoel of je gemiddelde)
  *   o.referentie, o.referentieLabel, o.formatWaarde, o.label
  */
 function staafGrafiek(houder, rijen, o) {
@@ -216,7 +217,7 @@ function staafGrafiek(houder, rijen, o) {
       const d = `M${x0},${y0} H${eind - straal} Q${eind},${y0} ${eind},${y0 + straal} V${y0 + dikte - straal} Q${eind},${y0 + dikte} ${eind - straal},${y0 + dikte} H${x0} Z`;
       svg.append(svgEl("path", { d, class: "grafiek-staaf" }));
     }
-    // Eigen doel per rij (een streepje dwars door de staaf), voor als elke rij een ander doel heeft.
+    // Eigen streepje per rij dwars door de staaf: een weekdoel of je gemiddelde.
     if (r.doel) {
       const x = sx(r.doel);
       svg.append(svgEl("line", { x1: x, x2: x, y1: yMidden - dikte / 2 - 4, y2: yMidden + dikte / 2 + 4, class: "grafiek-doel" }));

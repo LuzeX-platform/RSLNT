@@ -407,13 +407,45 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(trapBar.record.e1rm, 109.3); // 80 kg × (1 + (8 + 3) / 30)
     const quads = v.volume.rijen.find((r: any) => r.spier === "quads");
     assert.equal(quads.label, "Voorkant bovenbeen");
-    assert.equal(quads.dezeWeek, 2); // twee gelogde sets trap bar, deze week
-    assert.equal(v.volume.weken, 1);
-    assert.equal(quads.gemiddeld, 2);
-    assert.ok(v.volume.rijen.some((r: any) => r.spier === "abs" && r.gemiddeld === 0)); // ook spieren zonder sets
+    assert.equal(quads.recent, 2); // twee gelogde sets trap bar, in de laatste 7 dagen
+    // Alles is van deze week: nog geen eerdere weken voor een gemiddelde.
+    assert.equal(v.volume.weken, 0);
+    assert.equal(quads.gemiddeld, null);
+    assert.ok(v.volume.rijen.some((r: any) => r.spier === "abs" && r.recent === 0)); // ook spieren zonder sets
 
     const benen = v.perTraining.trainingen.find((t: any) => t.code === "A");
     assert.deepEqual(benen.teVol[0], { spier: "quads", sets: 13, label: "Voorkant bovenbeen" });
+  });
+
+  test("voortgang werkt bij na je tweede training, ook als die in een nieuwe week valt", async () => {
+    // Zoals het ging: training 1 vorige week, training 2 vandaag. Vroeger toonde de grafiek dan
+    // alleen het gemiddelde van de afgelopen, volle weken: training 2 veranderde er niets aan.
+    const oud = await prisma.training.findUniqueOrThrow({ where: { id: benen } });
+    await prisma.training.update({ where: { id: benen }, data: { datum: new Date(oud.datum.getTime() - 8 * 86_400_000) } });
+    let nieuw = "";
+    try {
+      const voor = (await vraag("GET", "/api/voortgang")).json();
+      const quadsVoor = voor.volume.rijen.find((r: any) => r.spier === "quads");
+      assert.deepEqual([quadsVoor.recent, quadsVoor.gemiddeld, voor.volume.weken], [0, 2, 1]);
+
+      const { volgendeSchema } = (await vraag("GET", "/api/vandaag")).json();
+      nieuw = (await vraag("POST", "/api/trainingen", { schemaId: volgendeSchema.id })).json().id;
+      const eerste = (await vraag("GET", `/api/trainingen/${nieuw}`)).json().oefeningen[0];
+      await log(nieuw, eerste.id, [[40, 10, 2, null], [40, 10, 2, null]]);
+      await vraag("POST", `/api/trainingen/${nieuw}/afronden`);
+
+      const na = (await vraag("GET", "/api/voortgang")).json();
+      const spier = (await prisma.oefening.findUniqueOrThrow({ where: { id: eerste.oefeningId } })).spierenPrimair[0];
+      const rij = na.volume.rijen.find((r: any) => r.spier === spier);
+      assert.equal(rij.recent, 2, "de sets van vandaag staan meteen in de grafiek");
+      assert.equal(na.volume.rijen[0].recent, 2, "wat je net trainde staat bovenaan");
+      // De krachtgrafiek opent op de training van vandaag.
+      assert.equal(na.oefeningen[0].id, eerste.oefeningId);
+      assert.equal(na.oefeningen[0].punten.at(-1).e1rm, 56); // 40 × (1 + (10 + 2) / 30)
+    } finally {
+      if (nieuw) await vraag("DELETE", `/api/trainingen/${nieuw}`);
+      await prisma.training.update({ where: { id: benen }, data: { datum: oud.datum } });
+    }
   });
 
   test("bibliotheek: zoeken in het Nederlands, gekoppeld aan je programma, foto's van de vastgepinde bron", async () => {

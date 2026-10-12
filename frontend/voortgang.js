@@ -56,32 +56,41 @@ function tekenGewicht() {
   );
 }
 
+/**
+ * De staaf is je laatste 7 dagen: na elke training zie je die meteen terug. Het streepje is je
+ * gemiddelde per week in de weken daarvoor (pas als die er zijn).
+ */
 function tekenVolume() {
-  const { rijen, referentie, weken: aantal, vanafWeek } = gegevens.volume;
-  const getrainde = rijen.filter((r) => r.gemiddeld > 0 || r.dezeWeek > 0);
+  const { rijen, referentie, weken: aantal, recentVan, vanaf } = gegevens.volume;
+  const getrainde = rijen.filter((r) => r.recent > 0 || (r.gemiddeld ?? 0) > 0);
+  const metGemiddelde = aantal > 0;
+  document.getElementById("volume-legenda").hidden = getrainde.length === 0;
+  document.getElementById("volume-legenda-gemiddeld").hidden = !metGemiddelde;
+  const eerder = metGemiddelde ? `, naast je gemiddelde per week in de ${aantal === 1 ? "week" : `${aantal} weken`} daarvoor (vanaf ${dagKort(vanaf)})` : "";
   document.getElementById("volume-samenvatting").textContent = getrainde.length
-    ? `Gemiddeld per week over ${aantal === 1 ? "deze week" : `${aantal} weken (vanaf ${dagKort(vanafWeek)})`}. Hulpspieren tellen voor de helft. De lijn staat bij ${referentie} sets per week.`
+    ? `Je laatste 7 dagen (${dagKort(recentVan)} t/m vandaag)${eerder}. Hulpspieren tellen voor de helft. De lijn staat bij ${referentie} sets per week.`
     : "Nog geen sets gelogd in deze periode.";
   staafGrafiek(
     document.getElementById("volume-grafiek"),
     rijen.map((r) => ({
       label: r.label,
-      waarde: r.gemiddeld,
+      waarde: r.recent,
+      doel: r.gemiddeld ?? undefined,
       tooltip: [
-        { waarde: `${getal(r.gemiddeld, 1)} sets`, label: "gemiddeld per week" },
-        { waarde: `${getal(r.dezeWeek, 1)} sets`, label: "deze week" },
+        { waarde: `${getal(r.recent, 1)} sets`, label: "laatste 7 dagen" },
+        ...(r.gemiddeld === null ? [] : [{ waarde: `${getal(r.gemiddeld, 1)} sets`, label: "gemiddeld per week ervoor" }]),
       ],
     })),
     {
       referentie,
       referentieLabel: `${referentie}`,
       formatWaarde: (w) => getal(w, 1),
-      label: "Sets per spiergroep per week",
+      label: "Sets per spiergroep in je laatste 7 dagen",
     },
   );
   document.getElementById("volume-tabel").innerHTML = tabelHtml(
-    ["Spiergroep", "Gem. per week", "Deze week"],
-    rijen.map((r) => [r.label, getal(r.gemiddeld, 1), getal(r.dezeWeek, 1)]),
+    ["Spiergroep", "Laatste 7 dagen", "Gem. per week ervoor"],
+    rijen.map((r) => [r.label, getal(r.recent, 1), r.gemiddeld === null ? "–" : getal(r.gemiddeld, 1)]),
   );
 }
 

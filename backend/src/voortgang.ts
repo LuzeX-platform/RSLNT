@@ -1,8 +1,6 @@
 // Pure logica voor het dashboard: geschatte 1RM en sets per spiergroep. Formules en bronnen staan
 // op de Wetenschap-pagina (#e1rm en #volume).
 
-import { naarDatum, verschuifDag } from "./datum.js";
-
 const rond = (waarde: number, decimalen = 1) => Math.round(waarde * 10 ** decimalen) / 10 ** decimalen;
 
 /**
@@ -20,12 +18,6 @@ export function e1rm(gewicht: number | null, reps: number, rir: number | null): 
 export function besteE1rm(sets: { gewicht: number | null; reps: number; rir: number | null }[]): number | null {
   const waarden = sets.map((s) => e1rm(s.gewicht, s.reps, s.rir)).filter((w): w is number => w !== null);
   return waarden.length ? Math.max(...waarden) : null;
-}
-
-/** Maandag van de week waarin deze dag valt (JJJJ-MM-DD). */
-export function weekStart(dag: string): string {
-  const weekdag = naarDatum(dag).getUTCDay(); // 0 = zondag
-  return verschuifDag(dag, weekdag === 0 ? -6 : 1 - weekdag);
 }
 
 export interface SetSpieren {

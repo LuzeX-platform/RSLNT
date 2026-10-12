@@ -2153,6 +2153,13 @@ main.laden .grafiek {
   background: var(--text);
 }
 
+/* De staaf zelf, in de legenda naast het streepje. */
+.grafiek-sleutel-staaf {
+  height: 10px;
+  border-radius: 2px;
+  background: var(--grafiek-reeks);
+}
+
 /* ---------- Bibliotheek ---------- */
 
 .bieb-filters {

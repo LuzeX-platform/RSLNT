@@ -11,7 +11,6 @@ import {
   SETS_PER_TRAINING_GRENS,
   SETS_PER_WEEK_REFERENTIE,
   teVolPerTraining,
-  weekStart,
   type SetSpieren,
 } from "../voortgang.js";
 import { ALLE_SPIER_LABELS, programmaDoel, spierLabels } from "../spieren.js";
@@ -40,7 +39,7 @@ export async function voortgangRoutes(app: FastifyInstance) {
       prisma.training.findMany({
         where: { gebruikerId: g },
         orderBy: { datum: "asc" },
-        include: { oefeningen: { include: { oefening: true, sets: true } } },
+        include: { oefeningen: { orderBy: { volgorde: "asc" }, include: { oefening: true, sets: true } } },
       }),
     ]);
     const labels = spierLabels(programma?.bron ?? null);
@@ -65,41 +64,46 @@ export async function voortgangRoutes(app: FastifyInstance) {
       : null;
 
     // ---------- Sets per spiergroep (gelogde sets) ----------
-    // Gemiddeld per week over de gekozen periode, gerekend vanaf de week van je eerste training
-    // daarin. De lopende week telt alleen mee als er nog geen volle week is: anders drukt een
-    // halve week het gemiddelde.
-    const dezeWeek = weekStart(dag);
-    const perWeek = (begin: string) => {
-      const eind = verschuifDag(begin, 6);
-      const regels: SetSpieren[] = trainingen
-        .filter((t) => {
-          const d = dagVan(t.datum);
-          return d >= begin && d <= eind;
-        })
-        .flatMap((t) =>
-          t.oefeningen.map((to) => ({
-            spierenPrimair: to.oefening.spierenPrimair,
-            spierenSecundair: to.oefening.spierenSecundair,
-            sets: to.sets.length,
-          })),
-        );
-      return fractioneleSets(regels);
-    };
+    // De staaf: je laatste 7 dagen, vandaag meegerekend. Die werkt na elke training bij en is op
+    // maandag niet ineens leeg (een kalenderweek wel). Het streepje: gemiddeld per week over de
+    // blokken van 7 dagen dáárvoor, binnen de gekozen periode en vanaf het blok van je eerste
+    // training. Zo drukt een net begonnen week het gemiddelde niet, en telt een week zonder
+    // training wel mee als 0.
+    const setsTussen = (van: string, tot: string) =>
+      fractioneleSets(
+        trainingen
+          .filter((t) => {
+            const d = dagVan(t.datum);
+            return d >= van && d <= tot;
+          })
+          .flatMap((t) =>
+            t.oefeningen.map((to) => ({
+              spierenPrimair: to.oefening.spierenPrimair,
+              spierenSecundair: to.oefening.spierenSecundair,
+              sets: to.sets.length,
+            })),
+          ),
+      );
+    const recentVan = verschuifDag(dag, -6);
+    const recent = setsTussen(recentVan, dag);
     const eerste = trainingen.find((t) => dagVan(t.datum) >= vanaf);
-    const weekStarts: string[] = [];
-    for (let w = eerste ? weekStart(dagVan(eerste.datum)) : dezeWeek; w <= dezeWeek; w = verschuifDag(w, 7)) weekStarts.push(w);
-    const telWeken = weekStarts.length > 1 ? weekStarts.slice(0, -1) : weekStarts;
-    const setsPerWeek = telWeken.map(perWeek);
-    const nu = perWeek(dezeWeek);
-    const spieren = [...new Set([...setsPerWeek.flatMap((w) => Object.keys(w)), ...Object.keys(nu), ...Object.keys(labels)])];
+    const blokken: { van: string; sets: Record<string, number> }[] = [];
+    if (eerste) {
+      const eersteDag = dagVan(eerste.datum);
+      for (let tot = verschuifDag(recentVan, -1); tot >= eersteDag; tot = verschuifDag(tot, -7)) {
+        const van = verschuifDag(tot, -6);
+        blokken.push({ van, sets: setsTussen(van, tot) });
+      }
+    }
+    const spieren = [...new Set([...Object.keys(recent), ...blokken.flatMap((b) => Object.keys(b.sets)), ...Object.keys(labels)])];
     const volume = spieren
       .map((spier) => ({
         spier,
         label: label(spier),
-        gemiddeld: Math.round((setsPerWeek.reduce((som, w) => som + (w[spier] ?? 0), 0) / setsPerWeek.length) * 10) / 10,
-        dezeWeek: nu[spier] ?? 0,
+        recent: recent[spier] ?? 0,
+        gemiddeld: blokken.length ? Math.round((blokken.reduce((som, b) => som + (b.sets[spier] ?? 0), 0) / blokken.length) * 10) / 10 : null,
       }))
-      .sort((a, b) => b.gemiddeld - a.gemiddeld || b.dezeWeek - a.dezeWeek || a.label.localeCompare(b.label));
+      .sort((a, b) => b.recent - a.recent || (b.gemiddeld ?? 0) - (a.gemiddeld ?? 0) || a.label.localeCompare(b.label));
 
     // ---------- Gepland volume per training (uit het actieve programma) ----------
     const perTraining = (programma?.schemas ?? []).map((s) => {
@@ -116,31 +120,34 @@ export async function voortgangRoutes(app: FastifyInstance) {
     });
 
     // ---------- Geschatte 1RM per oefening, per training de beste set ----------
-    const perOefening = new Map<string, { id: string; naam: string; punten: { datum: string; e1rm: number }[] }>();
+    // Volgorde: wat je het laatst deed eerst, binnen een training in de volgorde van je schema.
+    // De grafiek opent op de eerste: na een training zie je dus meteen die training terug.
+    type Kracht = { id: string; naam: string; punten: { datum: string; e1rm: number }[]; laatst: number; volgorde: number };
+    const perOefening = new Map<string, Kracht>();
     for (const t of trainingen) {
       for (const to of t.oefeningen) {
         if (to.oefening.gewichtsstap <= 0) continue;
         const beste = besteE1rm(to.sets);
         if (beste === null) continue;
-        const rij = perOefening.get(to.oefeningId) ?? { id: to.oefeningId, naam: to.oefening.naam, punten: [] };
+        const rij = perOefening.get(to.oefeningId) ?? { id: to.oefeningId, naam: to.oefening.naam, punten: [], laatst: 0, volgorde: 0 };
         rij.punten.push({ datum: dagVan(t.datum), e1rm: beste });
+        rij.laatst = t.datum.getTime();
+        rij.volgorde = to.volgorde;
         perOefening.set(to.oefeningId, rij);
       }
     }
     const oefeningen = [...perOefening.values()]
-      .map((o) => {
-        const record = o.punten.reduce((a, b) => (b.e1rm > a.e1rm ? b : a));
-        return { ...o, record };
-      })
-      .sort((a, b) => b.punten.length - a.punten.length || a.naam.localeCompare(b.naam));
+      .sort((a, b) => b.laatst - a.laatst || a.volgorde - b.volgorde || a.naam.localeCompare(b.naam))
+      .map(({ laatst: _laatst, volgorde: _volgorde, ...o }) => ({ ...o, record: o.punten.reduce((a, b) => (b.e1rm > a.e1rm ? b : a)) }));
 
     return {
       vandaag: dag,
       gewicht: { reeks, band, doelgewicht },
       volume: {
-        weekStart: dezeWeek,
-        weken: telWeken.length,
-        vanafWeek: telWeken[0],
+        recentVan,
+        /** Aantal weken (blokken van 7 dagen) vóór de laatste 7 dagen in het gemiddelde. */
+        weken: blokken.length,
+        vanaf: blokken.length ? blokken[blokken.length - 1].van : null,
         referentie: SETS_PER_WEEK_REFERENTIE,
         rijen: volume,
       },
