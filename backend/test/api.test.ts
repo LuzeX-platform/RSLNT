@@ -22,7 +22,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   /** Een oefening van het eerste account, op sleutel. */
   const mijnOefening = (sleutel: string) => prisma.oefening.findUnique({ where: { gebruikerId_sleutel: { gebruikerId: ikId, sleutel } } });
 
-  type Antwoord = { statusCode: number; json: () => any; headers: Record<string, unknown> };
+  type Antwoord = { statusCode: number; json: () => any; headers: Record<string, unknown>; rawPayload: Buffer };
   async function vraag(method: string, url: string, payload?: unknown): Promise<Antwoord> {
     return app.inject({ method: method as "GET", url, payload: payload as object, headers: { cookie } });
   }
@@ -191,6 +191,38 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const bId = (await vraag("POST", "/api/trainingen", { schemaId: b.id })).json().id;
     await vraag("POST", `/api/trainingen/${bId}/afronden`);
     assert.equal((await vraag("GET", "/api/vandaag")).json().volgendeSchema.code, "C");
+  });
+
+  test("FIT-export: afgeronde training als Garmin-bestand; niet afgerond of zonder sets → 409", async () => {
+    const res = await vraag("GET", `/api/trainingen/${benen}/fit`);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["content-type"], "application/vnd.ant.fit");
+    assert.match(String(res.headers["content-disposition"]), /^attachment; filename="rslnt-\d{4}-\d{2}-\d{2}-A\.fit"$/);
+    const { Decoder, Stream } = await import("@garmin/fitsdk");
+    const decoder = new Decoder(Stream.fromByteArray(res.rawPayload));
+    assert.ok(decoder.checkIntegrity());
+    const { messages } = decoder.read();
+    assert.equal(messages.sessionMesgs[0].subSport, "strengthTraining");
+    const sets = messages.setMesgs.filter((s) => s.setType === "active");
+    assert.deepEqual(
+      sets.map((s) => [s.weight, s.repetitions]),
+      [
+        [80, 8],
+        [80, 8],
+      ],
+    );
+    assert.deepEqual(sets[0].category, ["deadlift"]);
+
+    // B is afgerond zonder één set.
+    const leeg = await prisma.training.findFirstOrThrow({ where: { gebruikerId: ikId, status: "afgerond", oefeningen: { none: { sets: { some: {} } } } } });
+    assert.equal((await vraag("GET", `/api/trainingen/${leeg.id}/fit`)).json().errorCode, "GEEN_SETS");
+
+    const { volgendeSchema } = (await vraag("GET", "/api/vandaag")).json();
+    const bezig = (await vraag("POST", "/api/trainingen", { schemaId: volgendeSchema.id })).json().id;
+    const nietAf = await vraag("GET", `/api/trainingen/${bezig}/fit`);
+    assert.equal(nietAf.statusCode, 409);
+    assert.equal(nietAf.json().errorCode, "TRAINING_NIET_AFGEROND");
+    assert.equal((await vraag("DELETE", `/api/trainingen/${bezig}`)).statusCode, 200);
   });
 
   test("nu deloaden: halve sets, zelfde gewicht als de laatste normale keer", async () => {
@@ -526,6 +558,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     // Alles van A is voor B "niet gevonden".
     const pogingen: [string, string, unknown?][] = [
       ["GET", `/api/trainingen/${trainingA.id}`],
+      ["GET", `/api/trainingen/${trainingA.id}/fit`],
       ["PATCH", `/api/trainingen/${trainingA.id}`, { notitie: "van B" }],
       ["POST", `/api/trainingen/${trainingA.id}/afronden`],
       ["POST", `/api/trainingen/${trainingA.id}/heropenen`],

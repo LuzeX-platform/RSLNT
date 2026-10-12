@@ -639,6 +639,10 @@ function teken() {
       : '<li class="lijst-meta">Nog niets gelogd in deze training.</li>';
   }
 
+  // Na afloop: de training als FIT-bestand voor Garmin Connect (alleen als er iets gelogd is).
+  document.getElementById("export-paneel").hidden = !(afgerond && oefeningen.some((o) => o.sets.length > 0));
+  document.getElementById("fit-download").href = `/api/trainingen/${encodeURIComponent(trainingId)}/fit`;
+
   document.getElementById("notitie-paneel").hidden = false;
   if (document.activeElement !== notitieEl) notitieEl.value = training.notitie;
   afrondenKnop.hidden = afgerond;

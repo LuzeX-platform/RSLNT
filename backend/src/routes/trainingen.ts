@@ -8,6 +8,7 @@ import { zevenDaagsGemiddelde } from "../gewicht.js";
 import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { ongeldig } from "./auth.js";
 import { herstelVandaag } from "./herstel.js";
+import { maakFit } from "../fitExport.js";
 
 const setSchema = z.object({
   gewicht: z.number().min(0).max(1000).nullable(),
@@ -177,6 +178,39 @@ export async function trainingRoutes(app: FastifyInstance) {
     const detail = await trainingDetail(gid(request), request.params.id);
     if (!detail) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     return detail;
+  });
+
+  // Een afgeronde training als FIT-bestand voor Garmin Connect (Activiteit importeren).
+  app.get<{ Params: { id: string } }>("/api/trainingen/:id/fit", async (request, reply) => {
+    const training = await prisma.training.findFirst({
+      where: { id: request.params.id, gebruikerId: gid(request) },
+      include: {
+        schema: { select: { code: true, naam: true } },
+        oefeningen: {
+          orderBy: { volgorde: "asc" },
+          include: {
+            oefening: { select: { sleutel: true, bibliotheekId: true, spierenPrimair: true } },
+            sets: { orderBy: { nummer: "asc" }, select: { gewicht: true, reps: true, opgeslagenOp: true } },
+          },
+        },
+      },
+    });
+    if (!training) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
+    if (training.status !== "afgerond") return reply.code(409).send({ errorCode: "TRAINING_NIET_AFGEROND" });
+    if (!training.oefeningen.some((o) => o.sets.length > 0)) return reply.code(409).send({ errorCode: "GEEN_SETS" });
+    const bestand = maakFit({
+      id: training.id,
+      titel: `RSLNT ${training.schema.code}: ${training.schema.naam}`,
+      datum: training.datum,
+      afgerondOp: training.afgerondOp,
+      oefeningen: training.oefeningen.map((to) => ({ ...to.oefening, rustSeconden: to.rustSeconden, sets: to.sets })),
+    });
+    const code = training.schema.code.replace(/[^A-Za-z0-9_-]/g, "") || "training";
+    return reply
+      .header("Content-Type", "application/vnd.ant.fit")
+      .header("Content-Disposition", `attachment; filename="rslnt-${vandaag(training.datum)}-${code}.fit"`)
+      .header("Cache-Control", "no-store")
+      .send(Buffer.from(bestand));
   });
 
   app.patch<{ Params: { id: string } }>("/api/trainingen/:id", async (request, reply) => {

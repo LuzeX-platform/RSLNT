@@ -31,7 +31,8 @@ eigen deployment, eigen geheimen.
 | 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | **gebouwd** |
 | 4 | Accounts: portaal, registreren met bevestigingsmail, wachtwoord vergeten, alle data per persoon, privacyverklaring, gegevens downloaden en account verwijderen | **gebouwd** |
 | 4b | Pro-paywall via Stripe: schema op maat en de oefeningenbibliotheek zijn Pro, loggen/voortgang/herstel blijven gratis | **gebouwd** |
-| — | Garmin | geschrapt |
+| — | Garmin-koppeling (synchroniseren) | geschrapt |
+| 4c | Export naar Garmin: elke afgeronde training als FIT-bestand (krachttraining) | **gebouwd** |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
 
 Een fase begint pas als de vorige in de sportschool werkt.
@@ -65,7 +66,16 @@ Een fase begint pas als de vorige in de sportschool werkt.
   deed, het voorstel met de reden en een link naar de onderbouwing. Per set gewicht, reps, RIR
   (0–4) en optioneel kniepijn (0–10). Na elke set loopt de **rusttimer** (met +30 s).
   **Wisselen** naar een alternatief uit je programma als een machine bezet is. Opwarmen bovenaan.
-  Na het afronden: het voorstel voor de volgende keer.
+  Na het afronden: het voorstel voor de volgende keer en **Naar Garmin Connect**.
+- **Export naar Garmin** — na het afronden download je de training als FIT-bestand
+  (`GET /api/trainingen/:id/fit`), een krachttraining met per set reps, gewicht en de oefening in
+  Garmins eigen indeling (categorie + naam, tabel in `backend/src/fitExport.ts`; buiten de
+  basislijst op beweging of spiergroep). Importeren gaat in Garmin Connect in de browser
+  (Gegevens importeren); de app kan dat niet. Tijden komen uit het moment van opslaan van elke
+  set; is dat onbruikbaar (alles achteraf ingevuld), dan een reconstructie met de rusttijden uit
+  het schema. Geschreven met Garmins officiële FIT SDK (`@garmin/fitsdk`, FIT Protocol License).
+  Geen koppeling met een Garmin-account: er gaat niets van RSLNT naar Garmin tenzij je het
+  bestand zelf importeert.
 - **Herstelcheck** (op Vandaag) — slaap, energie, spierpijn en kniepijn (1–5) vóór je training.
   Geen totaalscore: vier losse signalen naast je eigen gemiddelde. Twee keer in de laatste drie
   checks twee of meer "let op" → voorstel om een deload te overwegen.

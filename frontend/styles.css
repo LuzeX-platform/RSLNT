@@ -2449,3 +2449,27 @@ body.portaal {
   font-size: 13px;
   color: var(--text-secondary);
 }
+
+/* Export naar Garmin onder een afgeronde training. */
+.export-uitleg {
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.export-uitleg summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.export-uitleg ol {
+  margin: 4px 0 8px;
+  padding-left: 20px;
+}
+
+.export-uitleg li {
+  margin-bottom: 6px;
+}
