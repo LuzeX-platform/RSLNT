@@ -1136,7 +1136,7 @@ a.knop-groot {
   font-weight: 600;
 }
 
-/* Het voorstel. Kleur zegt de richting: groen omhoog, oranje terug (kniepijn),
+/* Het voorstel. Kleur zegt de richting: groen omhoog, oranje terug (pijn),
    blauw eerste keer, paars moeilijkere variant, neutraal gelijk. */
 .voorstel {
   display: flex;
@@ -1328,18 +1328,60 @@ a.knop-groot {
   color: var(--accent-contrast);
 }
 
-/* Kniepijn vanaf de grens (4) valt op: dat is waar de regel ingrijpt. */
+/* Pijn vanaf de grens (4) valt op: dat is waar de regel ingrijpt. */
 .keuze.pijn-grens[aria-pressed="true"] {
   background: var(--danger);
   border-color: var(--danger);
   color: #fff;
 }
 
-.knie-knop {
+.pijn-knop {
   min-height: 44px;
   padding: 0 14px;
   border-radius: var(--radius-pill);
   font-size: 13.5px;
+}
+
+.pijn-knop.pijn-hoog {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Waar je pijn hebt: knie, schouder, … (per set en in de herstelcheck). */
+.plekken {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.plek {
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--glas-rand);
+  background: var(--glas-dun-bg);
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.plek:hover {
+  background: var(--neutral-tint);
+}
+
+.plek[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.keuze-rij.plek-rij {
+  align-items: flex-start;
+}
+
+.plek-rij > .veld-label {
+  padding-top: 13px;
 }
 
 .set-acties {
@@ -1507,11 +1549,6 @@ a.knop-groot {
   border-left: 2px solid var(--border-strong);
   font-size: 13.5px;
   color: var(--text-secondary);
-}
-
-.badge-knie {
-  background: var(--warning-tint);
-  color: var(--warning);
 }
 
 .wissel-knop {

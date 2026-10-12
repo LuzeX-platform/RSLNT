@@ -87,6 +87,7 @@ const bestandSchema = z.object({
         .optional(),
       progression: z.object({ type: z.string() }).passthrough().optional(),
       knee_rule: z.unknown().optional(),
+      pain_rule: z.unknown().optional(),
       deload: z
         .object({
           every_n_weeks: z.number().int().min(2).max(26),
@@ -157,8 +158,8 @@ export function valideerProgramma(invoer: unknown): Validatie {
   if (regels.deload && regels.deload.load_multiplier !== 1) {
     waarschuwingen.push("Deload met minder gewicht (load_multiplier) wordt nog niet ondersteund: alleen minder sets.");
   }
-  if (regels.knee_rule !== undefined) {
-    waarschuwingen.push("Kniepijnregel: RSLNT gebruikt de afgesproken regel (0–10, terug bij ≥ 4 of +2) voor knie-gevoelige oefeningen.");
+  if (regels.knee_rule !== undefined || regels.pain_rule !== undefined) {
+    waarschuwingen.push("Pijnregel: RSLNT gebruikt de afgesproken regel (0–10, terug bij ≥ 4 of +2) voor elke oefening waarbij je pijn meldt.");
   }
 
   return fouten.length ? { ok: false, fouten } : { ok: true, bestand, waarschuwingen };
@@ -270,7 +271,7 @@ export async function importeerProgramma(
 
 /**
  * Maakt dit het actieve programma. Komt het van inactief, dan begint het opnieuw bij week 1
- * (en dus met de introfase): na een andere opbouw horen je pezen en knieën weer te wennen.
+ * (en dus met de introfase): na een andere opbouw horen je pezen en gewrichten weer te wennen.
  */
 export async function activeer(tx: Prisma.TransactionClient, programmaId: string) {
   const programma = await tx.programma.findUniqueOrThrow({ where: { id: programmaId } });

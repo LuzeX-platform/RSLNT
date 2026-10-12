@@ -13,7 +13,7 @@ backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeN
                       lichaam (profiel, metingen, /api/lichaam), herstel, voortgang,
                       bibliotheek (zoeken, detail, favoriet, toevoegen), personalisatie (voorkeuren, voorstel),
                       admin (/api/admin/overzicht, alleen rol admin: aantal aanmeldingen, Pro)
-  src/progressie.ts   pure logica: voorstel volgende keer (dubbele progressie, kniepijn, stagnatie, deload, RIR)
+  src/progressie.ts   pure logica: voorstel volgende keer (dubbele progressie, pijnregel, stagnatie, deload, RIR)
   src/fase.ts         pure logica: programmaweek, introfase, deload en het doel in die fase
   src/programmaImport.ts  programma-JSON (schema_version 1) valideren en inladen
   src/gewicht.ts      pure logica: 7-daags gemiddelde
@@ -91,7 +91,7 @@ frontend/           losse HTML + één script per pagina, geen build-stap
 - **Voorstellen worden niet opgeslagen** maar bij elke weergave berekend uit de geschiedenis vóór
   die training. Een training bewaart wel een momentopname van het schema (sets/range), zodat een
   schemawijziging de geschiedenis niet herschrijft.
-- **De kniepijnregel en max één stap omhoog zijn harde regels.** De AI-coach (fase 5) mag het
+- **De pijnregel en max één stap omhoog zijn harde regels.** De AI-coach (fase 5) mag het
   voorstel alleen binnen die grenzen aanpassen; bouw de vangrail in code ná de AI, niet in de prompt.
 - **Schrijfacties tijdens een training gaan via de offline-wachtrij** (`verstuurViaWachtrij` in
   common.js) en moeten daarom idempotent zijn: sets via PUT op een vaste plek

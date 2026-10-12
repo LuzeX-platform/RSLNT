@@ -632,7 +632,7 @@ export function maakVoorstel(invoer: GeneratorInvoer): Voorstel {
     opmerkingen.push("Om in je tijd te passen is de rust korter gezet: 90 seconden bij grote oefeningen, 60 bij kleine. Langer rusten gaf in onderzoek geen meetbaar extra effect op spiergroei.");
   }
   if (v.blessures.includes("knie")) {
-    opmerkingen.push("Knie: hoogstens één kniebelastende oefening per training, met meer reps en meer over. De kniepijnregel blijft gelden.");
+    opmerkingen.push("Knie: hoogstens één kniebelastende oefening per training, met meer reps en meer over. De pijnregel blijft gelden.");
   }
   if (v.blessures.includes("schouder")) opmerkingen.push("Schouder: geen stang boven je hoofd en geen dips; dumbbells en machines in een pijnvrij bereik.");
   if (v.blessures.includes("rug")) opmerkingen.push("Onderrug: geen zware stang op of voor je rug; machines en ondersteunde varianten.");

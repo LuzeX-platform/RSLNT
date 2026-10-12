@@ -1,29 +1,31 @@
 // Pure logica: het voorstel voor de volgende keer per oefening (dubbele progressie).
 // Geen database en geen "vandaag": alles wat meetelt komt als argument binnen, zodat elke
 // regel met een unittest vast te leggen is. De AI-coach (fase 4) krijgt deze regels als
-// vangrail: de kniepijnregel en de max-één-stap-regel kan hij niet overrulen.
+// vangrail: de pijnregel en de max-één-stap-regel kan hij niet overrulen.
 //
 // De regels, in deze volgorde:
 //   1. Geen eerdere sessie → geen voorstel, je kiest zelf.
-//   2. Kniepijn (alleen bij knie-gevoelige oefeningen) gaat voor alles: hoogste kniepijn
-//      vorige keer ≥ 4, of stijgend (≥ 2 punten hoger dan de keer daarvoor, of drie sessies op
-//      rij hoger) → 10% terug, naar beneden afgerond op de gewichtsstap, minimaal één stap.
+//   2. Pijn gaat voor alles. Geldt voor de oefening waarbij je pijn meldt, waar die ook zit
+//      (knie, schouder, …): hoogste pijn vorige keer ≥ 4, of stijgend (≥ 2 punten hoger dan de
+//      keer daarvoor, of drie sessies op rij hoger) → 10% terug, naar beneden afgerond op de
+//      gewichtsstap, minimaal één stap.
 //   3. Deloadweek → zelfde gewicht, minder sets (dat laatste regelt fase.ts).
 //   4. Stagnatie: twee trainingen op rij meer dan de helft van de sets onder de onderkant van
 //      de range → 10% terug en opnieuw opbouwen.
 //   5. Alle sets (minstens het geplande minimum) op de bovenkant van de range, met minstens de
 //      doel-RIR over → één kleinste stap omhoog. Nooit meer dan één stap.
 //   6. Anders: zelfde gewicht.
-// Kniepijn of RIR die niet is ingevuld is onbekend, niet 0: die telt niet mee.
+// Pijn of RIR die niet is ingevuld is onbekend, niet 0: die telt niet mee.
 // Deloadtrainingen tellen niet mee voor stagnatie en progressie (ze zijn bewust licht), wel
-// voor de kniepijnregel.
+// voor de pijnregel.
+
+import { PIJN_PLEKKEN, type PijnPlek } from "./pijn.js";
 
 export type Actie = "eerste_keer" | "omhoog" | "gelijk" | "terug" | "moeilijker" | "deload";
 
 export interface OefeningInfo {
   materiaal: string;
   gewichtsstap: number;
-  knieGevoelig: boolean;
 }
 
 export interface Doel {
@@ -36,7 +38,10 @@ export interface GelogdeSet {
   gewicht: number | null;
   reps: number;
   rir: number | null;
-  kniepijn: number | null;
+  /** Pijn tijdens de set, 0–10. */
+  pijn: number | null;
+  /** Waar (pijn.ts); leeg als het niet gezegd is. */
+  pijnPlek?: string | null;
 }
 
 /** De sets van één eerdere training voor deze oefening, met het plan van die dag. */
@@ -53,12 +58,12 @@ export interface Voorstel {
   /** Voorgesteld werkgewicht; null bij de eerste keer en zonder gewicht. */
   gewicht: number | null;
   reden: string;
-  /** true als de kniepijnregel dit voorstel bepaalde. */
-  kniepijnRegel: boolean;
+  /** true als de pijnregel dit voorstel bepaalde. */
+  pijnRegel: boolean;
 }
 
-export const KNIEPIJN_GRENS = 4;
-export const KNIEPIJN_STIJGING = 2;
+export const PIJN_GRENS = 4;
+export const PIJN_STIJGING = 2;
 export const TERUG_FACTOR = 0.9;
 
 /** Afronden op twee decimalen, zodat 0,1 + 0,2 geen 0,30000000000000004 kg wordt. */
@@ -87,20 +92,28 @@ export function werkgewicht(sessie: EerdereSessie): number | null {
   return gewichten.length ? Math.min(...gewichten) : null;
 }
 
-export function maxKniepijn(sessie: EerdereSessie | undefined): number | null {
+export function maxPijn(sessie: EerdereSessie | undefined): number | null {
   if (!sessie) return null;
-  const waarden = sessie.sets.map((s) => s.kniepijn).filter((k): k is number => k !== null);
+  const waarden = sessie.sets.map((s) => s.pijn).filter((k): k is number => k !== null);
   return waarden.length ? Math.max(...waarden) : null;
 }
 
-/** De reden waarom de kniepijnregel ingrijpt, of null. Sessies: nieuwste eerst. */
-export function kniepijnSignaal(sessies: EerdereSessie[]): string | null {
-  const [p0, p1, p2] = [maxKniepijn(sessies[0]), maxKniepijn(sessies[1]), maxKniepijn(sessies[2])];
+/** "Pijn" of, als de plek bekend is, "Pijn (knie)": de plek van de pijnlijkste set. */
+function pijnLabel(sessie: EerdereSessie): string {
+  const hoogste = Math.max(...sessie.sets.map((s) => s.pijn ?? -1));
+  const plek = sessie.sets.find((s) => s.pijn === hoogste && s.pijnPlek)?.pijnPlek;
+  return plek && plek in PIJN_PLEKKEN ? `Pijn (${PIJN_PLEKKEN[plek as PijnPlek].toLowerCase()})` : "Pijn";
+}
+
+/** De reden waarom de pijnregel ingrijpt, of null. Sessies: nieuwste eerst. */
+export function pijnSignaal(sessies: EerdereSessie[]): string | null {
+  const [p0, p1, p2] = [maxPijn(sessies[0]), maxPijn(sessies[1]), maxPijn(sessies[2])];
   if (p0 === null) return null;
-  if (p0 >= KNIEPIJN_GRENS) return `Kniepijn ${p0}/10 vorige keer (grens is ${KNIEPIJN_GRENS}).`;
-  if (p1 !== null && p0 - p1 >= KNIEPIJN_STIJGING) return `Kniepijn steeg van ${p1} naar ${p0}.`;
+  const label = pijnLabel(sessies[0]);
+  if (p0 >= PIJN_GRENS) return `${label} ${p0}/10 vorige keer (grens is ${PIJN_GRENS}).`;
+  if (p1 !== null && p0 - p1 >= PIJN_STIJGING) return `${label} steeg van ${p1} naar ${p0}.`;
   if (p1 !== null && p2 !== null && p2 < p1 && p1 < p0) {
-    return `Kniepijn stijgt drie trainingen op rij (${p2} → ${p1} → ${p0}).`;
+    return `${label} stijgt drie trainingen op rij (${p2} → ${p1} → ${p0}).`;
   }
   return null;
 }
@@ -149,7 +162,7 @@ export function bepaalVoorstel(
       reden: zonderGewicht
         ? "Eerste keer: kijk hoeveel reps je netjes haalt."
         : "Eerste keer: kies zelf een startgewicht waarmee je de range haalt.",
-      kniepijnRegel: false,
+      pijnRegel: false,
     };
   }
 
@@ -159,14 +172,14 @@ export function bepaalVoorstel(
   const vorige = werkSessies[0] ?? sessies[0];
   const wg = zonderGewicht ? null : werkgewicht(vorige);
 
-  const knie = oefening.knieGevoelig ? kniepijnSignaal(sessies) : null;
-  if (knie) {
+  const pijn = pijnSignaal(sessies);
+  if (pijn) {
     const basis = zonderGewicht ? null : werkgewicht(sessies[0]);
     if (basis === null) {
-      return { actie: "terug", gewicht: null, reden: `${knie} Rustiger aan: minder reps of een lichtere variant.`, kniepijnRegel: true };
+      return { actie: "terug", gewicht: null, reden: `${pijn} Rustiger aan: minder reps of een lichtere variant.`, pijnRegel: true };
     }
     const nieuw = tienProcentTerug(basis, stap);
-    return { actie: "terug", gewicht: nieuw, reden: `${knie} Daarom 10% terug: ${kg(basis)} → ${kg(nieuw)}.`, kniepijnRegel: true };
+    return { actie: "terug", gewicht: nieuw, reden: `${pijn} Daarom 10% terug: ${kg(basis)} → ${kg(nieuw)}.`, pijnRegel: true };
   }
 
   if (opties.deload) {
@@ -174,17 +187,17 @@ export function bepaalVoorstel(
       actie: "deload",
       gewicht: wg,
       reden: "Deloadweek: minder sets, zelfde gewicht. Herstellen hoort bij trainen.",
-      kniepijnRegel: false,
+      pijnRegel: false,
     };
   }
 
   if (werkSessies.length >= 2 && onderRange(werkSessies[0], doel) && onderRange(werkSessies[1], doel)) {
     const reden = `Twee trainingen op rij onder de ${doel.repsMin} reps.`;
     if (wg === null) {
-      return { actie: "terug", gewicht: null, reden: `${reden} Kies een makkelijkere variant en bouw opnieuw op.`, kniepijnRegel: false };
+      return { actie: "terug", gewicht: null, reden: `${reden} Kies een makkelijkere variant en bouw opnieuw op.`, pijnRegel: false };
     }
     const nieuw = tienProcentTerug(wg, stap);
-    return { actie: "terug", gewicht: nieuw, reden: `${reden} 10% terug en opnieuw opbouwen: ${kg(wg)} → ${kg(nieuw)}.`, kniepijnRegel: false };
+    return { actie: "terug", gewicht: nieuw, reden: `${reden} 10% terug en opnieuw opbouwen: ${kg(wg)} → ${kg(nieuw)}.`, pijnRegel: false };
   }
 
   const reps = vorige.sets.map((s) => s.reps).join("/");
@@ -196,7 +209,7 @@ export function bepaalVoorstel(
         actie: "gelijk",
         gewicht: wg,
         reden: `Vorige keer ${reps}: alle sets op ${doel.repsMax}, maar met minder dan ${vorige.doelRir} reps over. ${zelfde}`,
-        kniepijnRegel: false,
+        pijnRegel: false,
       };
     }
     if (zonderGewicht) {
@@ -204,7 +217,7 @@ export function bepaalVoorstel(
         actie: "moeilijker",
         gewicht: null,
         reden: `Vorige keer ${reps}: alle sets op ${doel.repsMax}. Tijd voor een moeilijkere variant of een langzamer tempo.`,
-        kniepijnRegel: false,
+        pijnRegel: false,
       };
     }
     if (wg !== null) {
@@ -212,7 +225,7 @@ export function bepaalVoorstel(
         actie: "omhoog",
         gewicht: rond(wg + stap),
         reden: `Vorige keer ${reps} met ${kg(wg)}: alle sets op ${doel.repsMax}. Eén stap omhoog (+${kg(stap)}).`,
-        kniepijnRegel: false,
+        pijnRegel: false,
       };
     }
   }
@@ -222,5 +235,5 @@ export function bepaalVoorstel(
     vorige.sets.length < minSets
       ? `Vorige keer ${vorige.sets.length} van minimaal ${minSets} sets. ${zelfde}`
       : `Vorige keer ${reps}: nog niet alle sets op ${doel.repsMax}. ${zelfde}`;
-  return { actie: "gelijk", gewicht: wg, reden, kniepijnRegel: false };
+  return { actie: "gelijk", gewicht: wg, reden, pijnRegel: false };
 }

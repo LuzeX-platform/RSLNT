@@ -12,7 +12,8 @@ const oefeningVelden = {
   materiaal: z.enum(MATERIALEN),
   gewichtsstap: z.number().min(0).max(50),
   perKant: z.boolean(),
-  knieGevoelig: z.boolean(),
+  // Niet meer in de schema-editor; een programmabestand en de bibliotheek zetten het nog wel.
+  knieGevoelig: z.boolean().optional(),
 };
 
 const regelSchema = z

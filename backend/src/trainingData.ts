@@ -9,7 +9,7 @@ import { bepaalVoorstel, type Doel, type EerdereSessie, type GelogdeSet } from "
 import { bepaalFase, type FaseInstellingen } from "./fase.js";
 import { uitDatum } from "./datum.js";
 
-export const SET_VELDEN = { nummer: true, gewicht: true, reps: true, rir: true, kniepijn: true } as const;
+export const SET_VELDEN = { nummer: true, gewicht: true, reps: true, rir: true, pijn: true, pijnPlek: true } as const;
 
 type SetRij = GelogdeSet & { nummer: number };
 
@@ -157,7 +157,6 @@ export async function trainingDetail(gebruikerId: string, id: string) {
         materiaal: to.oefening.materiaal,
         gewichtsstap: to.oefening.gewichtsstap,
         perKant: to.oefening.perKant,
-        knieGevoelig: to.oefening.knieGevoelig,
         bibliotheekId: to.oefening.bibliotheekId,
         aantalSets: to.aantalSets,
         minSets: to.minSets,

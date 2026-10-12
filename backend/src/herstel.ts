@@ -1,12 +1,12 @@
-// Pure logica voor de herstelcheck vóór de training (slaap, spierpijn, energie, kniepijn, 1–5).
+// Pure logica voor de herstelcheck vóór de training (slaap, spierpijn, energie, pijntjes, 1–5).
 // Bewust geen totaalscore: vier losse signalen, elk naast je eigen gemiddelde. Een slechte nacht
-// en zere knieën zijn twee verschillende verhalen.
+// en een zere schouder zijn twee verschillende verhalen.
 
 export const HERSTEL_ITEMS = {
   slaap: { label: "Slaap", hoogIsGoed: true },
   energie: { label: "Energie", hoogIsGoed: true },
   spierpijn: { label: "Spierpijn", hoogIsGoed: false },
-  kniepijn: { label: "Kniepijn", hoogIsGoed: false },
+  pijn: { label: "Pijntjes", hoogIsGoed: false },
 } as const;
 export type HerstelItem = keyof typeof HERSTEL_ITEMS;
 

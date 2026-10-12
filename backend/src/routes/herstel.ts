@@ -4,16 +4,39 @@ import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { isDag, naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { deloadOverwegen, herstelSignalen, type HerstelWaarden } from "../herstel.js";
+import { PIJN_PLEK_SLEUTELS } from "../pijn.js";
 import { ongeldig } from "./auth.js";
 
 const schaal = z.number().int().min(1).max(5);
-const checkSchema = z.object({ slaap: schaal, spierpijn: schaal, energie: schaal, kniepijn: schaal });
+const checkSchema = z
+  .object({
+    slaap: schaal,
+    spierpijn: schaal,
+    energie: schaal,
+    pijn: schaal.optional(),
+    pijnPlekken: z.array(z.enum(PIJN_PLEK_SLEUTELS)).max(PIJN_PLEK_SLEUTELS.length).optional(),
+    // Oude app-versie (of de offline-wachtrij van vóór de wijziging): kniepijn = pijn in de knie.
+    kniepijn: schaal.optional(),
+  })
+  .transform(({ kniepijn, pijn, pijnPlekken, ...rest }) => ({
+    ...rest,
+    pijn: pijn ?? kniepijn,
+    pijnPlekken: pijn !== undefined ? [...new Set(pijnPlekken ?? [])] : kniepijn !== undefined && kniepijn >= 2 ? ["knie"] : [],
+  }))
+  .refine((c): c is typeof c & { pijn: number } => c.pijn !== undefined, { message: "Vul pijntjes in", path: ["pijn"] });
 
 const waarden = (c: HerstelWaarden): HerstelWaarden => ({
   slaap: c.slaap,
   energie: c.energie,
   spierpijn: c.spierpijn,
-  kniepijn: c.kniepijn,
+  pijn: c.pijn,
+});
+
+/** Een opgeslagen check voor de app: de vier cijfers en waar je pijn hebt. */
+const alsCheck = (c: HerstelWaarden & { datum: Date; pijnPlekken: string[] }) => ({
+  datum: uitDatum(c.datum),
+  ...waarden(c),
+  pijnPlekken: c.pijnPlekken,
 });
 
 /** De check van vandaag met signalen, voor het beginscherm. */
@@ -26,7 +49,7 @@ export async function herstelVandaag(gebruikerId: string, dag = vandaag()) {
   const vandaagCheck = checks[0] && uitDatum(checks[0].datum) === dag ? checks[0] : null;
   const eerder = (vandaagCheck ? checks.slice(1) : checks).map(waarden);
   return {
-    check: vandaagCheck && { datum: dag, ...waarden(vandaagCheck) },
+    check: vandaagCheck && alsCheck(vandaagCheck),
     signalen: vandaagCheck ? herstelSignalen(waarden(vandaagCheck), eerder) : null,
     deloadOverwegen: deloadOverwegen(checks.map(waarden)),
   };
@@ -55,6 +78,6 @@ export async function herstelRoutes(app: FastifyInstance) {
       where: { gebruikerId: gid(request), datum: { gte: naarDatum(verschuifDag(vandaag(), -(dagen - 1))) } },
       orderBy: { datum: "desc" },
     });
-    return { checks: checks.map((c) => ({ datum: uitDatum(c.datum), ...waarden(c) })) };
+    return { checks: checks.map(alsCheck) };
   });
 }

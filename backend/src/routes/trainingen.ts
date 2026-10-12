@@ -2,7 +2,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
-import { actiefProgramma, faseInstellingen, faseVoor, trainingDetail, volgendeSchema } from "../trainingData.js";
+import { actiefProgramma, faseInstellingen, faseVoor, SET_VELDEN, trainingDetail, volgendeSchema } from "../trainingData.js";
+import { PIJN_PLEK_SLEUTELS } from "../pijn.js";
 import { doelInFase } from "../fase.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
 import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
@@ -10,12 +11,23 @@ import { ongeldig } from "./auth.js";
 import { herstelVandaag } from "./herstel.js";
 import { maakFit } from "../fitExport.js";
 
-const setSchema = z.object({
-  gewicht: z.number().min(0).max(1000).nullable(),
-  reps: z.number().int().min(0).max(100),
-  rir: z.number().int().min(0).max(4).nullable(),
-  kniepijn: z.number().int().min(0).max(10).nullable(),
-});
+const pijnSchaal = z.number().int().min(0).max(10).nullable();
+const setSchema = z
+  .object({
+    gewicht: z.number().min(0).max(1000).nullable(),
+    reps: z.number().int().min(0).max(100),
+    rir: z.number().int().min(0).max(4).nullable(),
+    pijn: pijnSchaal.optional(),
+    pijnPlek: z.enum(PIJN_PLEK_SLEUTELS).nullable().optional(),
+    // Oude app-versie (of de offline-wachtrij van vóór de wijziging): kniepijn = pijn in de knie.
+    kniepijn: pijnSchaal.optional(),
+  })
+  .transform(({ kniepijn, pijn, pijnPlek, ...rest }) => {
+    const waarde = pijn !== undefined ? pijn : (kniepijn ?? null);
+    // Een plek zonder pijncijfer zegt niets.
+    const plek = waarde === null ? null : pijn !== undefined ? (pijnPlek ?? null) : "knie";
+    return { ...rest, pijn: waarde, pijnPlek: plek };
+  });
 
 const setParams = z.object({
   id: z.string().min(1),
@@ -259,7 +271,7 @@ export async function trainingRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
-  // Een oefening voor deze ene training wisselen (machine bezet, knie zeurt), alleen voor een
+  // Een oefening voor deze ene training wisselen (machine bezet, iets zeurt), alleen voor een
   // alternatief uit het programma. oefeningId null = terug naar de oefening uit het schema.
   app.patch<{ Params: { id: string; toId: string } }>(
     "/api/trainingen/:id/oefeningen/:toId/wissel",
@@ -321,7 +333,7 @@ export async function trainingRoutes(app: FastifyInstance) {
       where: { trainingOefeningId_nummer: { trainingOefeningId: regel.id, nummer } },
       update: parsed.data,
       create: { trainingOefeningId: regel.id, nummer, ...parsed.data },
-      select: { nummer: true, gewicht: true, reps: true, rir: true, kniepijn: true },
+      select: SET_VELDEN,
     });
     return { set };
   });

@@ -41,27 +41,27 @@ test("herstel: vier losse signalen, met je eigen gemiddelde", () => {
   assert.equal(status("slaap", 5), "goed");
   assert.equal(status("slaap", 3), "neutraal");
   assert.equal(status("slaap", 2), "let_op");
-  assert.equal(status("kniepijn", 1), "goed");
-  assert.equal(status("kniepijn", 4), "let_op");
+  assert.equal(status("pijn", 1), "goed");
+  assert.equal(status("pijn", 4), "let_op");
 
   const eerder = [
-    { slaap: 4, energie: 4, spierpijn: 2, kniepijn: 1 },
-    { slaap: 3, energie: 4, spierpijn: 2, kniepijn: 1 },
-    { slaap: 5, energie: 3, spierpijn: 3, kniepijn: 2 },
+    { slaap: 4, energie: 4, spierpijn: 2, pijn: 1 },
+    { slaap: 3, energie: 4, spierpijn: 2, pijn: 1 },
+    { slaap: 5, energie: 3, spierpijn: 3, pijn: 2 },
   ];
-  const signalen = herstelSignalen({ slaap: 2, energie: 4, spierpijn: 2, kniepijn: 3 }, eerder);
+  const signalen = herstelSignalen({ slaap: 2, energie: 4, spierpijn: 2, pijn: 3 }, eerder);
   assert.deepEqual(signalen.map((s) => [s.item, s.status, s.gemiddelde]), [
     ["slaap", "let_op", 4],
     ["energie", "goed", 3.7],
     ["spierpijn", "goed", 2.3],
-    ["kniepijn", "neutraal", 1.3],
+    ["pijn", "neutraal", 1.3],
   ]);
-  assert.equal(herstelSignalen({ slaap: 2, energie: 4, spierpijn: 2, kniepijn: 3 }, eerder.slice(0, 2))[0].gemiddelde, null);
+  assert.equal(herstelSignalen({ slaap: 2, energie: 4, spierpijn: 2, pijn: 3 }, eerder.slice(0, 2))[0].gemiddelde, null);
 });
 
 test("herstel: deload overwegen na herhaald slecht herstel", () => {
-  const slecht = { slaap: 2, energie: 2, spierpijn: 3, kniepijn: 1 };
-  const goed = { slaap: 4, energie: 4, spierpijn: 2, kniepijn: 1 };
+  const slecht = { slaap: 2, energie: 2, spierpijn: 3, pijn: 1 };
+  const goed = { slaap: 4, energie: 4, spierpijn: 2, pijn: 1 };
   assert.equal(deloadOverwegen([slecht, goed, slecht]), true);
   assert.equal(deloadOverwegen([slecht, goed, goed]), false);
   assert.equal(deloadOverwegen([goed, goed, goed, slecht, slecht]), false); // alleen de laatste drie

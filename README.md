@@ -1,7 +1,7 @@
 # LuzeX RSLNT
 
 Persoonlijke trainings- en herstel-app: je programma (nu Benen / Push / Pull) loggen in de
-sportschool, met een voorstel voor de volgende keer (dubbele progressie, met kniepijn als
+sportschool, met een voorstel voor de volgende keer (dubbele progressie, met pijn als
 vangrail), een gezondheidsmenu, een voortgangsdashboard, een herstelcheck, een
 oefeningenbibliotheek, een schema op maat en een Wetenschap-pagina die per regel en formule
 laat zien waar die vandaan komt.
@@ -64,7 +64,8 @@ Een fase begint pas als de vorige in de sportschool werkt.
   7-daags gemiddelde, recente trainingen. Knop "Ik heb een deload nodig".
 - **Training** — per oefening: doel (sets × reps, RIR, rusttijd), techniek-cue, wat je vorige keer
   deed, het voorstel met de reden en een link naar de onderbouwing. Per set gewicht, reps, RIR
-  (0–4) en optioneel kniepijn (0–10). Na elke set loopt de **rusttimer** (met +30 s).
+  (0–4) en optioneel **pijn** (knop "Pijn?": 0–10 en waar, zoals knie of schouder). Na elke
+  set loopt de **rusttimer** (met +30 s).
   **Wisselen** naar een alternatief uit je programma als een machine bezet is. Opwarmen bovenaan.
   Na het afronden: het voorstel voor de volgende keer en **Naar Garmin Connect**.
 - **Export naar Garmin** — na het afronden download je de training als FIT-bestand
@@ -76,7 +77,8 @@ Een fase begint pas als de vorige in de sportschool werkt.
   het schema. Geschreven met Garmins officiële FIT SDK (`@garmin/fitsdk`, FIT Protocol License).
   Geen koppeling met een Garmin-account: er gaat niets van RSLNT naar Garmin tenzij je het
   bestand zelf importeert.
-- **Herstelcheck** (op Vandaag) — slaap, energie, spierpijn en kniepijn (1–5) vóór je training.
+- **Herstelcheck** (op Vandaag) — slaap, energie, spierpijn en pijntjes (1–5, vanaf 2 optioneel
+  waar) vóór je training.
   Geen totaalscore: vier losse signalen naast je eigen gemiddelde. Twee keer in de laatste drie
   checks twee of meer "let op" → voorstel om een deload te overwegen.
 - **Lichaam** — gemiddeld gewicht en je tempo (kg/week, lijn door 4 weken wegingen) naast je
@@ -92,11 +94,11 @@ Een fase begint pas als de vorige in de sportschool werkt.
   (geen bibliotheek), met tooltip, tabelweergave en een eigen donkere modus.
 - **Schema** — de trainingen van het actieve programma aanpassen (oefeningen, volgorde, sets,
   min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en
-  "knie-gevoelig". **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
+  per kant. **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
   downloaden.
 - **Oefeningen** (via Schema, **Pro**) — 876 oefeningen uit Free Exercise DB met foto's en uitleg
   (Engels), zoeken ook in het Nederlands ("bankdrukken", "kuit"), filters op spiergroep,
-  materiaal, beweging en knievriendelijk. Per oefening: spieren, materiaal, cue, favoriet of
+  materiaal en beweging. Per oefening: spieren, materiaal, cue, favoriet of
   "niet voor mij", toevoegen aan een training en vergelijkbare oefeningen. In een training en in
   de schema-editor staat bij elke gekoppelde oefening een link naar de uitleg.
 - **Schema op maat** (via Schema, **Pro**) — doel, ervaring, dagen per week, minuten per
@@ -131,7 +133,8 @@ en maakt het actief. Daarna beheer je programma's in de app.
   geschiedenis.
 - Activeren begint het programma opnieuw bij week 1 (met de introfase).
 - Regels uit het bestand die RSLNT anders of (nog) niet uitvoert, komen als waarschuwing terug.
-  De kniepijnregel is altijd de afgesproken regel hieronder.
+  De pijnregel is altijd de afgesproken regel hieronder (`knee_rule` of `pain_rule` in het
+  bestand geeft alleen een waarschuwing).
 
 ## De regels
 
@@ -141,9 +144,10 @@ formules van het gezondheidsmenu en dashboard staan in `lichaam.ts`, `voortgang.
 de bronnen op de Wetenschap-pagina. Per
 oefening, op basis van de vorige keer(en) dat je die oefening deed:
 
-1. **Kniepijn gaat voor alles** (alleen bij knie-gevoelige oefeningen). Hoogste kniepijn vorige
-   keer **≥ 4**, of **stijgend** (≥ 2 punten hoger dan de keer daarvoor, of drie trainingen op
-   rij hoger) → **10% terug**, naar beneden afgerond op de gewichtsstap, minimaal één stap.
+1. **Pijn gaat voor alles**, bij elke oefening waarbij je pijn meldt (waar die ook zit; de plek
+   staat in de reden). Hoogste pijn vorige keer **≥ 4**, of **stijgend** (≥ 2 punten hoger dan
+   de keer daarvoor, of drie trainingen op rij hoger) → **10% terug**, naar beneden afgerond op
+   de gewichtsstap, minimaal één stap.
 2. **Deloadweek** → zelfde gewicht, halve sets (naar boven afgerond). Automatisch elke 8e week
    van het programma, of op verzoek voor 7 dagen.
 3. **Stagnatie**: twee trainingen op rij meer dan de helft van de sets onder de onderkant van de
@@ -155,8 +159,11 @@ oefening, op basis van de vorige keer(en) dat je die oefening deed:
 - **Introfase**: de eerste 2 weken van een programma 2 sets per oefening en RIR 3.
 - Werkgewicht bij wisselende gewichten: het laagste.
 - De rep-range van nú telt; aantal sets en doel-RIR komen van de dag zelf (intro/deload).
-- Deloadtrainingen tellen niet mee voor stagnatie en progressie, wel voor de kniepijnregel.
-- Niet ingevulde RIR of kniepijn is onbekend, niet 0.
+- Deloadtrainingen tellen niet mee voor stagnatie en progressie, wel voor de pijnregel.
+- Niet ingevulde RIR of pijn is onbekend, niet 0.
+- Pijnplekken staan in `backend/src/pijn.ts` (en dezelfde lijst in `frontend/common.js`). Oude
+  kniepijn is bij de migratie pijn met plek "knie" geworden; de API neemt `kniepijn` van een
+  oudere app-versie nog aan als pijn in de knie.
 - Zonder gewichtsstap (dead bug): alle sets op de bovenkant → "moeilijkere variant".
 - Eerste keer: geen voorstel, je kiest zelf.
 

@@ -87,6 +87,18 @@ const FOUTTEKSTEN = {
   KRUISPRODUCT_NIET_BESCHIKBAAR: "Kon dit kvk-nummer nu niet controleren. Probeer het later opnieuw.",
 };
 
+/** Waar je pijn hebt; zelfde lijst als backend/src/pijn.ts. */
+const PIJN_PLEKKEN = {
+  knie: "Knie",
+  schouder: "Schouder",
+  elleboog: "Elleboog",
+  pols: "Pols",
+  onderrug: "Onderrug",
+  heup: "Heup",
+  enkel: "Enkel",
+  anders: "Anders",
+};
+
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */
 function foutTekst(fout) {
   if (fout.status === undefined) return "Geen verbinding. Probeer het zo opnieuw.";

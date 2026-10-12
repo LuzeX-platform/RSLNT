@@ -31,7 +31,7 @@
       "weeks": 2,
       "sets_override": 2,
       "target_rir": 3,
-      "note": "Eerste 2 weken: 2 sets per oefening en ruim gewicht over, zodat pezen en knieën kunnen wennen."
+      "note": "Eerste 2 weken: 2 sets per oefening en ruim gewicht over, zodat pezen en gewrichten kunnen wennen."
     },
     "progression": {
       "type": "double_progression",
@@ -40,9 +40,9 @@
       "max_steps_up_per_session": 1,
       "stall_rule": "Twee trainingen achter elkaar onder rep_min: 10% terug en opnieuw opbouwen."
     },
-    "knee_rule": {
-      "applies_to": "exercise.knee_sensitive == true",
-      "trigger": "Kniepijn >= 4 (schaal 1-5) of hoger dan vorige training",
+    "pain_rule": {
+      "applies_to": "elke oefening waarbij je pijn meldt (knie, schouder, ...)",
+      "trigger": "Pijn >= 4 (schaal 0-10), 2 hoger dan vorige training, of drie trainingen op rij hoger",
       "action": "10% gewicht terug voor die oefening",
       "overridable_by_ai": false
     },

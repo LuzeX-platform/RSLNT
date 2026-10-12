@@ -6,7 +6,6 @@ const zoekEl = document.getElementById("zoek");
 const spierEl = document.getElementById("filter-spier");
 const materiaalEl = document.getElementById("filter-materiaal");
 const patroonEl = document.getElementById("filter-patroon");
-const knieEl = document.getElementById("filter-knie");
 const favEl = document.getElementById("filter-favorieten");
 const uitEl = document.getElementById("filter-uitgesloten");
 
@@ -23,7 +22,6 @@ function rijHtml(o) {
   const badges = [
     o.status === "favoriet" ? '<span class="badge badge-succes">★ Favoriet</span>' : "",
     o.status === "uitgesloten" ? '<span class="badge">Niet voor mij</span>' : "",
-    o.knieGevoelig ? '<span class="badge badge-knie">Knie</span>' : "",
   ].join("");
   return `
     <li>
@@ -43,7 +41,6 @@ function leesFilters() {
   spierEl.value = p.get("spier") ?? "";
   materiaalEl.value = p.get("materiaal") ?? "";
   patroonEl.value = p.get("patroon") ?? "";
-  knieEl.setAttribute("aria-pressed", String(p.get("knie") === "vriendelijk"));
   favEl.setAttribute("aria-pressed", String(p.get("lijst") === "favorieten"));
   uitEl.setAttribute("aria-pressed", String(p.get("lijst") === "uitgesloten"));
 }
@@ -54,7 +51,6 @@ function filterQuery() {
   if (spierEl.value) p.set("spier", spierEl.value);
   if (materiaalEl.value) p.set("materiaal", materiaalEl.value);
   if (patroonEl.value) p.set("patroon", patroonEl.value);
-  if (knieEl.getAttribute("aria-pressed") === "true") p.set("knie", "vriendelijk");
   if (favEl.getAttribute("aria-pressed") === "true") p.set("lijst", "favorieten");
   else if (uitEl.getAttribute("aria-pressed") === "true") p.set("lijst", "uitgesloten");
   return p;
@@ -108,10 +104,6 @@ function startLijst() {
     wacht = setTimeout(() => laadLijst(), 250);
   });
   for (const el of [spierEl, materiaalEl, patroonEl]) el.addEventListener("change", () => laadLijst());
-  knieEl.addEventListener("click", () => {
-    knieEl.setAttribute("aria-pressed", String(knieEl.getAttribute("aria-pressed") !== "true"));
-    laadLijst();
-  });
   // Favorieten en "niet voor mij" sluiten elkaar uit.
   for (const [knop, ander] of [
     [favEl, uitEl],
@@ -163,7 +155,6 @@ function tekenDetail() {
 
   document.getElementById("detail-badges").innerHTML = [
     o.basislijst ? '<span class="badge badge-succes">Basislijst</span>' : "",
-    o.knieGevoelig ? `<span class="badge badge-knie">Knie-gevoelig${o.knieGeschat ? " (geschat)" : ""}</span>` : "",
     o.schouderBelastend ? '<span class="badge">Vraagt veel van je schouders</span>' : "",
     o.rugBelastend ? '<span class="badge">Vraagt veel van je onderrug</span>' : "",
   ].join("");

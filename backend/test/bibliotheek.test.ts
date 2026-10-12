@@ -93,7 +93,7 @@ test("catalogus: oefeningen uit Benen / Push / Pull hebben dezelfde sleutel en g
   }
 });
 
-test("zoeken: Nederlandse woorden, spiergroepen, knievriendelijk en basislijst eerst", () => {
+test("zoeken: Nederlandse woorden, spiergroepen en basislijst eerst", () => {
   const lijst = bibliotheek().bestand.oefeningen;
   const bank = zoekOefeningen(lijst, { zoek: "bankdrukken" });
   assert.ok(bank.some((o) => o.id === "Barbell_Bench_Press_-_Medium_Grip"));
@@ -103,8 +103,6 @@ test("zoeken: Nederlandse woorden, spiergroepen, knievriendelijk en basislijst e
   assert.ok(zoekOefeningen(lijst, { zoek: "achterkant schouders" }).some((o) => o.id === "Face_Pull"));
   const benen = zoekOefeningen(lijst, { spier: "quads" });
   assert.ok(benen.every((o) => o.spierenPrimair.includes("quads") || o.spierenSecundair.includes("quads")));
-  const knie = zoekOefeningen(lijst, { spier: "quads", knievriendelijk: true });
-  assert.ok(!knie.some((o) => o.id === "Leg_Extensions" || o.id === "Leg_Press"));
   // Basislijst eerst: de eerste resultaten zijn bekende oefeningen.
   assert.equal(kort(zoekOefeningen(lijst, { zoek: "row" })[0]).basislijst, true);
   assert.equal(zoekOefeningen(lijst, { materiaal: "trap_bar" }).length, 1);

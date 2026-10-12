@@ -26,7 +26,7 @@ function faseHtml(programma) {
   const delen = [];
   if (fase.fase === "intro") {
     delen.push(
-      `<p><strong>Introfase · week ${fase.week} van ${programma.introWeken}.</strong> ${programma.introSets ?? ""} sets per oefening, RIR ${programma.introRir ?? "–"}: wennen voor pezen en knieën.</p>`,
+      `<p><strong>Introfase · week ${fase.week} van ${programma.introWeken}.</strong> ${programma.introSets ?? ""} sets per oefening, RIR ${programma.introRir ?? "–"}: wennen voor pezen en gewrichten.</p>`,
     );
   } else if (fase.fase === "deload") {
     delen.push(
@@ -169,10 +169,23 @@ const HERSTEL = [
   { item: "slaap", label: "Slaap", laag: "slecht", hoog: "top" },
   { item: "energie", label: "Energie", laag: "leeg", hoog: "vol" },
   { item: "spierpijn", label: "Spierpijn", laag: "geen", hoog: "veel" },
-  { item: "kniepijn", label: "Kniepijn", laag: "geen", hoog: "veel" },
+  { item: "pijn", label: "Pijntjes", laag: "geen", hoog: "veel" },
 ];
 const STATUS = { goed: { teken: "✓", tekst: "goed" }, neutraal: { teken: "–", tekst: "gemiddeld" }, let_op: { teken: "!", tekst: "let op" } };
-let herstelKeuze = {};
+let herstelKeuze = { pijnPlekken: [] };
+
+/** Vanaf 2 bij pijntjes: waar (optioneel, meer dan één mag). */
+function plekRijHtml() {
+  if (!(herstelKeuze.pijn >= 2)) return "";
+  const knoppen = Object.entries(PIJN_PLEKKEN)
+    .map(([plek, naam]) => `<button type="button" class="plek" data-plek="${plek}" aria-pressed="${herstelKeuze.pijnPlekken.includes(plek)}">${naam}</button>`)
+    .join("");
+  return `
+    <div class="herstel-rij">
+      <div class="herstel-kop"><span class="veld-label">Waar?</span><span class="schaal-uitleg">optioneel, meer mag</span></div>
+      <div class="plekken" role="group" aria-label="Waar heb je pijntjes?">${knoppen}</div>
+    </div>`;
+}
 
 function tekenHerstelForm() {
   document.getElementById("herstel-rijen").innerHTML = HERSTEL.map(
@@ -183,7 +196,7 @@ function tekenHerstelForm() {
         ${[1, 2, 3, 4, 5].map((w) => `<button type="button" class="keuze" data-item="${h.item}" data-waarde="${w}" aria-pressed="${herstelKeuze[h.item] === w}">${w}</button>`).join("")}
       </div>
     </div>`,
-  ).join("");
+  ).join("") + plekRijHtml();
   document.getElementById("herstel-opslaan").disabled = HERSTEL.some((h) => !herstelKeuze[h.item]);
 }
 
@@ -206,7 +219,10 @@ function tekenHerstel() {
     .map((s) => {
       const st = STATUS[s.status];
       const gem = s.gemiddelde === null ? "" : ` · gem. ${getal(s.gemiddelde, 1)}`;
-      return `<li class="signaal signaal-${s.status}"><span class="signaal-teken" aria-hidden="true">${st.teken}</span><span><strong>${s.label} ${s.waarde}</strong><br /><span class="lijst-meta">${st.tekst}${gem}</span></span></li>`;
+      const plekken = s.item === "pijn" && herstel.check.pijnPlekken?.length
+        ? `<br /><span class="lijst-meta">${herstel.check.pijnPlekken.map((p) => escapeHtml(PIJN_PLEKKEN[p] ?? p)).join(", ")}</span>`
+        : "";
+      return `<li class="signaal signaal-${s.status}"><span class="signaal-teken" aria-hidden="true">${st.teken}</span><span><strong>${s.label} ${s.waarde}</strong><br /><span class="lijst-meta">${st.tekst}${gem}</span>${plekken}</span></li>`;
     })
     .join("");
   signalenEl.innerHTML = `
@@ -216,6 +232,13 @@ function tekenHerstel() {
 }
 
 document.getElementById("herstel-rijen").addEventListener("click", (e) => {
+  const plek = e.target.closest("[data-plek]");
+  if (plek) {
+    const p = plek.dataset.plek;
+    herstelKeuze.pijnPlekken = herstelKeuze.pijnPlekken.includes(p) ? herstelKeuze.pijnPlekken.filter((x) => x !== p) : [...herstelKeuze.pijnPlekken, p];
+    tekenHerstelForm();
+    return;
+  }
   const knop = e.target.closest("[data-item]");
   if (!knop) return;
   herstelKeuze[knop.dataset.item] = Number(knop.dataset.waarde);
@@ -225,7 +248,7 @@ document.getElementById("herstel-rijen").addEventListener("click", (e) => {
 document.getElementById("herstel-signalen").addEventListener("click", (e) => {
   if (e.target.id !== "herstel-aanpassen") return;
   const { check } = gegevens.herstel;
-  herstelKeuze = { slaap: check.slaap, energie: check.energie, spierpijn: check.spierpijn, kniepijn: check.kniepijn };
+  herstelKeuze = { slaap: check.slaap, energie: check.energie, spierpijn: check.spierpijn, pijn: check.pijn, pijnPlekken: [...(check.pijnPlekken ?? [])] };
   document.getElementById("herstel-form").hidden = false;
   document.getElementById("herstel-signalen").hidden = true;
   tekenHerstelForm();
@@ -236,7 +259,8 @@ document.getElementById("herstel-form").addEventListener("submit", async (e) => 
   const foutEl = document.getElementById("herstel-fout");
   foutEl.textContent = "";
   try {
-    gegevens.herstel = await api(`/api/herstel/${gegevens.gewicht.vandaag}`, { methode: "PUT", body: herstelKeuze });
+    const body = { ...herstelKeuze, pijnPlekken: herstelKeuze.pijn >= 2 ? herstelKeuze.pijnPlekken : [] };
+    gegevens.herstel = await api(`/api/herstel/${gegevens.gewicht.vandaag}`, { methode: "PUT", body });
     tekenHerstel();
   } catch (fout) {
     foutEl.textContent = foutTekst(fout);

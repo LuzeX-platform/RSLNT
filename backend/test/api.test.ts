@@ -27,10 +27,11 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     return app.inject({ method: method as "GET", url, payload: payload as object, headers: { cookie } });
   }
 
-  /** Logt sets voor één oefening in een training: [[gewicht, reps, rir, kniepijn], …]. */
+  /** Logt sets voor één oefening in een training: [[gewicht, reps, rir, pijn in de knie], …]. */
   async function log(trainingId: string, toId: string, sets: [number | null, number, number | null, number | null][]) {
-    for (const [i, [gewicht, reps, rir, kniepijn]] of sets.entries()) {
-      const res = await vraag("PUT", `/api/trainingen/${trainingId}/oefeningen/${toId}/sets/${i + 1}`, { gewicht, reps, rir, kniepijn });
+    for (const [i, [gewicht, reps, rir, pijn]] of sets.entries()) {
+      const body = { gewicht, reps, rir, pijn, pijnPlek: pijn === null ? null : "knie" };
+      const res = await vraag("PUT", `/api/trainingen/${trainingId}/oefeningen/${toId}/sets/${i + 1}`, body);
       assert.equal(res.statusCode, 200);
     }
   }
@@ -102,7 +103,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
 
     const controle = await vraag("POST", "/api/programmas/import?controle=1", { bestand: PROGRAMMA });
     assert.equal(controle.statusCode, 200);
-    assert.ok(controle.json().waarschuwingen.length > 0); // de kniepijnregel uit het bestand
+    assert.ok(controle.json().waarschuwingen.length > 0); // de pijnregel uit het bestand
     assert.equal(await prisma.programma.count(), 0);
   });
 
@@ -152,7 +153,6 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(trapBar.doelRir, 3);
     assert.equal(trapBar.rustSeconden, 180);
     assert.match(trapBar.cue, /3 sec zakken/);
-    assert.equal(trapBar.knieGevoelig, true);
     assert.deepEqual(trapBar.alternatieven.map((a: any) => a.naam), ["Goblet squat", "Hack squat"]);
   });
 
@@ -176,6 +176,27 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     await log(benen, trapBarRegel, [[80, 8, 3, 1]]);
     const teLaat = await vraag("PATCH", `/api/trainingen/${benen}/oefeningen/${trapBarRegel}/wissel`, { oefeningId: goblet.id });
     assert.equal(teLaat.statusCode, 409);
+  });
+
+  test("pijn per set: hoeveel en waar; de oude app met kniepijn blijft werken", async () => {
+    const regel = (await vraag("GET", `/api/trainingen/${benen}`)).json().oefeningen[1].id;
+    const pad = `/api/trainingen/${benen}/oefeningen/${regel}/sets/1`;
+    const zet = async (pijn: object) => {
+      const res = await vraag("PUT", pad, { gewicht: 100, reps: 10, rir: 2, ...pijn });
+      return res.statusCode === 200 ? [res.json().set.pijn, res.json().set.pijnPlek] : res.statusCode;
+    };
+    assert.deepEqual(await zet({ pijn: 5, pijnPlek: "schouder" }), [5, "schouder"]);
+    assert.deepEqual(await zet({ pijn: 2 }), [2, null]);
+    // Een plek zonder cijfer zegt niets.
+    assert.deepEqual(await zet({ pijn: null, pijnPlek: "pols" }), [null, null]);
+    // Oude versie van de app (of iets uit de offline-wachtrij van daarvoor): kniepijn = pijn in de knie.
+    assert.deepEqual(await zet({ kniepijn: 3 }), [3, "knie"]);
+    assert.deepEqual(await zet({ kniepijn: null }), [null, null]);
+    assert.equal(await zet({ pijn: 3, pijnPlek: "teen" }), 400);
+    assert.equal(await zet({ pijn: 11 }), 400);
+    const detail = (await vraag("GET", `/api/trainingen/${benen}`)).json();
+    assert.deepEqual(Object.keys(detail.oefeningen[1].sets[0]).sort(), ["gewicht", "nummer", "pijn", "pijnPlek", "reps", "rir"]);
+    assert.equal((await vraag("DELETE", pad)).statusCode, 200);
   });
 
   test("introtraining op de bovenkant met RIR 3: de volgende keer één stap (5 kg) omhoog", async () => {
@@ -269,7 +290,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.match(oud.oefeningen[0].cue, /3 sec zakken/);
   });
 
-  test("oefening toevoegen krijgt een sleutel en kan knie-gevoelig zijn", async () => {
+  test("oefening toevoegen krijgt een sleutel; knie-gevoelig mag (programma's), hoeft niet", async () => {
     const nieuw = await vraag("POST", "/api/oefeningen", {
       naam: "Belt squat", materiaal: "machine", gewichtsstap: 5, perKant: false, knieGevoelig: true,
     });
@@ -280,6 +301,10 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       naam: "Belt squat", materiaal: "machine", gewichtsstap: 5, perKant: false, knieGevoelig: true,
     });
     assert.equal(dubbel.statusCode, 409);
+    // De schema-editor stuurt het niet meer mee.
+    const zonder = await vraag("POST", "/api/oefeningen", { naam: "Pendulum squat", materiaal: "machine", gewichtsstap: 5, perKant: false });
+    assert.equal(zonder.statusCode, 200);
+    assert.equal(zonder.json().oefening.knieGevoelig, false);
   });
 
   test("het programmabestand is terug te downloaden", async () => {
@@ -354,9 +379,19 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
 
   test("herstelcheck: losse signalen, ook op het beginscherm", async () => {
     const { vandaag } = await import("../src/datum.js");
-    assert.equal((await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 6, spierpijn: 1, energie: 1, kniepijn: 1 })).statusCode, 400);
-    const res = (await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4, kniepijn: 1 })).json();
+    assert.equal((await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 6, spierpijn: 1, energie: 1, pijn: 1 })).statusCode, 400);
+    assert.equal((await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4 })).statusCode, 400);
+    assert.equal((await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4, pijn: 3, pijnPlekken: ["teen"] })).statusCode, 400);
+    // Oude versie van de app: kniepijn telt als pijntjes in de knie.
+    const oud = (await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4, kniepijn: 3 })).json();
+    assert.deepEqual([oud.check.pijn, oud.check.pijnPlekken], [3, ["knie"]]);
+    const plekken = (await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4, pijn: 3, pijnPlekken: ["schouder", "pols", "schouder"] })).json();
+    assert.deepEqual(plekken.check.pijnPlekken, ["schouder", "pols"]);
+    assert.deepEqual(plekken.signalen.map((s: any) => [s.item, s.label]).at(-1), ["pijn", "Pijntjes"]);
+    const res = (await vraag("PUT", `/api/herstel/${vandaag()}`, { slaap: 2, spierpijn: 2, energie: 4, pijn: 1 })).json();
     assert.deepEqual(res.signalen.map((s: any) => s.status), ["let_op", "goed", "goed", "goed"]);
+    assert.deepEqual(res.check.pijnPlekken, []);
+    assert.deepEqual((await vraag("GET", "/api/herstel")).json().checks[0].pijnPlekken, []);
     const scherm = (await vraag("GET", "/api/vandaag")).json();
     assert.equal(scherm.herstel.check.slaap, 2);
     assert.equal(scherm.herstel.deloadOverwegen, false);
@@ -386,7 +421,6 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.ok(lijst.totaal > 5);
     assert.equal(lijst.oefeningen[0].basislijst, true);
     assert.match(lijst.oefeningen[0].afbeelding, /^https:\/\/raw\.githubusercontent\.com\/yuhonas\/free-exercise-db\/[0-9a-f]{40}\//);
-    assert.equal((await vraag("GET", "/api/bibliotheek?spier=quads&knie=vriendelijk")).json().oefeningen.some((o: any) => o.knieGevoelig), false);
 
     // De import heeft leg_press aan de bibliotheek gekoppeld (via de basislijst).
     const leg = (await vraag("GET", "/api/bibliotheek/Leg_Press")).json();
@@ -563,7 +597,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       ["POST", `/api/trainingen/${trainingA.id}/afronden`],
       ["POST", `/api/trainingen/${trainingA.id}/heropenen`],
       ["DELETE", `/api/trainingen/${trainingA.id}`],
-      ["PUT", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/sets/1`, { gewicht: 1, reps: 1, rir: null, kniepijn: null }],
+      ["PUT", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/sets/1`, { gewicht: 1, reps: 1, rir: null, pijn: null }],
       ["DELETE", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/sets/1`],
       ["PATCH", `/api/trainingen/${trainingA.id}/oefeningen/${toA.id}/wissel`, { oefeningId: null }],
       ["PATCH", `/api/oefeningen/${oefeningA.id}`, { naam: "Gekaapt" }],
@@ -582,7 +616,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const { vandaag } = await import("../src/datum.js");
     const gewichtA = await prisma.lichaamsgewicht.findFirst({ where: { gebruikerId: ikId }, orderBy: { datum: "desc" } });
     assert.equal((await vraagAls(cookieB, "PUT", `/api/lichaamsgewicht/${vandaag()}`, { gewicht: 70 })).statusCode, 200);
-    assert.equal((await vraagAls(cookieB, "PUT", `/api/herstel/${vandaag()}`, { slaap: 5, spierpijn: 1, energie: 5, kniepijn: 1 })).statusCode, 200);
+    assert.equal((await vraagAls(cookieB, "PUT", `/api/herstel/${vandaag()}`, { slaap: 5, spierpijn: 1, energie: 5, pijn: 1 })).statusCode, 200);
     assert.deepEqual((await vraagAls(cookieB, "GET", "/api/lichaamsgewicht")).json().metingen.map((m: any) => m.gewicht), [70]);
     const gewichtANa = await prisma.lichaamsgewicht.findFirst({ where: { gebruikerId: ikId }, orderBy: { datum: "desc" } });
     assert.deepEqual(gewichtANa, gewichtA);
@@ -803,7 +837,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const scherm = (await vraagAls(cookieB, "GET", "/api/vandaag")).json();
     const start = (await vraagAls(cookieB, "POST", "/api/trainingen", { schemaId: scherm.volgendeSchema.id })).json();
     const detail = (await vraagAls(cookieB, "GET", `/api/trainingen/${start.id}`)).json();
-    assert.equal((await vraagAls(cookieB, "PUT", `/api/trainingen/${start.id}/oefeningen/${detail.oefeningen[0].id}/sets/1`, { gewicht: 40, reps: 8, rir: 2, kniepijn: null })).statusCode, 200);
+    assert.equal((await vraagAls(cookieB, "PUT", `/api/trainingen/${start.id}/oefeningen/${detail.oefeningen[0].id}/sets/1`, { gewicht: 40, reps: 8, rir: 2, pijn: null })).statusCode, 200);
 
     const exp = await vraagAls(cookieB, "GET", "/api/account/export");
     assert.equal(exp.statusCode, 200);

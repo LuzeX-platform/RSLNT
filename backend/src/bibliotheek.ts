@@ -138,8 +138,6 @@ export interface ZoekFilters {
   spier?: string;
   materiaal?: string;
   patroon?: string;
-  /** Alleen oefeningen die niet als knie-gevoelig gelden. */
-  knievriendelijk?: boolean;
   /** Alleen deze id's (bijvoorbeeld je favorieten). */
   ids?: Set<string>;
 }
@@ -151,7 +149,6 @@ export function zoekOefeningen(lijst: BibliotheekOefening[], f: ZoekFilters): Bi
     if (f.spier && !o.spierenPrimair.includes(f.spier) && !o.spierenSecundair.includes(f.spier)) return false;
     if (f.materiaal && o.materiaal !== f.materiaal) return false;
     if (f.patroon && o.patroon !== f.patroon) return false;
-    if (f.knievriendelijk && (o.knieGevoelig || catalogusPerBibliotheek.get(o.id)?.knieGevoelig)) return false;
     if (!woorden.length) return true;
     const tekst = zoektekst(o);
     return woorden.every((w) => [w, ...(SYNONIEMEN[w] ?? [])].some((alt) => tekst.includes(alt)));

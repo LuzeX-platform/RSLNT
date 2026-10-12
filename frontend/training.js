@@ -17,7 +17,7 @@ const wisselOpen = new Set();
 
 /** Waar het onderzoek achter een voorstel staat (wetenschap.html). */
 function waaromAnker(v) {
-  if (v.kniepijnRegel) return "kniepijn";
+  if (v.pijnRegel) return "pijn";
   if (v.actie === "terug") return "stagnatie";
   if (v.actie === "deload") return "deload";
   return "progressie";
@@ -66,8 +66,11 @@ function vorigeTekst(o) {
   else if (gewichten.length === 1) kern = `${kg(gewichten[0])} × ${reps}`;
   else kern = sets.map((s) => `${getal(s.gewicht)}×${s.reps}`).join(", ") + " (kg×reps)";
   const rir = sets.some((s) => s.rir !== null) ? ` · RIR ${sets.map((s) => s.rir ?? "–").join("/")}` : "";
-  const knie = sets.some((s) => s.kniepijn !== null) ? ` · knie ${sets.map((s) => s.kniepijn ?? "–").join("/")}` : "";
-  return `<strong>Vorige keer</strong> (${datumKort(o.vorigeKeer.datum)}): ${escapeHtml(kern + rir + knie)}`;
+  const plekken = [...new Set(sets.filter((s) => s.pijn !== null && s.pijnPlek).map((s) => PIJN_PLEKKEN[s.pijnPlek]?.toLowerCase()))];
+  const pijn = sets.some((s) => s.pijn !== null)
+    ? ` · pijn ${sets.map((s) => s.pijn ?? "–").join("/")}${plekken.length ? ` (${plekken.join(", ")})` : ""}`
+    : "";
+  return `<strong>Vorige keer</strong> (${datumKort(o.vorigeKeer.datum)}): ${escapeHtml(kern + rir + pijn)}`;
 }
 
 function voorstelWaarde(v) {
@@ -111,7 +114,19 @@ function beginwaarden(o, nummer, vorigeRij) {
   // Zelfde gewicht als vorige keer: begin bij wat je toen haalde, dan weet je wat je moet verbeteren.
   const vorigeSet = o.vorigeKeer?.sets.find((s) => s.nummer === nummer);
   const reps = o.voorstel.actie === "gelijk" && vorigeSet ? vorigeSet.reps : vorigeRij?.reps ?? o.repsMin;
-  return { nummer, gewicht, reps, rir: null, kniepijn: null, opgeslagen: false, aangeraakt: false, knieOpen: false };
+  // Had je bij de vorige set pijn, dan staat het pijnblok open met dezelfde plek alvast gekozen.
+  const pijnVorige = vorigeRij?.pijn != null;
+  return {
+    nummer,
+    gewicht,
+    reps,
+    rir: null,
+    pijn: null,
+    pijnPlek: pijnVorige ? vorigeRij.pijnPlek : null,
+    opgeslagen: false,
+    aangeraakt: false,
+    pijnOpen: pijnVorige,
+  };
 }
 
 function maakRijen(o) {
@@ -122,7 +137,7 @@ function maakRijen(o) {
     const s = opgeslagen.get(nummer);
     rijen.push(
       s
-        ? { ...s, opgeslagen: true, aangeraakt: true, knieOpen: s.kniepijn !== null }
+        ? { ...s, opgeslagen: true, aangeraakt: true, pijnOpen: s.pijn !== null }
         : beginwaarden(o, nummer, rijen[rijen.length - 1]),
     );
   }
@@ -132,12 +147,23 @@ function maakRijen(o) {
 function keuzesHtml(rij, veld, max) {
   const knoppen = [];
   for (let i = 0; i <= max; i++) {
-    const klasse = veld === "kniepijn" && i >= 4 ? "keuze pijn-grens" : "keuze";
+    const klasse = veld === "pijn" && i >= 4 ? "keuze pijn-grens" : "keuze";
     knoppen.push(
       `<button type="button" class="${klasse}" data-actie="${veld}" data-waarde="${i}" aria-pressed="${rij[veld] === i}">${i}</button>`,
     );
   }
   return knoppen.join("");
+}
+
+function plekkenHtml(rij) {
+  return Object.entries(PIJN_PLEKKEN)
+    .map(([plek, naam]) => `<button type="button" class="plek" data-actie="pijnPlek" data-waarde="${plek}" aria-pressed="${rij.pijnPlek === plek}">${naam}</button>`)
+    .join("");
+}
+
+function pijnKnopTekst(rij) {
+  if (rij.pijn === null) return "Pijn?";
+  return `Pijn ${rij.pijn}${rij.pijnPlek ? ` · ${PIJN_PLEKKEN[rij.pijnPlek].toLowerCase()}` : ""}`;
 }
 
 function setHtml(o, rij) {
@@ -153,12 +179,11 @@ function setHtml(o, rij) {
           <button type="button" data-actie="gewicht-plus" aria-label="Gewicht omhoog">+</button>
         </div>
       </div>`;
-  const knieTekst = rij.kniepijn === null ? "–" : rij.kniepijn;
   return `
     <div class="set${rij.opgeslagen ? " opgeslagen" : ""}" data-to="${o.id}" data-nummer="${rij.nummer}">
       <div class="set-kop">
         <span class="set-nummer">Set ${rij.nummer}${rij.nummer > o.aantalSets ? " (extra)" : ""}</span>
-        <button type="button" class="secondary knie-knop" data-actie="knie-open" aria-expanded="${rij.knieOpen}">Knie ${knieTekst}</button>
+        <button type="button" class="secondary pijn-knop${rij.pijn !== null && rij.pijn >= 4 ? " pijn-hoog" : ""}" data-actie="pijn-open" aria-expanded="${rij.pijnOpen}">${pijnKnopTekst(rij)}</button>
       </div>
       <div class="set-velden${lg ? " enkel" : ""}">
         ${gewichtVeld}
@@ -176,9 +201,15 @@ function setHtml(o, rij) {
         <span class="veld-label">RIR</span>
         <div class="keuzes" role="group" aria-label="Reps in reserve">${keuzesHtml(rij, "rir", 4)}</div>
       </div>
-      <div class="keuze-rij" ${rij.knieOpen ? "" : "hidden"}>
-        <span class="veld-label">Knie</span>
-        <div class="keuzes schaal-11" role="group" aria-label="Kniepijn 0 tot 10">${keuzesHtml(rij, "kniepijn", 10)}</div>
+      <div class="pijn-blok" ${rij.pijnOpen ? "" : "hidden"}>
+        <div class="keuze-rij">
+          <span class="veld-label">Pijn</span>
+          <div class="keuzes schaal-11" role="group" aria-label="Pijn 0 tot 10">${keuzesHtml(rij, "pijn", 10)}</div>
+        </div>
+        <div class="keuze-rij plek-rij">
+          <span class="veld-label">Waar</span>
+          <div class="plekken" role="group" aria-label="Waar heb je pijn?">${plekkenHtml(rij)}</div>
+        </div>
       </div>
       <div class="set-acties">
         <button type="button" class="opslaan" data-actie="opslaan">Set ${rij.nummer} opslaan</button>
@@ -208,7 +239,6 @@ function oefeningHtml(o) {
   const rijen = rijenPer.get(o.id);
   const badges = [
     o.supersetGroep ? `<span class="badge superset-badge">Superset ${escapeHtml(o.supersetGroep)}</span>` : "",
-    o.knieGevoelig ? '<span class="badge badge-knie">Knie-gevoelig</span>' : "",
     o.gewisseld ? `<span class="badge">In plaats van ${escapeHtml(o.gewisseld.van)}</span>` : "",
   ].join("");
   const meta = doelMetaTekst(o);
@@ -247,7 +277,13 @@ function verstuurSet(o, rij) {
     sleutel: `set:${o.id}:${rij.nummer}`,
     pad: setPad(o, rij.nummer),
     methode: "PUT",
-    body: { gewicht: isZonderGewicht(o) ? null : rij.gewicht, reps: rij.reps, rir: rij.rir, kniepijn: rij.kniepijn },
+    body: {
+      gewicht: isZonderGewicht(o) ? null : rij.gewicht,
+      reps: rij.reps,
+      rir: rij.rir,
+      pijn: rij.pijn,
+      pijnPlek: rij.pijn === null ? null : rij.pijnPlek,
+    },
   });
 }
 
@@ -288,6 +324,8 @@ function slaOp(o, rij) {
   const volgende = rijen.find((r) => r.nummer === rij.nummer + 1);
   if (volgende && !volgende.opgeslagen && !volgende.aangeraakt) {
     if (!isZonderGewicht(o)) volgende.gewicht = rij.gewicht;
+    // Pijn bij deze set: bij de volgende staat het pijnblok open, met dezelfde plek alvast gekozen.
+    if (rij.pijn !== null) Object.assign(volgende, { pijnOpen: true, pijnPlek: volgende.pijnPlek ?? rij.pijnPlek });
     tekenSet(o, volgende);
   }
   scrollNaarVolgende(o, rij);
@@ -357,13 +395,16 @@ oefeningenEl.addEventListener("click", (e) => {
       rij.reps = Math.max(0, (rij.reps ?? 0) + (actie === "reps-plus" ? 1 : -1));
       break;
     case "rir":
-    case "kniepijn": {
+    case "pijn": {
       const waarde = Number(knop.dataset.waarde);
       rij[actie] = rij[actie] === waarde ? null : waarde; // nog eens tikken = leegmaken
       break;
     }
-    case "knie-open":
-      rij.knieOpen = !rij.knieOpen;
+    case "pijnPlek":
+      rij.pijnPlek = rij.pijnPlek === knop.dataset.waarde ? null : knop.dataset.waarde;
+      break;
+    case "pijn-open":
+      rij.pijnOpen = !rij.pijnOpen;
       tekenSet(o, rij);
       return;
     case "opslaan":
@@ -587,7 +628,12 @@ function pasWachtrijToe() {
     const o = detail.oefeningen.find((x) => x.id === toId);
     if (!o) continue;
     o.sets = o.sets.filter((s) => s.nummer !== Number(nummer));
-    if (item.methode === "PUT") o.sets.push({ nummer: Number(nummer), ...item.body });
+    if (item.methode === "PUT") {
+      // Uit de wachtrij van een oudere versie kan nog "kniepijn" komen: dat is pijn in de knie.
+      const { kniepijn, ...body } = item.body;
+      const oud = kniepijn === undefined ? {} : { pijn: kniepijn, pijnPlek: kniepijn === null ? null : "knie" };
+      o.sets.push({ nummer: Number(nummer), pijn: null, pijnPlek: null, ...oud, ...body });
+    }
     o.sets.sort((a, b) => a.nummer - b.nummer);
   }
   const notitie = leesWachtrij().find((i) => i.sleutel === `notitie:${trainingId}`);
@@ -599,7 +645,7 @@ function tekenFase(training, afgerond) {
   const paneel = document.getElementById("fase-paneel");
   const delen = [];
   if (training.fase === "intro") {
-    delen.push(`<p><strong>Introfase · week ${training.week}.</strong> Minder sets en ruim reps over, zodat je pezen en knieën kunnen wennen. <a class="waarom" href="/wetenschap.html#introfase">Waarom?</a></p>`);
+    delen.push(`<p><strong>Introfase · week ${training.week}.</strong> Minder sets en ruim reps over, zodat je pezen en gewrichten kunnen wennen. <a class="waarom" href="/wetenschap.html#introfase">Waarom?</a></p>`);
   }
   if (training.fase === "deload") {
     delen.push('<p><strong>Deloadweek.</strong> Halve sets, zelfde gewicht. Herstellen hoort bij trainen. <a class="waarom" href="/wetenschap.html#deload">Waarom?</a></p>');

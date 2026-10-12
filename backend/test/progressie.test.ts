@@ -2,24 +2,24 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import {
   bepaalVoorstel,
-  kniepijnSignaal,
+  pijnSignaal,
   rondOmlaag,
   werkgewicht,
   type EerdereSessie,
   type GelogdeSet,
 } from "../src/progressie.js";
 
-const dumbbell = { materiaal: "dumbbell", gewichtsstap: 2, knieGevoelig: false };
-const gobletSquat = { materiaal: "dumbbell", gewichtsstap: 2, knieGevoelig: true };
-const trapBar = { materiaal: "trap_bar", gewichtsstap: 2.5, knieGevoelig: true };
-const deadBug = { materiaal: "lichaamsgewicht", gewichtsstap: 0, knieGevoelig: false };
+const dumbbell = { materiaal: "dumbbell", gewichtsstap: 2 };
+const gobletSquat = { materiaal: "dumbbell", gewichtsstap: 2 };
+const trapBar = { materiaal: "trap_bar", gewichtsstap: 2.5 };
+const deadBug = { materiaal: "lichaamsgewicht", gewichtsstap: 0 };
 const doel = { minSets: 3, repsMin: 8, repsMax: 10 };
 
-/** Korte notatie: sessie(20, [10, 10, 9], [0, 1, null]) = drie sets met 20 kg. */
-function sessie(gewicht: number | null, reps: number[], kniepijn: (number | null)[] = []): EerdereSessie {
+/** Korte notatie: sessie(20, [10, 10, 9], [0, 1, null]) = drie sets met 20 kg, pijn 0, 1 en leeg. */
+function sessie(gewicht: number | null, reps: number[], pijn: (number | null)[] = [], plek: string | null = null): EerdereSessie {
   return {
     sets: reps.map(
-      (r, i): GelogdeSet => ({ gewicht, reps: r, rir: 2, kniepijn: kniepijn[i] ?? null }),
+      (r, i): GelogdeSet => ({ gewicht, reps: r, rir: 2, pijn: pijn[i] ?? null, pijnPlek: pijn[i] != null ? plek : null }),
     ),
   };
 }
@@ -39,7 +39,7 @@ describe("dubbele progressie", () => {
     const v = bepaalVoorstel(dumbbell, doel, [sessie(20, [10, 10, 10])]);
     assert.equal(v.actie, "omhoog");
     assert.equal(v.gewicht, 22);
-    assert.equal(v.kniepijnRegel, false);
+    assert.equal(v.pijnRegel, false);
   });
 
   test("één set onder de bovenkant: zelfde gewicht", () => {
@@ -74,9 +74,9 @@ describe("dubbele progressie", () => {
   test("wisselende gewichten: het laagste is het werkgewicht", () => {
     const s: EerdereSessie = {
       sets: [
-        { gewicht: 22, reps: 10, rir: 1, kniepijn: null },
-        { gewicht: 20, reps: 10, rir: 1, kniepijn: null },
-        { gewicht: 20, reps: 10, rir: 0, kniepijn: null },
+        { gewicht: 22, reps: 10, rir: 1, pijn: null },
+        { gewicht: 20, reps: 10, rir: 1, pijn: null },
+        { gewicht: 20, reps: 10, rir: 0, pijn: null },
       ],
     };
     assert.equal(werkgewicht(s), 20);
@@ -96,18 +96,30 @@ describe("dubbele progressie", () => {
   });
 
   test("decimale stappen blijven netjes", () => {
-    const v = bepaalVoorstel({ materiaal: "kabel", gewichtsstap: 2.5, knieGevoelig: false }, doel, [sessie(37.5, [10, 10, 10])]);
+    const v = bepaalVoorstel({ materiaal: "kabel", gewichtsstap: 2.5 }, doel, [sessie(37.5, [10, 10, 10])]);
     assert.equal(v.gewicht, 40);
   });
 });
 
-describe("kniepijnregel", () => {
-  test("kniepijn 4 of hoger: 10% terug, afgerond op de stap", () => {
-    const v = bepaalVoorstel(trapBar, doel, [sessie(100, [8, 8, 8], [2, 4, 3])]);
+describe("pijnregel", () => {
+  test("pijn 4 of hoger: 10% terug, afgerond op de stap, met de plek in de reden", () => {
+    const v = bepaalVoorstel(trapBar, doel, [sessie(100, [8, 8, 8], [2, 4, 3], "knie")]);
     assert.equal(v.actie, "terug");
     assert.equal(v.gewicht, 90);
-    assert.equal(v.kniepijnRegel, true);
-    assert.match(v.reden, /Kniepijn 4\/10/);
+    assert.equal(v.pijnRegel, true);
+    assert.match(v.reden, /^Pijn \(knie\) 4\/10/);
+  });
+
+  test("zonder plek gewoon \"Pijn\"", () => {
+    assert.match(bepaalVoorstel(trapBar, doel, [sessie(100, [8, 8, 8], [5])]).reden, /^Pijn 5\/10/);
+  });
+
+  test("geldt voor elke oefening waarbij je pijn meldt, niet alleen kniebelastende", () => {
+    const v = bepaalVoorstel(dumbbell, doel, [sessie(24, [10, 10, 10], [6], "schouder")]);
+    assert.equal(v.actie, "terug");
+    assert.equal(v.gewicht, 20);
+    assert.equal(v.pijnRegel, true);
+    assert.match(v.reden, /Pijn \(schouder\) 6\/10/);
   });
 
   test("gaat vóór progressie: ook bij alle sets op de bovenkant", () => {
@@ -131,36 +143,36 @@ describe("kniepijnregel", () => {
   });
 
   test("stijging van 2 punten t.o.v. de keer ervoor", () => {
-    assert.match(kniepijnSignaal([sessie(20, [8], [3]), sessie(20, [8], [1])]) ?? "", /steeg van 1 naar 3/);
+    assert.match(pijnSignaal([sessie(20, [8], [3]), sessie(20, [8], [1])]) ?? "", /steeg van 1 naar 3/);
   });
 
   test("stijging van 1 punt is nog geen signaal", () => {
-    assert.equal(kniepijnSignaal([sessie(20, [8], [2]), sessie(20, [8], [1])]), null);
+    assert.equal(pijnSignaal([sessie(20, [8], [2]), sessie(20, [8], [1])]), null);
   });
 
   test("drie sessies op rij hoger", () => {
-    const signaal = kniepijnSignaal([sessie(20, [8], [3]), sessie(20, [8], [2]), sessie(20, [8], [1])]);
+    const signaal = pijnSignaal([sessie(20, [8], [3]), sessie(20, [8], [2]), sessie(20, [8], [1])]);
     assert.match(signaal ?? "", /drie trainingen op rij \(1 → 2 → 3\)/);
   });
 
   test("gelijk gebleven of gedaald: geen signaal", () => {
-    assert.equal(kniepijnSignaal([sessie(20, [8], [2]), sessie(20, [8], [2]), sessie(20, [8], [1])]), null);
-    assert.equal(kniepijnSignaal([sessie(20, [8], [1]), sessie(20, [8], [3])]), null);
+    assert.equal(pijnSignaal([sessie(20, [8], [2]), sessie(20, [8], [2]), sessie(20, [8], [1])]), null);
+    assert.equal(pijnSignaal([sessie(20, [8], [1]), sessie(20, [8], [3])]), null);
   });
 
   test("niet ingevuld is onbekend, niet 0", () => {
     // Vorige keer niets ingevuld: geen signaal, ook al was het daarvoor 3.
-    assert.equal(kniepijnSignaal([sessie(20, [8]), sessie(20, [8], [3])]), null);
+    assert.equal(pijnSignaal([sessie(20, [8]), sessie(20, [8], [3])]), null);
     // De keer ervoor niets ingevuld: 3 is dan geen "stijging van 0 naar 3".
-    assert.equal(kniepijnSignaal([sessie(20, [8], [3]), sessie(20, [8])]), null);
+    assert.equal(pijnSignaal([sessie(20, [8], [3]), sessie(20, [8])]), null);
   });
 
   test("de hoogste waarde van de sessie telt", () => {
-    assert.match(kniepijnSignaal([sessie(20, [8, 8, 8], [0, 1, 4])]) ?? "", /4\/10/);
+    assert.match(pijnSignaal([sessie(20, [8, 8, 8], [0, 1, 4])]) ?? "", /4\/10/);
   });
 
-  test("lichaamsgewicht met kniepijn: terug zonder gewicht", () => {
-    const v = bepaalVoorstel({ ...deadBug, knieGevoelig: true }, doel, [sessie(null, [10, 10, 10], [5])]);
+  test("lichaamsgewicht met pijn: terug zonder gewicht", () => {
+    const v = bepaalVoorstel(deadBug, doel, [sessie(null, [10, 10, 10], [5])]);
     assert.equal(v.actie, "terug");
     assert.equal(v.gewicht, null);
   });
@@ -188,18 +200,18 @@ test("rondOmlaag", () => {
   assert.equal(rondOmlaag(0.3 * 3, 0.3), 0.9);
 });
 
-describe("kniepijnregel alleen bij knie-gevoelige oefeningen", () => {
-  test("bench press met kniepijn: gewoon dubbele progressie", () => {
-    const v = bepaalVoorstel(dumbbell, doel, [sessie(24, [10, 10, 10], [6])]);
+describe("pijn onder de grens", () => {
+  test("pijn 2 die niet stijgt: gewoon dubbele progressie", () => {
+    const v = bepaalVoorstel(dumbbell, doel, [sessie(24, [10, 10, 10], [2], "pols"), sessie(24, [10, 10, 9], [2], "pols")]);
     assert.equal(v.actie, "omhoog");
-    assert.equal(v.kniepijnRegel, false);
+    assert.equal(v.pijnRegel, false);
   });
 });
 
 describe("doel-RIR", () => {
   const metRir = (rirs: (number | null)[], doelRir: number | null): EerdereSessie => ({
     doelRir,
-    sets: rirs.map((rir) => ({ gewicht: 20, reps: 10, rir, kniepijn: null })),
+    sets: rirs.map((rir) => ({ gewicht: 20, reps: 10, rir, pijn: null })),
   });
 
   test("bovenkant gehaald mét genoeg reps over: omhoog", () => {
@@ -235,7 +247,7 @@ describe("introfase en deload", () => {
     assert.equal(v.gewicht, 20);
   });
 
-  test("kniepijn gaat ook in de deloadweek voor", () => {
+  test("pijn gaat ook in de deloadweek voor", () => {
     const v = bepaalVoorstel(gobletSquat, doel, [sessie(20, [8, 8, 8], [5])], { deload: true });
     assert.equal(v.actie, "terug");
   });
@@ -256,7 +268,7 @@ describe("stagnatie", () => {
     ]);
     assert.equal(v.actie, "terug");
     assert.equal(v.gewicht, 90);
-    assert.equal(v.kniepijnRegel, false);
+    assert.equal(v.pijnRegel, false);
     assert.match(v.reden, /Twee trainingen op rij onder de 6 reps/);
   });
 

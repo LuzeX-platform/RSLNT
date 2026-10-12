@@ -69,7 +69,7 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
   app.addHook("preHandler", vereistPro);
 
   app.get<{
-    Querystring: { zoek?: string; spier?: string; materiaal?: string; patroon?: string; knie?: string; lijst?: string; pagina?: string };
+    Querystring: { zoek?: string; spier?: string; materiaal?: string; patroon?: string; lijst?: string; pagina?: string };
   }>("/api/bibliotheek", async (request) => {
     const q = request.query;
     const v = await voorkeuren(gid(request));
@@ -80,7 +80,6 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
       spier: q.spier || undefined,
       materiaal: q.materiaal || undefined,
       patroon: q.patroon || undefined,
-      knievriendelijk: q.knie === "vriendelijk",
       ids,
     });
     const pagina = Math.max(1, Math.min(Number(q.pagina) || 1, 100));

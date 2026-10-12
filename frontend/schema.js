@@ -268,7 +268,7 @@ const stapEl = document.getElementById("oefening-stap");
 
 function oefeningOmschrijving(o) {
   const stap = o.gewichtsstap <= 0 ? "geen gewicht" : `stap ${kg(o.gewichtsstap)}`;
-  return `${MATERIAAL_NAMEN[o.materiaal] ?? o.materiaal} · ${stap}${o.perKant ? " · per kant" : ""}${o.knieGevoelig ? " · knie-gevoelig" : ""}`;
+  return `${MATERIAAL_NAMEN[o.materiaal] ?? o.materiaal} · ${stap}${o.perKant ? " · per kant" : ""}`;
 }
 
 function tekenOefeningen() {
@@ -308,7 +308,6 @@ document.getElementById("oefeningen").addEventListener("click", (e) => {
   materiaalEl.value = o.materiaal;
   stapEl.value = getal(o.gewichtsstap);
   document.getElementById("oefening-perkant").checked = o.perKant;
-  document.getElementById("oefening-knie").checked = o.knieGevoelig;
   document.getElementById("oefening-form-titel").textContent = `${o.naam} wijzigen`;
   document.getElementById("oefening-opslaan").textContent = "Wijziging opslaan";
   document.getElementById("oefening-annuleren").hidden = false;
@@ -326,7 +325,6 @@ oefeningForm.addEventListener("submit", async (e) => {
     materiaal: materiaalEl.value,
     gewichtsstap: leesGetal(stapEl.value),
     perKant: document.getElementById("oefening-perkant").checked,
-    knieGevoelig: document.getElementById("oefening-knie").checked,
   };
   if (body.gewichtsstap === null) {
     oefeningFout.textContent = "Vul de kleinste gewichtsstap in, bijvoorbeeld 2,5 (0 = zonder gewicht).";

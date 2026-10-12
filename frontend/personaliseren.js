@@ -124,7 +124,7 @@ function regelHtml(r) {
   const rust = r.rust >= 120 && r.rust % 60 === 0 ? `${r.rust / 60} min` : `${r.rust} s`;
   return `
     <li class="lijst-rij voorstel-regel">
-      <span><strong>${escapeHtml(r.naam)}</strong>${r.knieGevoelig ? ' <span class="badge badge-knie">Knie</span>' : ""}<br />
+      <span><strong>${escapeHtml(r.naam)}</strong><br />
       <span class="lijst-meta">${r.sets} × ${r.repMin}–${r.repMax}${r.perKant ? " per kant" : ""} · RIR ${r.rir} · rust ${rust}</span>
       ${r.cue ? `<br /><span class="lijst-meta voorstel-cue">${escapeHtml(r.cue)}</span>` : ""}</span>
       ${r.bibliotheekId ? `<a class="waarom" href="/bibliotheek.html?id=${encodeURIComponent(r.bibliotheekId)}">Uitleg</a>` : ""}

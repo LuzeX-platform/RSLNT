@@ -75,7 +75,8 @@ model Oefening {
   /// compound | isolation
   mechaniek        String?
   unilateraal      Boolean  @default(false)
-  /// Alleen hierop geldt de kniepijnregel.
+  /// Belast de knie. Gebruikt door het schema op maat bij de klacht "knie" (hoogstens één per
+  /// training). De pijnregel geldt voor elke oefening waar je pijn meldt, los hiervan.
   knieGevoelig     Boolean  @default(false)
   /// Sleutels van oefeningen waarmee je deze mag wisselen.
   alternatieven    String[] @default([])
@@ -223,8 +224,10 @@ model TrainingSet {
   reps               Int
   /// 0–4, optioneel
   rir                Int?
-  /// 0–10, optioneel. Leeg betekent onbekend, niet 0.
-  kniepijn           Int?
+  /// Pijn tijdens deze set, 0–10, optioneel. Leeg betekent onbekend, niet 0.
+  pijn               Int?
+  /// Waar: knie, schouder, elleboog, pols, onderrug, heup, enkel, anders (pijn.ts). Leeg: niet gezegd.
+  pijnPlek           String?
   opgeslagenOp       DateTime @default(now()) @updatedAt
 
   trainingOefening TrainingOefening @relation(fields: [trainingOefeningId], references: [id], onDelete: Cascade)
@@ -316,8 +319,10 @@ model Herstelcheck {
   spierpijn    Int
   /// 1 = leeg, 5 = vol energie
   energie      Int
-  /// 1 = geen, 5 = veel
-  kniepijn     Int
+  /// Pijntjes of een blessure: 1 = geen, 5 = veel
+  pijn         Int
+  /// Waar (pijn.ts), optioneel.
+  pijnPlekken  String[] @default([])
   opgeslagenOp DateTime @default(now()) @updatedAt
 
   gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
