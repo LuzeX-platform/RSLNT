@@ -84,8 +84,12 @@ export async function abonnementRoutes(app: FastifyInstance) {
           await prisma.gebruiker.updateMany({
             where: { stripeKlantId: sessie.customer },
             // proBron op null: een echte betaling maakt Stripe leidend, niet kruisproductCron.ts
-            // (zie proBron in schema.prisma).
-            data: { pro: true, proBron: null, stripeAbonnementId: sessie.subscription },
+            // (zie proBron in schema.prisma). kruisproductKvkNummer moet hier óók mee op null:
+            // dat veld is het enige filter van kruisproductCron.ts (zie daar), dus een kvk-nummer
+            // dat na een eerdere kruisproduct-claim was blijven staan zou deze nu echt betalende
+            // klant anders alsnog in de cron laten zitten — en die trekt Pro weer in zodra het
+            // kvk-nummer bij ACCRD niet meer actief is, al heeft Stripe hier niets mee te maken.
+            data: { pro: true, proBron: null, kruisproductKvkNummer: null, stripeAbonnementId: sessie.subscription },
           });
         }
         break;
@@ -99,7 +103,8 @@ export async function abonnementRoutes(app: FastifyInstance) {
           const actief = abonnement.status === "active" || abonnement.status === "trialing";
           await prisma.gebruiker.updateMany({
             where: { stripeKlantId: abonnement.customer },
-            data: { pro: actief, proBron: null, stripeAbonnementId: actief ? abonnement.id : null },
+            // kruisproductKvkNummer mee op null, zie checkout.session.completed hierboven.
+            data: { pro: actief, proBron: null, kruisproductKvkNummer: null, stripeAbonnementId: actief ? abonnement.id : null },
           });
         }
         break;

@@ -45,19 +45,27 @@ export async function claimKruisproductPro(kvkNummer: string, wisselen?: boolean
   }
 }
 
-/** Dagelijkse hercontrole (read-only, voor kruisproductCron.ts): is dit kvk-nummer nog steeds de actieve RSLNT-keuze bij ACCRD? */
-export async function controleerKruisproductStatus(kvkNummer: string): Promise<boolean> {
+/**
+ * Dagelijkse hercontrole (read-only, voor kruisproductCron.ts): is dit kvk-nummer nog steeds de
+ * actieve RSLNT-keuze bij ACCRD? `null` betekent "kon niet gecontroleerd worden" (geen config,
+ * netwerkfout, ACCRD plat) — niet hetzelfde als een bevestigd "nee". render.yaml's eigen
+ * commentaar zegt al "ontbreekt de URL, dan doet dit product gewoon niet mee — niets gaat stuk";
+ * dat gold hier alleen op papier zolang dit `false` teruggaf, want de cron zou dat lezen als
+ * "niet actief" en bij elke storing bij ACCRD in één klap ieders gratis Pro intrekken. De
+ * aanroeper (kruisproductCron.ts) moet `null` dus overslaan, niet intrekken.
+ */
+export async function controleerKruisproductStatus(kvkNummer: string): Promise<boolean | null> {
   const config = basisUrlEnSleutel();
-  if (!config) return false;
+  if (!config) return null;
   try {
     const response = await fetch(
       `${config.basisUrl}/api/intern/luzex-kruisproduct-status?kvkNummer=${encodeURIComponent(kvkNummer)}&product=rslnt`,
       { headers: { "X-Luzex-Intern-Sleutel": config.sleutel }, signal: AbortSignal.timeout(5000) },
     );
-    if (!response.ok) return false;
+    if (!response.ok) return null;
     const data = (await response.json()) as { actief?: boolean };
     return data.actief === true;
   } catch {
-    return false;
+    return null;
   }
 }

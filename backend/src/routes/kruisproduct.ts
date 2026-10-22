@@ -34,7 +34,9 @@ export async function kruisproductRoutes(app: FastifyInstance) {
     }
 
     if (resultaat.status === "al_gekozen") {
-      return reply.code(409).send({ errorCode: "AL_GEKOZEN", huidigeKeuze: "cmmnty" });
+      // Doorgeven wat ACCRD teruggaf, niet hardcoden: ClaimResultaat laat "cmmnty" én "rslnt"
+      // toe en een hardcoded waarde zou hier een fout antwoord geven zodra dat ooit "rslnt" is.
+      return reply.code(409).send({ errorCode: "AL_GEKOZEN", huidigeKeuze: resultaat.huidigeKeuze });
     }
 
     if (resultaat.status === "niet_actief") {

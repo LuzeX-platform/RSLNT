@@ -14,9 +14,18 @@ async function main() {
   });
   let ingetrokken = 0;
   let bevestigd = 0;
+  let overgeslagen = 0;
   for (const g of gebruikers) {
     // not-null gefilterd in de query hierboven, maar TypeScript weet dat niet.
     const actief = await controleerKruisproductStatus(g.kruisproductKvkNummer!);
+    if (actief === null) {
+      // ACCRD niet bereikbaar of niet geconfigureerd: dit telt niet mee (zie render.yaml en
+      // controleerKruisproductStatus) en mag niemand zijn Pro kosten — niets aanpassen, morgen
+      // opnieuw proberen. Zonder deze tak leest een storing bij ACCRD als "niet actief" en trekt
+      // de cron bij elke run in één klap ieders gratis Pro in.
+      overgeslagen++;
+      continue;
+    }
     if (actief) {
       if (!g.pro) {
         await prisma.gebruiker.update({ where: { id: g.id }, data: { pro: true, proBron: "accrd" } });
@@ -30,7 +39,9 @@ async function main() {
       ingetrokken++;
     }
   }
-  console.log(`[kruisproduct] ${gebruikers.length} gecontroleerd, ${bevestigd} nog actief, ${ingetrokken} ingetrokken.`);
+  console.log(
+    `[kruisproduct] ${gebruikers.length} gezien, ${bevestigd} nog actief, ${ingetrokken} ingetrokken, ${overgeslagen} overgeslagen (ACCRD niet bereikbaar).`,
+  );
 }
 
 main()
