@@ -316,7 +316,7 @@ function tekenVoet() {
   voet.innerHTML = `
     <div class="voet-boven">
       <div class="voet-merk">
-        <a href="https://luzex.nl" class="brand-logo" role="img" aria-label="LuzeX — Imagination Innovation Illumination"></a>
+        <a href="https://luzex.nl" class="brand-logo" role="img" aria-label="LuzeX — Minder. Maar beter."></a>
         <p class="voet-tagline">Sterker worden, zonder giswerk. Een app van LuzeX.</p>
       </div>
       <div class="voet-kolom">
