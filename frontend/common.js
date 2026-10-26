@@ -278,8 +278,7 @@ function tekenBalk() {
   houder.innerHTML = `
     <div class="balk">
       <a href="/" class="merk" aria-label="LuzeX RSLNT — naar vandaag">
-        <span class="brand-logo" role="img" aria-label="LuzeX"></span>
-        <span class="merk-product">RSLNT</span>
+        <span class="brand-logo" role="img" aria-label="RSLNT — Trainen. Herstellen. Sterker."></span>
       </a>
       <div class="balk-acties">
         <span class="wachtrij-indicator" id="wachtrij-indicator" role="status" hidden></span>
@@ -316,7 +315,7 @@ function tekenVoet() {
   voet.innerHTML = `
     <div class="voet-boven">
       <div class="voet-merk">
-        <a href="https://luzex.nl" class="brand-logo" role="img" aria-label="LuzeX — Minder. Maar beter."></a>
+        <a href="https://luzex.nl" class="brand-logo" role="img" aria-label="RSLNT — Trainen. Herstellen. Sterker."></a>
         <p class="voet-tagline">Sterker worden, zonder giswerk. Een app van LuzeX.</p>
       </div>
       <div class="voet-kolom">

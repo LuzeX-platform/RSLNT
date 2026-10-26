@@ -345,11 +345,12 @@ body::after {
 
 /* ---------- Merk ---------- */
 
+/* RSLNT-lockup: 575,7 × 120 (= 4,798), op 47px hoogte 225px breed. */
 .brand-logo {
   display: block;
   width: 225px;
-  aspect-ratio: 4.789;
-  background-image: url("/assets/luzex-logo-zwart.svg");
+  aspect-ratio: 4.798;
+  background-image: url("/assets/rslnt-logo-zwart.svg");
   background-repeat: no-repeat;
   background-position: left center;
   background-size: contain;
@@ -358,7 +359,7 @@ body::after {
 
 @media (prefers-color-scheme: dark) {
   .brand-logo {
-    background-image: url("/assets/luzex-logo-wit.svg");
+    background-image: url("/assets/rslnt-logo-wit.svg");
   }
 }
 
@@ -371,15 +372,6 @@ body::after {
   flex-shrink: 0;
 }
 
-.merk-product {
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  padding-left: 12px;
-  border-left: 1px solid var(--border-strong);
-}
 
 /* ---------- De zwevende balk (zelfde onderdeel als op luzex.nl en ACCRD) ---------- */
 
@@ -448,9 +440,6 @@ body::after {
     width: min(45vw, 160px);
   }
 
-  .merk-product {
-    display: none;
-  }
 
   .balk-acties {
     margin-left: auto;
@@ -886,16 +875,13 @@ body.app {
   margin-bottom: 8px;
 }
 
-/* Op de telefoon blijft "RSLNT" naast het logo staan: dit is de app zelf, geen marketingsite. */
+/* Op de telefoon blijft de balk op één rij: dit is de app zelf, geen marketingsite. De naam
+   RSLNT staat sinds het eigen lockup in het logo, niet meer als los label ernaast. */
 @media (max-width: 760px) {
   .balk {
     flex-wrap: nowrap;
     border-radius: var(--radius-pill);
     padding: 8px 8px 8px 16px;
-  }
-
-  .balk .merk-product {
-    display: inline;
   }
 }
 
