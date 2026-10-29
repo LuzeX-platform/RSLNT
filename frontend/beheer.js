@@ -40,6 +40,16 @@ async function laadOverzicht() {
       statHtml(data.proCadeau, "Pro cadeau"),
     ].join("");
     document.getElementById("rijen").innerHTML = data.recent.map(rijHtml).join("") || '<tr><td colspan="6">Nog niemand aangemeld.</td></tr>';
+    document.getElementById("uitnodigingen-blok").hidden = data.uitnodigingen.length === 0;
+    document.getElementById("uitnodigingen").innerHTML = data.uitnodigingen
+      .map(
+        (u) => `<tr>
+          <td>${escapeHtml(u.email)}</td>
+          <td>${datumKort(u.aangemaaktOp)}</td>
+          <td><button type="button" class="knop-link" data-uitnodiging-intrekken="${escapeHtml(u.id)}">Intrekken</button></td>
+        </tr>`,
+      )
+      .join("");
   } catch {
     document.getElementById("stats").innerHTML = statHtml("—", "Kon het overzicht niet laden");
   }
@@ -57,6 +67,39 @@ document.getElementById("rijen").addEventListener("click", async (event) => {
     await laadOverzicht();
   } catch (f) {
     fout.textContent = foutTekst(f);
+    event.target.disabled = false;
+  }
+});
+
+document.getElementById("cadeau-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const fout = document.getElementById("cadeau-fout");
+  const succes = document.getElementById("cadeau-succes");
+  const veld = document.getElementById("cadeau-email");
+  fout.textContent = "";
+  succes.textContent = "";
+  try {
+    const { status } = await api("/api/admin/pro-uitnodigingen", { methode: "POST", body: { email: veld.value.trim() } });
+    succes.textContent =
+      status === "toegekend"
+        ? `${veld.value.trim()} heeft nu Pro.`
+        : `Klaargezet: ${veld.value.trim()} krijgt Pro zodra dit adres een account heeft en bevestigd is.`;
+    veld.value = "";
+    await laadOverzicht();
+  } catch (f) {
+    fout.textContent = foutTekst(f);
+  }
+});
+
+document.getElementById("uitnodigingen").addEventListener("click", async (event) => {
+  const id = event.target.dataset.uitnodigingIntrekken;
+  if (!id) return;
+  event.target.disabled = true;
+  try {
+    await api(`/api/admin/pro-uitnodigingen/${encodeURIComponent(id)}/intrekken`, { methode: "POST" });
+    await laadOverzicht();
+  } catch (f) {
+    document.getElementById("cadeau-fout").textContent = foutTekst(f);
     event.target.disabled = false;
   }
 });

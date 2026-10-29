@@ -735,6 +735,41 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     await prisma.gebruiker.delete({ where: { id: zus.id } });
   });
 
+  test("Pro cadeau op e-mailadres: klaargezet, en pas ingewisseld bij bevestigen", async () => {
+    const { testPostvak } = await import("../src/mailer.js");
+    const klaar = await vraag("POST", "/api/admin/pro-uitnodigingen", { email: "Fee@Test.nl" });
+    assert.equal(klaar.json().status, "klaargezet");
+    assert.ok((await vraag("GET", "/api/admin/overzicht")).json().uitnodigingen.some((u: { email: string }) => u.email === "fee@test.nl"));
+
+    await vraagAls("", "POST", "/api/auth/registreren", { naam: "Fee", email: "fee@test.nl", wachtwoord: "fee-wachtwoord-1", toestemming: true });
+    // Aangemeld maar nog niet bevestigd: nog geen Pro.
+    assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { email: "fee@test.nl" } })).pro, false);
+
+    const bevestig = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(testPostvak.at(-1)!.tekst) });
+    assert.equal(bevestig.statusCode, 200);
+    const fee = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "fee@test.nl" } });
+    assert.equal(fee.pro, true);
+    assert.equal(fee.proBron, "handmatig");
+    const rij = await prisma.proUitnodiging.findUniqueOrThrow({ where: { email: "fee@test.nl" } });
+    assert.ok(rij.ingewisseldOp);
+    assert.ok(!(await vraag("GET", "/api/admin/overzicht")).json().uitnodigingen.some((u: { email: string }) => u.email === "fee@test.nl"));
+
+    // Een bevestigd account zonder Pro krijgt het meteen; een account met Pro wordt geweigerd.
+    await prisma.gebruiker.update({ where: { id: fee.id }, data: { pro: false, proBron: null } });
+    assert.equal((await vraag("POST", "/api/admin/pro-uitnodigingen", { email: "fee@test.nl" })).json().status, "toegekend");
+    assert.equal((await vraag("POST", "/api/admin/pro-uitnodigingen", { email: "fee@test.nl" })).statusCode, 409);
+
+    // Intrekken van een klaargezet cadeau: daarna wisselt bevestigen niets meer in.
+    await vraag("POST", "/api/admin/pro-uitnodigingen", { email: "gijs@test.nl" });
+    const gijs = await prisma.proUitnodiging.findUniqueOrThrow({ where: { email: "gijs@test.nl" } });
+    assert.equal((await vraag("POST", `/api/admin/pro-uitnodigingen/${gijs.id}/intrekken`)).statusCode, 200);
+    await vraagAls("", "POST", "/api/auth/registreren", { naam: "Gijs", email: "gijs@test.nl", wachtwoord: "gijs-wachtwoord-1", toestemming: true });
+    await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(testPostvak.at(-1)!.tekst) });
+    assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { email: "gijs@test.nl" } })).pro, false);
+
+    await prisma.gebruiker.deleteMany({ where: { email: { in: ["fee@test.nl", "gijs@test.nl"] } } });
+  });
+
   test("Pro-paywall: bibliotheek en schema op maat alleen voor Pro-leden", async () => {
     const { hashWachtwoord } = await import("../src/auth.js");
     const cas = await prisma.gebruiker.create({

@@ -4,6 +4,7 @@ import { prisma } from "../db.js";
 import { hashToken, hashWachtwoord, maakEenmaligToken, maakSessieToken, verifieerWachtwoord } from "../auth.js";
 import { appUrl, verstuurBevestigingsmail, verstuurWachtwoordResetMail } from "../mailer.js";
 import { geldigeSessie, gid, requireIngelogd, wisSessieCookie, zetSessieCookie } from "../plugins/requireAuth.js";
+import { wisselProUitnodigingIn } from "../proUitnodiging.js";
 
 // Accounts zoals CMMNTY: registreren met een bevestigingsmail, inloggen met vergrendeling na vijf
 // missers, wachtwoord vergeten via een resetmail. Antwoorden verraden nooit of een e-mailadres
@@ -94,6 +95,7 @@ export async function authRoutes(app: FastifyInstance) {
         bevestigTokenHash: null,
       },
     });
+    await wisselProUitnodigingIn(bijgewerkt);
     // Meteen ingelogd: wie net op de link klikte, hoeft niet nog eens zijn wachtwoord te typen.
     logIn(reply, bijgewerkt);
     return { ok: true };
@@ -202,6 +204,7 @@ export async function authRoutes(app: FastifyInstance) {
         sessieVersie: { increment: 1 },
       },
     });
+    await wisselProUitnodigingIn(bijgewerkt);
     logIn(reply, bijgewerkt);
     return { ok: true };
   });
