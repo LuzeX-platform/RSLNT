@@ -714,6 +714,24 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(typeof overzicht.bevestigd, "number");
     assert.ok(overzicht.recent.some((r: { email: string }) => r.email === "zus@test.nl"));
 
+    // Pro cadeau geven en weer intrekken; een lid mag dat niet zelf.
+    assert.equal((await vraagAls(cookieZus, "PATCH", `/api/admin/gebruikers/${zus.id}/pro`, { pro: true })).statusCode, 403);
+    assert.equal((await vraag("PATCH", `/api/admin/gebruikers/${zus.id}/pro`, { pro: true })).statusCode, 200);
+    let rij = await prisma.gebruiker.findUniqueOrThrow({ where: { id: zus.id } });
+    assert.equal(rij.pro, true);
+    assert.equal(rij.proBron, "handmatig");
+    assert.equal((await vraag("GET", "/api/admin/overzicht")).json().proCadeau, 1);
+    assert.equal((await vraag("PATCH", `/api/admin/gebruikers/${zus.id}/pro`, { pro: false })).statusCode, 200);
+    rij = await prisma.gebruiker.findUniqueOrThrow({ where: { id: zus.id } });
+    assert.equal(rij.pro, false);
+    assert.equal(rij.proBron, null);
+
+    // Betaald Pro (geen proBron) trekt het beheer nooit in.
+    await prisma.gebruiker.update({ where: { id: zus.id }, data: { pro: true, proBron: null } });
+    const weigering = await vraag("PATCH", `/api/admin/gebruikers/${zus.id}/pro`, { pro: false });
+    assert.equal(weigering.statusCode, 409);
+    assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { id: zus.id } })).pro, true);
+
     await prisma.gebruiker.delete({ where: { id: zus.id } });
   });
 
