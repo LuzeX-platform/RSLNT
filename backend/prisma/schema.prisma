@@ -330,3 +330,15 @@ model Herstelcheck {
 
   @@id([gebruikerId, datum])
 }
+
+/// Pro cadeau voor een e-mailadres dat (nog) geen bevestigd account heeft. Wordt ingewisseld op het
+/// moment dat iemand dat adres bevestigt, niet bij het aanmelden: pas dan is bewezen dat het adres
+/// van die persoon is, en een onbevestigd account wordt na een week opgeruimd (zie auth.ts). Nooit
+/// verwijderd: ingewisseld of ingetrokken wordt een datum, zodat terug te zien is wat er gebeurde.
+model ProUitnodiging {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  aangemaaktOp  DateTime  @default(now())
+  ingewisseldOp DateTime?
+  ingetrokkenOp DateTime?
+}
