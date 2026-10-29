@@ -11,7 +11,10 @@ vereisSessie().then((g) => {
   // Alleen zinnig voor wie nog geen Pro heeft: wie al Pro heeft (via Stripe of al via ACCRD)
   // heeft hier niets te claimen.
   document.getElementById("kruisproduct-paneel").hidden = g.pro;
-  if (g.pro && g.proBron) {
+  if (g.pro && g.proBron === "handmatig") {
+    document.getElementById("pro-bron-tekst").textContent = "Je hebt Pro gekregen van RSLNT. Je betaalt er niets voor.";
+    document.getElementById("beheer-knop").hidden = true;
+  } else if (g.pro && g.proBron) {
     document.getElementById("pro-bron-tekst").textContent = `Je hebt gratis Pro via je account bij ${g.proBron === "accrd" ? "ACCRD" : "SCRNN"}.`;
     document.getElementById("beheer-knop").hidden = true;
   } else if (g.pro && g.rol === "admin") {

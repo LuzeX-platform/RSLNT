@@ -30,12 +30,13 @@ model Gebruiker {
   sessieVersie          Int       @default(0)
   mislukteInlogpogingen Int       @default(0)
   vergrendeldTot        DateTime?
-  /// Pro-status komt alléén van de Stripe-webhook (checkout/subscription-events) of van
-  /// kruisproductCron.ts/de bevestigroute (via proBron), nooit rechtstreeks gezet door een
-  /// route — zo kan een client 'm niet zelf aanzetten.
+  /// Pro-status komt alléén van de Stripe-webhook (checkout/subscription-events), van
+  /// kruisproductCron.ts/de claimroute (via proBron), of van de eigenaar in het beheer
+  /// (PATCH /api/admin/gebruikers/:id/pro) — nooit van een route die een lid zelf aanroept.
   pro                   Boolean   @default(false)
-  /// "accrd" | "scrnn" | null. Alleen gezet als Pro kwam van een actief ACCRD/SCRNN-account
-  /// (zie luzexEntitlement.ts); null bij een betaald Stripe-abonnement. Zo kan de cron een
+  /// "accrd" | "scrnn" | "handmatig" | null. "accrd"/"scrnn" als Pro van een actief account
+  /// daar kwam (zie luzexKruisproduct.ts), "handmatig" als de eigenaar het cadeau gaf in het
+  /// beheer, null bij een betaald Stripe-abonnement. Zo kan de cron een
   /// vervallen kruisproduct-Pro intrekken zonder ooit een betalend account te raken.
   proBron               String?
   /// Kvk-nummer waarmee deze gebruiker gratis Pro claimde bij ACCRD (zie routes/kruisproduct.ts).
