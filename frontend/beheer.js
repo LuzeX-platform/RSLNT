@@ -23,7 +23,7 @@ function rijHtml(g) {
     <tr>
       <td>${escapeHtml(g.naam)}</td>
       <td>${escapeHtml(g.email)}</td>
-      <td>${g.emailBevestigdOp ? "Ja" : "Nee"}</td>
+      <td>${g.emailBevestigdOp ? "Ja" : `Nee <button type="button" class="knop-link" data-bevestigen="${escapeHtml(g.id)}">Bevestigen</button>`}</td>
       <td>${g.pro ? `Ja <span class="lijst-meta">(${escapeHtml(bron)})</span>` : "Nee"}</td>
       <td>${datumKort(g.aangemaaktOp)}</td>
       <td>${actieHtml(g)}</td>
@@ -58,12 +58,14 @@ async function laadOverzicht() {
 document.getElementById("rijen").addEventListener("click", async (event) => {
   const geven = event.target.dataset.proGeven;
   const intrekken = event.target.dataset.proIntrekken;
-  if (!geven && !intrekken) return;
+  const bevestigen = event.target.dataset.bevestigen;
+  if (!geven && !intrekken && !bevestigen) return;
   const fout = document.getElementById("beheer-fout");
   fout.textContent = "";
   event.target.disabled = true;
   try {
-    await api(`/api/admin/gebruikers/${encodeURIComponent(geven || intrekken)}/pro`, { methode: "PATCH", body: { pro: Boolean(geven) } });
+    if (bevestigen) await api(`/api/admin/gebruikers/${encodeURIComponent(bevestigen)}/bevestigen`, { methode: "POST" });
+    else await api(`/api/admin/gebruikers/${encodeURIComponent(geven || intrekken)}/pro`, { methode: "PATCH", body: { pro: Boolean(geven) } });
     await laadOverzicht();
   } catch (f) {
     fout.textContent = foutTekst(f);

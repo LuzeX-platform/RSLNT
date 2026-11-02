@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAdmin, requireIngelogd } from "../plugins/requireAuth.js";
+import { wisselProUitnodigingIn } from "../proUitnodiging.js";
 
 // Alleen voor het eigenaarsaccount: hoeveel mensen zich hebben aangemeld, hoeveel daarvan hun
 // e-mailadres bevestigd hebben, en hoeveel Pro hebben (betaald, of via Kruisproduct-Pro — zie
@@ -49,6 +50,22 @@ export async function adminRoutes(app: FastifyInstance) {
       recent,
       uitnodigingen,
     };
+  });
+
+  // Voor wie de bevestigingsmail niet krijgt (Microsoft-adressen zetten mail van een nieuw domein
+  // vaak ongemerkt in de spam, ook als Resend "delivered" zegt): de eigenaar bevestigt het adres
+  // dan zelf. Wisselt ook een klaargezet Pro-cadeau in, net als de link zou doen.
+  app.post("/api/admin/gebruikers/:id/bevestigen", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const gebruiker = await prisma.gebruiker.findUnique({ where: { id } });
+    if (!gebruiker || gebruiker.rol !== "lid") return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
+    if (gebruiker.emailBevestigdOp) return { ok: true };
+    const bevestigd = await prisma.gebruiker.update({
+      where: { id },
+      data: { emailBevestigdOp: new Date(), bevestigTokenHash: null },
+    });
+    await wisselProUitnodigingIn(bevestigd);
+    return { ok: true };
   });
 
   // Pro cadeau geven op e-mailadres. Heeft het adres al een bevestigd account, dan krijgt dat
