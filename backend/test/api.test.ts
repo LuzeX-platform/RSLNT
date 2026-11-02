@@ -588,7 +588,11 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const bevestigd = await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(tweede.tekst) });
     assert.equal(bevestigd.statusCode, 200);
     cookieB = sessieCookie(bevestigd);
-    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid", pro: false, proBron: null });
+    assert.deepEqual((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker, { email: "bo@test.nl", naam: "Bo", rol: "lid", pro: false, proBron: null, rondleidingGezien: false });
+    // Rondleiding: één keer afgerond, dan ook op elk ander toestel gezien.
+    assert.equal((await vraagAls(cookieB, "POST", "/api/account/rondleiding-gezien")).statusCode, 200);
+    assert.equal((await vraagAls(cookieB, "GET", "/api/auth/sessie")).json().gebruiker.rondleidingGezien, true);
+    assert.equal((await vraagAls("", "POST", "/api/account/rondleiding-gezien")).statusCode, 401);
     // Pro rechtstreeks in de database zetten: zonder een echte Stripe-betaling is dit de enige
     // manier om B voorbij de paywall te krijgen, en de "twee accounts"-test hieronder test
     // isolatie, niet de paywall — die heeft zijn eigen test verderop.
