@@ -77,6 +77,16 @@ export async function verwijderAccount(gebruikerId: string) {
 export async function accountRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
 
+  // Afgerond of overgeslagen: allebei "gezien". Opnieuw bekijken kan via Account (/?uitleg=1) en
+  // verandert hier niets meer.
+  app.post("/api/account/rondleiding-gezien", async (request) => {
+    await prisma.gebruiker.updateMany({
+      where: { id: gid(request), rondleidingGezienOp: null },
+      data: { rondleidingGezienOp: new Date() },
+    });
+    return { ok: true };
+  });
+
   app.put("/api/account", async (request, reply) => {
     const parsed = z.object({ naam: z.string().trim().min(1, "Vul je naam in").max(60) }).safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);

@@ -2503,3 +2503,96 @@ body.portaal {
 .export-uitleg li {
   margin-bottom: 6px;
 }
+
+/* ---------- Rondleiding (rondleiding.js) ---------- */
+
+/* Een <dialog> in de top layer: zelfde glas als de panelen, net boven de tabbalk zodat je de
+   balk waar de uitleg over gaat eronder ziet staan. De achtergrond blijft licht gedimd om
+   dezelfde reden. */
+.rondleiding {
+  width: min(440px, calc(100% - 32px));
+  margin: auto auto calc(96px + env(safe-area-inset-bottom));
+  padding: 24px 24px 20px;
+  border: 1px solid var(--glas-rand);
+  border-radius: var(--radius-lg);
+  background: var(--glas-vast);
+  color: var(--text);
+  box-shadow: var(--glas-schaduw);
+}
+
+.rondleiding::backdrop {
+  background: rgba(0, 0, 0, 0.28);
+}
+
+.rondleiding h2 {
+  margin: 8px 0 6px;
+}
+
+.rondleiding p {
+  margin: 0 0 10px;
+}
+
+.rondleiding-teller {
+  display: flex;
+  gap: 6px;
+}
+
+.rondleiding-teller span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.rondleiding-teller span.aan {
+  background: var(--accent);
+}
+
+/* Hetzelfde icoon en label als in de tabbalk, zodat je het daar terugvindt. */
+.rondleiding-icoon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rondleiding-icoon svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.rondleiding-knoppen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.rondleiding-ruimte {
+  flex: 1;
+}
+
+
+/* Overslaan is een uitweg, geen hoofdactie: als tekst, zodat "Volgende" de knop is die opvalt. */
+.rondleiding .rondleiding-overslaan {
+  background: none;
+  border: 0;
+  box-shadow: none;
+  padding: 8px 0;
+  min-height: 0;
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}

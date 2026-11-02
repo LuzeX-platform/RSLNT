@@ -46,6 +46,9 @@ model Gebruiker {
   kruisproductKvkNummer String?   @unique @map("kruisproduct_kvk_nummer")
   stripeKlantId         String?   @unique @map("stripe_klant_id")
   stripeAbonnementId    String?   @unique @map("stripe_abonnement_id")
+  /// Wanneer iemand de rondleiding door de app heeft afgerond of overgeslagen. Op de server en
+  /// niet in localStorage: anders krijg je hem op je telefoon na de laptop gewoon nog een keer.
+  rondleidingGezienOp   DateTime? @map("rondleiding_gezien_op")
   aangemaaktOp          DateTime  @default(now())
   bijgewerktOp          DateTime  @default(now()) @updatedAt
 

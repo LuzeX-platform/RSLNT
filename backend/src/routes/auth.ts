@@ -160,11 +160,13 @@ export async function authRoutes(app: FastifyInstance) {
     if (!sessie) return { gebruiker: null };
     const gebruiker = await prisma.gebruiker.findUnique({
       where: { id: sessie.gebruikerId },
-      select: { email: true, naam: true, rol: true, pro: true, proBron: true },
+      select: { email: true, naam: true, rol: true, pro: true, proBron: true, rondleidingGezienOp: true },
     });
     // Het eigenaarsaccount is altijd "Pro" in de UI, net als vereistPro() het op de server al
     // altijd doorlaat — zie entitlementsPro.ts.
-    return { gebruiker: gebruiker ? { ...gebruiker, pro: gebruiker.rol === "admin" ? true : gebruiker.pro } : null };
+    if (!gebruiker) return { gebruiker: null };
+    const { rondleidingGezienOp, ...rest } = gebruiker;
+    return { gebruiker: { ...rest, pro: gebruiker.rol === "admin" ? true : gebruiker.pro, rondleidingGezien: rondleidingGezienOp !== null } };
   });
 
   app.post("/api/auth/wachtwoord-vergeten", { config: AUTH_LIMIET }, async (request, reply) => {
