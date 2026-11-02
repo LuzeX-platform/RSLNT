@@ -771,7 +771,17 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     await vraagAls("", "POST", "/api/auth/bevestigen", { token: tokenUit(testPostvak.at(-1)!.tekst) });
     assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { email: "gijs@test.nl" } })).pro, false);
 
-    await prisma.gebruiker.deleteMany({ where: { email: { in: ["fee@test.nl", "gijs@test.nl"] } } });
+    // Bevestigen door de eigenaar, voor wie de mail niet kreeg: wisselt ook een cadeau in.
+    await vraag("POST", "/api/admin/pro-uitnodigingen", { email: "hans@test.nl" });
+    await vraagAls("", "POST", "/api/auth/registreren", { naam: "Hans", email: "hans@test.nl", wachtwoord: "hans-wachtwoord-1", toestemming: true });
+    const hans = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "hans@test.nl" } });
+    assert.equal((await vraag("POST", `/api/admin/gebruikers/${hans.id}/bevestigen`)).statusCode, 200);
+    const hansNa = await prisma.gebruiker.findUniqueOrThrow({ where: { id: hans.id } });
+    assert.ok(hansNa.emailBevestigdOp);
+    assert.equal(hansNa.pro, true);
+    assert.equal((await vraagAls("", "POST", "/api/auth/inloggen", { email: "hans@test.nl", wachtwoord: "hans-wachtwoord-1" })).statusCode, 200);
+
+    await prisma.gebruiker.deleteMany({ where: { email: { in: ["fee@test.nl", "gijs@test.nl", "hans@test.nl"] } } });
   });
 
   test("Pro-paywall: bibliotheek en schema op maat alleen voor Pro-leden", async () => {
