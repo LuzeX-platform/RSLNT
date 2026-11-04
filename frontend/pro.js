@@ -15,7 +15,11 @@ vereisSessie().then((g) => {
     document.getElementById("pro-bron-tekst").textContent = "Je hebt Pro gekregen van RSLNT. Je betaalt er niets voor.";
     document.getElementById("beheer-knop").hidden = true;
   } else if (g.pro && g.proBron) {
-    document.getElementById("pro-bron-tekst").textContent = `Je hebt gratis Pro via je account bij ${g.proBron === "accrd" ? "ACCRD" : "SCRNN"}.`;
+    // "accrd" is de enige bron die nog toegekend wordt. Een oud account kan nog "scrnn" hebben
+    // (van voor de archivering van SCRNN); dat noemen we niet meer bij naam, maar het is wel
+    // gratis Pro, dus ook daar geen knop om een abonnement te beheren.
+    document.getElementById("pro-bron-tekst").textContent =
+      g.proBron === "accrd" ? "Je hebt gratis Pro via je ACCRD-account." : "Je hebt gratis Pro via een ander LuzeX-account.";
     document.getElementById("beheer-knop").hidden = true;
   } else if (g.pro && g.rol === "admin") {
     document.getElementById("pro-bron-tekst").textContent = "Je bent de eigenaar van RSLNT: altijd Pro, zonder abonnement.";
