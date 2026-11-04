@@ -116,14 +116,17 @@ test("vergelijkbaar: zelfde patroon, zonder zichzelf", () => {
   assert.ok(lijst.every((o) => o.patroon === "knie_dominant" && o.id !== "Leg_Press"));
 });
 
-test("Nederlandse uitleg: elke vertaalde oefening bestaat, en elke oefening van de basislijst is vertaald", () => {
+test("Nederlandse uitleg: elke vertaalde oefening bestaat, en elke oefening is vertaald", () => {
   const nl = JSON.parse(readFileSync(new URL("../data/uitleg-nl.json", import.meta.url), "utf8")) as Record<string, string[]>;
   const { perId } = bibliotheek();
   for (const [id, stappen] of Object.entries(nl)) {
     assert.ok(perId.has(id), `onbekende oefening in uitleg-nl.json: ${id}`);
     assert.ok(stappen.length > 0 && stappen.every((s) => s.trim().length > 0), `lege stap bij ${id}`);
   }
-  for (const c of CATALOGUS) {
-    assert.equal(perId.get(c.bibliotheekId)?.uitlegTaal, "nl", `basislijst zonder Nederlandse uitleg: ${c.bibliotheekId}`);
+  // Alle 876, niet alleen de basislijst: de bibliotheek toont ze allemaal, en een nieuwe
+  // oefening uit de bron (npm run bibliotheek) moet meteen opvallen als hij nog Engels is.
+  for (const o of perId.values()) {
+    assert.equal(o.uitlegTaal, "nl", `oefening zonder Nederlandse uitleg: ${o.id}`);
   }
+  for (const c of CATALOGUS) assert.ok(nl[c.bibliotheekId], `basislijst zonder vertaling: ${c.bibliotheekId}`);
 });
