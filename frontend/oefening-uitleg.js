@@ -1,4 +1,5 @@
-// Uitleg en foto's van een oefening als overlay, in plaats van naar de bibliotheekpagina te gaan.
+// Uitleg en foto's van een oefening, en de "Waarom?"-uitleg van Wetenschap, als overlay in plaats
+// van naar een andere pagina te gaan.
 // Midden in een training wil je de techniek even nakijken en dan meteen verder met je set; met een
 // aparte pagina moest je elke keer terug en zocht je je plek opnieuw.
 //
@@ -8,6 +9,11 @@
 // browser regelt focus, Escape en dat de pagina erachter even niet te bedienen is.
 //
 // Geen Pro (402/403)? Dan gewoon de link volgen: de bibliotheekpagina legt uit wat Pro is.
+//
+// "Waarom?"-links (/wetenschap.html#anker) tonen alleen dat ene onderdeel van Wetenschap. De
+// pagina wordt één keer opgehaald en daarna uit het geheugen gebruikt; de service worker houdt
+// hem ook offline beschikbaar. Afgewogen: de teksten dubbel in JavaScript zetten. Dan lopen ze
+// gegarandeerd uit elkaar; zo blijft wetenschap.html de enige plek waar ze staan.
 
 (function () {
   let dialoog = null;
@@ -69,11 +75,52 @@
     }
   }
 
+  let wetenschap = null;
+
+  async function toonWaarom(anker, link) {
+    if (!dialoog) maakDialoog();
+    const naam = dialoog.querySelector("#uitleg-dialoog-naam");
+    const inhoud = dialoog.querySelector(".uitleg-dialoog-inhoud");
+    naam.textContent = "Waarom?";
+    inhoud.innerHTML = '<p class="lijst-meta">Even laden…</p>';
+    dialoog.showModal();
+    inhoud.scrollTop = 0;
+    try {
+      if (!wetenschap) {
+        const res = await fetch("/wetenschap.html");
+        if (!res.ok) throw new Error(String(res.status));
+        wetenschap = new DOMParser().parseFromString(await res.text(), "text/html");
+      }
+      const sectie = wetenschap.getElementById(anker);
+      if (!sectie) {
+        dialoog.close();
+        window.location.href = link.href;
+        return;
+      }
+      const kopie = sectie.cloneNode(true);
+      const kop = kopie.querySelector("h2");
+      naam.textContent = kop ? kop.textContent : "Waarom?";
+      if (kop) kop.remove();
+      // Ankers binnen Wetenschap ("zie #variatie") wijzen in de overlay naar de echte pagina.
+      kopie.querySelectorAll('a[href^="#"]').forEach((a) => a.setAttribute("href", "/wetenschap.html" + a.getAttribute("href")));
+      inhoud.innerHTML = "";
+      inhoud.append(...kopie.childNodes);
+      const verder = document.createElement("p");
+      verder.className = "ruimte-boven";
+      verder.innerHTML = `<a class="text-link" href="/wetenschap.html#${encodeURIComponent(anker)}">Alles hierover op Wetenschap →</a>`;
+      inhoud.append(verder);
+    } catch {
+      inhoud.innerHTML = '<p class="error">Geen verbinding. Open Wetenschap als je weer bereik hebt.</p>';
+    }
+  }
+
   document.addEventListener("click", (event) => {
-    const link = event.target.closest('a.waarom[href^="/bibliotheek.html?id="]');
+    const link = event.target.closest('a.waarom[href^="/bibliotheek.html?id="], a.waarom[href^="/wetenschap.html#"]');
     // Cmd/Ctrl-klik of middelklik: gewoon een nieuw tabblad, zoals de gebruiker vraagt.
     if (!link || event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
     event.preventDefault();
-    toon(new URL(link.href).searchParams.get("id"), link);
+    const url = new URL(link.href);
+    if (url.pathname === "/wetenschap.html") toonWaarom(url.hash.slice(1), link);
+    else toon(url.searchParams.get("id"), link);
   });
 })();

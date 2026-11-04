@@ -7,7 +7,8 @@ function statHtml(waarde, label) {
   return `<div class="stat"><div class="stat-waarde">${waarde}</div><div class="stat-label">${escapeHtml(label)}</div></div>`;
 }
 
-const BRONNEN = { accrd: "via ACCRD", scrnn: "via SCRNN", handmatig: "cadeau" };
+// "scrnn" komt alleen nog voor bij oude accounts (SCRNN is gearchiveerd); die tonen we als oud.
+const BRONNEN = { accrd: "via ACCRD", scrnn: "via SCRNN (oud)", handmatig: "cadeau" };
 
 // Alleen een cadeau kun je hier ook weer intrekken; betaald Pro of Pro via ACCRD niet (de server
 // weigert dat ook, zie routes/admin.ts).
