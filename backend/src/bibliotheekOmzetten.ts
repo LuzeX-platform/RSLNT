@@ -57,8 +57,11 @@ export interface BibliotheekOefening {
   knieGevoelig: boolean;
   unilateraal: boolean;
   gewichtsstap: number;
-  /** Stappen in het Engels, zoals in de bron. */
+  /** Stappen in het Engels, zoals in de bron. Bij het laden vervangen door de Nederlandse
+   *  vertaling uit data/uitleg-nl.json als die er is (zie bibliotheek.ts). */
   uitleg: string[];
+  /** Gezet bij het laden, niet in bibliotheek.json: in welke taal `uitleg` nu staat. */
+  uitlegTaal?: "nl" | "en";
   /** Paden onder AFBEELDING_BASIS. */
   afbeeldingen: string[];
 }

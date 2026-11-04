@@ -12,6 +12,11 @@ import { ALLE_SPIER_LABELS as SPIER_LABELS } from "./spieren.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Werkt vanuit src/ (tsx) en dist/ (productie): beide liggen één niveau onder backend/.
 const BESTAND = path.join(__dirname, "..", "data", "bibliotheek.json");
+// Nederlandse uitleg per oefening-id. Een apart bestand en niet in bibliotheek.json zelf: dat
+// bestand wordt opnieuw opgebouwd uit de bron (npm run bibliotheek) en zou de vertaling dan
+// overschrijven. Ontbreekt een oefening hier, dan valt de uitleg terug op het Engels van de bron
+// (en zegt uitlegTaal dat, zodat de pagina lang="en" kan zetten).
+const BESTAND_NL = path.join(__dirname, "..", "data", "uitleg-nl.json");
 
 export interface BibliotheekBestand {
   bron: string;
@@ -26,6 +31,15 @@ let geladen: { bestand: BibliotheekBestand; perId: Map<string, BibliotheekOefeni
 export function bibliotheek() {
   if (!geladen) {
     const bestand = JSON.parse(readFileSync(BESTAND, "utf8")) as BibliotheekBestand;
+    const nl = JSON.parse(readFileSync(BESTAND_NL, "utf8")) as Record<string, string[]>;
+    for (const o of bestand.oefeningen) {
+      if (nl[o.id]?.length) {
+        o.uitleg = nl[o.id];
+        o.uitlegTaal = "nl";
+      } else {
+        o.uitlegTaal = "en";
+      }
+    }
     geladen = { bestand, perId: new Map(bestand.oefeningen.map((o) => [o.id, o])) };
   }
   return geladen;

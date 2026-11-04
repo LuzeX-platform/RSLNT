@@ -174,9 +174,18 @@ function tekenDetail() {
   cue.textContent = o.cue ?? "";
   tekenStatus();
 
-  document.getElementById("detail-uitleg").innerHTML = o.uitleg.length
+  // De stappen komen uit Free Exercise DB (Engels) en zijn naar het Nederlands vertaald; een
+  // oefening zonder vertaling toont nog het Engels, met lang="en" zodat een voorleesfunctie het
+  // goed uitspreekt.
+  const uitleg = document.getElementById("detail-uitleg");
+  uitleg.lang = o.uitlegTaal === "nl" ? "nl" : "en";
+  uitleg.innerHTML = o.uitleg.length
     ? o.uitleg.map((stap) => `<li>${escapeHtml(stap)}</li>`).join("")
     : '<li class="lijst-meta" lang="nl">Geen uitleg in de bron.</li>';
+  document.getElementById("detail-uitleg-bron").textContent =
+    o.uitlegTaal === "nl"
+      ? "Vertaald uit Free Exercise DB. De cue hierboven is van RSLNT."
+      : "Deze stappen zijn nog niet vertaald en staan in het Engels, zoals in de bron. De cue hierboven is van RSLNT.";
 
   const inProgramma = document.getElementById("in-programma");
   inProgramma.textContent = detail.inProgramma.length

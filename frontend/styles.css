@@ -2606,3 +2606,66 @@ body.portaal {
   gap: 6px;
 }
 
+
+/* ---------- Uitleg van een oefening als overlay (oefening-uitleg.js) ---------- */
+
+/* Zelfde glas als de rondleiding, maar groter en zelf scrollbaar: de uitleg kan lang zijn, en de
+   kop met de sluitknop blijft dan staan. Op een telefoon bijna schermvullend, met de onderkant
+   vrij van de thuisbalk. */
+.uitleg-dialoog {
+  width: min(560px, calc(100% - 24px));
+  /* Gecentreerd en minstens ~100px vrij boven en onder: zo valt hij nooit over de tabbalk. */
+  max-height: min(calc(100dvh - 200px - env(safe-area-inset-bottom)), 900px);
+  margin: auto;
+  padding: 0;
+  border: 1px solid var(--glas-rand);
+  border-radius: var(--radius-lg);
+  background: var(--glas-vast);
+  color: var(--text);
+  box-shadow: var(--glas-schaduw);
+  overflow: hidden;
+}
+
+.uitleg-dialoog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.uitleg-dialoog::backdrop {
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.uitleg-dialoog-kop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.uitleg-dialoog-kop h2 {
+  margin: 0;
+}
+
+.uitleg-dialoog-sluit {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.uitleg-dialoog-sluit svg {
+  width: 100%;
+  height: 100%;
+}
+
+.uitleg-dialoog-inhoud {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
+}

@@ -461,6 +461,10 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(leg.oefening.knieGevoelig, true);
     assert.equal(leg.oefening.knieGeschat, false);
     assert.ok(leg.oefening.uitleg.length > 0 && leg.oefening.afbeeldingen.length === 2);
+    // Nederlandse uitleg uit data/uitleg-nl.json, niet het Engels van de bron.
+    assert.equal(leg.oefening.uitlegTaal, "nl");
+    assert.match(leg.oefening.uitleg[0], /leg press/i);
+    assert.doesNotMatch(leg.oefening.uitleg.join(" "), /\bthe\b/);
     assert.ok(leg.vergelijkbaar.every((o: any) => o.patroon === "knie_dominant"));
     assert.equal((await vraag("GET", "/api/bibliotheek/Bestaat_Niet")).statusCode, 404);
 
