@@ -115,3 +115,15 @@ test("vergelijkbaar: zelfde patroon, zonder zichzelf", () => {
   assert.ok(lijst.length > 0 && lijst.length <= 8);
   assert.ok(lijst.every((o) => o.patroon === "knie_dominant" && o.id !== "Leg_Press"));
 });
+
+test("Nederlandse uitleg: elke vertaalde oefening bestaat, en elke oefening van de basislijst is vertaald", () => {
+  const nl = JSON.parse(readFileSync(new URL("../data/uitleg-nl.json", import.meta.url), "utf8")) as Record<string, string[]>;
+  const { perId } = bibliotheek();
+  for (const [id, stappen] of Object.entries(nl)) {
+    assert.ok(perId.has(id), `onbekende oefening in uitleg-nl.json: ${id}`);
+    assert.ok(stappen.length > 0 && stappen.every((s) => s.trim().length > 0), `lege stap bij ${id}`);
+  }
+  for (const c of CATALOGUS) {
+    assert.equal(perId.get(c.bibliotheekId)?.uitlegTaal, "nl", `basislijst zonder Nederlandse uitleg: ${c.bibliotheekId}`);
+  }
+});

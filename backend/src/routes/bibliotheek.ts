@@ -129,6 +129,7 @@ export async function bibliotheekRoutes(app: FastifyInstance) {
         schouderBelastend: Boolean(c?.schouderBelastend),
         rugBelastend: Boolean(c?.rugBelastend),
         uitleg: o.uitleg,
+        uitlegTaal: o.uitlegTaal ?? "en",
         cue: c?.cue ?? null,
         afbeeldingen: o.afbeeldingen.map((a) => AFBEELDING_BASIS + a),
         basislijst: Boolean(c),
