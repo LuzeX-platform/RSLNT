@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Duurtraining — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker"><span class="badge pro-badge">Pro</span> Hybride trainen</p>
+      <h1>Duurtraining</h1>
+      <p class="subtitle">Hardlopen, fietsen, zwemmen of roeien naast je krachttraining. RSLNT let op wat er samen te zwaar wordt voor je benen.</p>
+    </div>
+
+    <section class="panel" id="pro-slot" hidden></section>
+
+    <div id="pro-inhoud" hidden>
+      <section class="panel">
+        <div class="panel-kop">
+          <h2>Laatste 7 dagen</h2>
+          <a class="text-link" href="/wetenschap.html#hybride">Waarom?</a>
+        </div>
+        <div class="getallen" id="week"></div>
+        <div id="meldingen"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Toevoegen</h2>
+        <form id="duur-form" novalidate>
+          <div class="veld-rij">
+            <div><label for="datum">Datum</label><input id="datum" type="date" required /></div>
+            <div><label for="soort">Soort</label><select id="soort"></select></div>
+          </div>
+          <div class="veld-rij">
+            <div><label for="minuten">Minuten</label><input id="minuten" inputmode="numeric" autocomplete="off" placeholder="45" /></div>
+            <div><label for="afstand">Afstand (km)</label><input id="afstand" inputmode="decimal" autocomplete="off" placeholder="optioneel" /></div>
+          </div>
+          <label for="intensiteit">Hoe zwaar?</label>
+          <select id="intensiteit"></select>
+          <label for="notitie">Notitie</label>
+          <input id="notitie" type="text" maxlength="500" autocomplete="off" placeholder="bijv. 6 × 800 m" />
+          <button type="submit" class="ruimte-boven">Opslaan</button>
+          <p class="error" id="fout" role="alert"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <div class="panel-kop">
+          <h2>Laatste 90 dagen</h2>
+          <a class="text-link" href="/api/pro/export/duur.csv" download>CSV</a>
+        </div>
+        <ul class="lijst" id="lijst"></ul>
+      </section>
+    </div>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/duur.js"></script>
+</body>
+</html>

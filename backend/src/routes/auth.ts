@@ -20,7 +20,8 @@ const RESET_TTL_MS = 60 * 60 * 1000;
 const ONBEVESTIGD_BEWAREN_MS = 7 * 24 * 60 * 60 * 1000;
 
 /** Versie van de privacyverklaring waarvoor iemand toestemming gaf (frontend/privacy.html). */
-export const PRIVACY_VERSIE = "2026-10-12";
+// Opgehoogd bij Pro voor gevorderden: duurtraining, pijnnotities en leeslinks.
+export const PRIVACY_VERSIE = "2026-11-04";
 
 const email = z.string().trim().toLowerCase().email("Ongeldig e-mailadres").max(200);
 const nieuwWachtwoord = z.string().min(10, "Wachtwoord moet minimaal 10 tekens zijn").max(200);

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Pijnlogboek — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker"><span class="badge pro-badge">Pro</span> Lichaam</p>
+      <h1>Pijnlogboek</h1>
+      <p class="subtitle">Wat je per set en in je herstelcheck aangeeft, per plek en per week. Met je eigen notities, om te laten zien aan je fysio.</p>
+    </div>
+
+    <section class="panel" id="pro-slot" hidden></section>
+
+    <div id="pro-inhoud" hidden>
+      <div class="tabs" id="periode" role="group" aria-label="Periode">
+        <button type="button" data-weken="4">4 weken</button>
+        <button type="button" data-weken="12" aria-pressed="true">12 weken</button>
+        <button type="button" data-weken="26">6 maanden</button>
+      </div>
+
+      <div id="plekken"></div>
+
+      <section class="panel">
+        <h2>Notitie toevoegen</h2>
+        <p class="subtitle">Iets wat niet bij een set hoort: zeurt na traplopen, stijf bij het opstaan, wat de fysio zei.</p>
+        <form id="notitie-form" novalidate>
+          <div class="veld-rij">
+            <div><label for="datum">Datum</label><input id="datum" type="date" required /></div>
+            <div><label for="plek">Waar</label><select id="plek"></select></div>
+          </div>
+          <span class="veld-label">Hoeveel pijn (0–10)</span>
+          <div class="keuzes schaal-11" id="ernst" role="radiogroup" aria-label="Pijn 0 tot 10"></div>
+          <label for="tekst">Notitie</label>
+          <textarea id="tekst" maxlength="1000"></textarea>
+          <button type="submit" class="ruimte-boven">Opslaan</button>
+          <p class="error" id="fout" role="alert"></p>
+        </form>
+      </section>
+
+      <section class="panel">
+        <h2>Notities</h2>
+        <ul class="lijst" id="notities"></ul>
+      </section>
+
+      <p class="lijst-meta">RSLNT is geen medisch advies. Houdt pijn aan of wordt die erger, laat het dan beoordelen door een fysiotherapeut of arts. <a href="/wetenschap.html#pijnlogboek">Hoe dit werkt</a>.</p>
+    </div>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/pijn.js"></script>
+</body>
+</html>

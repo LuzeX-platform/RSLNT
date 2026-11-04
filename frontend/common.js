@@ -81,6 +81,10 @@ const FOUTTEKSTEN = {
   TOKEN_ONGELDIG: "Deze link is ongeldig, verlopen of al gebruikt.",
   ADMIN_NIET_VERWIJDERBAAR: "Het eigenaarsaccount kan niet verwijderd worden.",
   PRO_VEREIST: "Dit onderdeel is voor Pro-leden.",
+  GEEN_TECHNIEK: "Deze oefening heeft die techniek niet in je schema.",
+  TE_VEEL_LINKS: "Je hebt al 10 actieve links. Trek er eerst een in.",
+  LINK_ONGELDIG: "Deze link is verlopen, ingetrokken of klopt niet.",
+  GEEN_PROGRAMMA: "Je hebt nog geen actief programma.",
   ABONNEMENT_NIET_BESCHIKBAAR: "Betalen is op dit moment niet beschikbaar. Probeer het later opnieuw.",
   GEEN_ABONNEMENT: "Je hebt nog geen abonnement om te beheren.",
   NIET_ACTIEF: "Dit KvK-nummer is niet gekoppeld aan een actief, betalend ACCRD-account.",
@@ -98,6 +102,48 @@ const PIJN_PLEKKEN = {
   enkel: "Enkel",
   anders: "Anders",
 };
+
+// ---------- Pro ----------
+// Wat Pro is, op één plek: de Pro-pagina en de Pro-plekken in de app gebruiken dezelfde teksten.
+// Elk onderdeel staat ook op de Wetenschap-pagina (anker).
+
+const PRO_ONDERDELEN = [
+  { sleutel: "krachttrend", titel: "Krachttrend en voorspelling", tekst: "Hoeveel sterker je per week wordt, waar je over 4 en 8 weken staat als het zo doorgaat, je records per aantal reps en richtgewichten voor 3 tot 15 reps.", pad: "/voortgang.html#pro-kracht", anker: "krachttrend" },
+  { sleutel: "volume", titel: "Volume per spiergroep in zones", tekst: "Je sets per spiergroep over 8 weken, met per spier of je in de zone zit waar het meeste groeit, en of het op- of afloopt.", pad: "/voortgang.html#pro-volume", anker: "volume-zones" },
+  { sleutel: "niveau", titel: "Je krachtniveau", tekst: "Squat, bankdrukken, deadlift en overhead press naast je lichaamsgewicht: van beginner tot elite, en wat je nodig hebt voor het volgende niveau.", pad: "/voortgang.html#pro-kracht", anker: "krachtniveau" },
+  { sleutel: "bijsturen", titel: "Bijsturen per set", tekst: "Ging je set makkelijker of zwaarder dan je doel-RIR? Dan zegt RSLNT meteen wat je volgende set moet zijn. Nooit meer dan één stap omhoog.", pad: "/", anker: "autoregulatie" },
+  { sleutel: "blokken", titel: "Periodisering in blokken", tekst: "Een plan van 7 of 9 weken: opbouw, volume of intensivering, een piek en een deload. Je sets, reps en RIR schuiven per blok mee.", pad: "/blokken.html", anker: "periodisering" },
+  { sleutel: "advies", titel: "Advies voor vandaag en een lichte dag", tekst: "Uit je herstelcheck, oefeningen die vastlopen, pijn en je laatste deload: gewoon trainen, een lichte dag (één set minder) of een deloadweek.", pad: "/", anker: "slim-herstel" },
+  { sleutel: "regels", titel: "Eigen progressieregel per oefening", tekst: "Dubbele progressie, lineair, op gevoel (RIR) of vast. De pijnregel en max. één stap omhoog blijven altijd.", pad: "/schema.html", anker: "progressieregels" },
+  { sleutel: "technieken", titel: "Dropsets, myo-reps en rest-pause", tekst: "Na je laatste set, met een voorstel voor het gewicht. Ze tellen half mee in je volume en niet voor je progressie.", pad: "/schema.html", anker: "technieken" },
+  { sleutel: "hybride", titel: "Hybride trainen", tekst: "Log hardlopen, fietsen of zwemmen naast je krachttraining. RSLNT waarschuwt als een zware benendag en een harde duurtraining te dicht op elkaar vallen.", pad: "/duur.html", anker: "hybride" },
+  { sleutel: "delen", titel: "Exporteren en delen met je trainer", tekst: "Al je sets als spreadsheet (CSV), en een leeslink voor je trainer of fysio die je zelf kiest, laat verlopen of intrekt.", pad: "/delen.html", anker: "delen" },
+  { sleutel: "pijn", titel: "Pijnlogboek", tekst: "Pijn per plek per week, bij welke oefeningen, en je eigen notities. Handig om aan je fysio te laten zien.", pad: "/pijn.html", anker: "pijnlogboek" },
+];
+
+/**
+ * Een Pro-plek voor wie nog geen Pro heeft: wat het is en waar je het krijgt. Laat zien dat het
+ * bestaat zonder iets van de gratis basis weg te halen of ervoor te zetten.
+ * @param sleutels welke onderdelen uit PRO_ONDERDELEN
+ */
+function proSlotHtml(titel, tekst, sleutels = []) {
+  const punten = PRO_ONDERDELEN.filter((o) => sleutels.includes(o.sleutel));
+  return `
+    <div class="pro-slot-kop"><span class="badge pro-badge">Pro</span><h2>${escapeHtml(titel)}</h2></div>
+    <p class="subtitle">${escapeHtml(tekst)}</p>
+    ${punten.length ? `<ul>${punten.map((p) => `<li><strong>${escapeHtml(p.titel)}.</strong> ${escapeHtml(p.tekst)}</li>`).join("")}</ul>` : ""}
+    <div class="knop-rij"><a class="knop-link secondary" href="/pro.html">Bekijk Pro</a>${
+      punten[0] ? `<a class="text-link" href="/wetenschap.html#${punten[0].anker}">Hoe werkt het?</a>` : ""
+    }</div>`;
+}
+
+/** Vult een element met een Pro-plek en maakt het zichtbaar. */
+function toonProSlot(element, titel, tekst, sleutels) {
+  if (!element) return;
+  element.classList.add("pro-slot");
+  element.innerHTML = proSlotHtml(titel, tekst, sleutels);
+  element.hidden = false;
+}
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */
 function foutTekst(fout) {
@@ -263,10 +309,10 @@ const ICONEN = {
 };
 
 const TABS = [
-  { href: "/", label: "Vandaag", icoon: "vandaag", match: (p) => p === "/" || p === "/index.html" || p.startsWith("/training") },
-  { href: "/lichaam.html", label: "Lichaam", icoon: "lichaam", match: (p) => p.startsWith("/lichaam") || p.startsWith("/gewicht") },
+  { href: "/", label: "Vandaag", icoon: "vandaag", match: (p) => p === "/" || p === "/index.html" || p.startsWith("/training") || p.startsWith("/duur") },
+  { href: "/lichaam.html", label: "Lichaam", icoon: "lichaam", match: (p) => p.startsWith("/lichaam") || p.startsWith("/gewicht") || p.startsWith("/pijn") },
   { href: "/voortgang.html", label: "Voortgang", icoon: "voortgang", match: (p) => p.startsWith("/voortgang") },
-  { href: "/schema.html", label: "Schema", icoon: "schema", match: (p) => p.startsWith("/schema") || p.startsWith("/bibliotheek") || p.startsWith("/personaliseren") },
+  { href: "/schema.html", label: "Schema", icoon: "schema", match: (p) => p.startsWith("/schema") || p.startsWith("/bibliotheek") || p.startsWith("/personaliseren") || p.startsWith("/blokken") },
   { href: "/wetenschap.html", label: "Wetenschap", icoon: "wetenschap", match: (p) => p.startsWith("/wetenschap") },
 ];
 

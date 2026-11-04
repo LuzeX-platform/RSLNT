@@ -201,4 +201,104 @@ document.getElementById("oefening-keuze").addEventListener("change", (e) => {
 
 bijBreedteWijziging(() => gegevens && tekenAlles());
 
-vereisSessie().then(laad);
+// ---------- Pro ----------
+
+let analyse = null;
+let proOefening = null;
+const RICHTING_TEKST = { op: "↑ meer", af: "↓ minder", gelijk: "= gelijk" };
+
+function tekenProKracht() {
+  const select = document.getElementById("pro-oefening");
+  const inhoud = document.getElementById("pro-kracht-inhoud");
+  if (!analyse.oefeningen.length) {
+    select.hidden = true;
+    inhoud.innerHTML = '<p class="lijst-meta ruimte-boven">Nog geen sets met gewicht gelogd.</p>';
+    return;
+  }
+  select.hidden = false;
+  if (!analyse.oefeningen.some((o) => o.id === proOefening)) proOefening = analyse.oefeningen[0].id;
+  select.innerHTML = analyse.oefeningen
+    .map((o) => `<option value="${o.id}"${o.id === proOefening ? " selected" : ""}>${escapeHtml(o.naam)}</option>`)
+    .join("");
+  const o = analyse.oefeningen.find((x) => x.id === proOefening);
+  const t = o.trend;
+  const tempo = t
+    ? `${t.kgPerWeek >= 0 ? "+" : ""}${getal(t.kgPerWeek, 2)} kg`
+    : "–";
+  const getallen = `
+    <div class="getallen ruimte-boven">
+      <div><div class="getal-groot">${kgTekst(o.e1rm)}</div><div class="getal-label">geschatte 1RM nu</div></div>
+      <div><div class="getal-groot">${tempo}</div><div class="getal-label">per week${t ? ` (${t.procentPerMaand >= 0 ? "+" : ""}${getal(t.procentPerMaand, 1)}% per maand)` : ""}</div></div>
+    </div>`;
+  const voorspelling = !t
+    ? '<p class="lijst-meta ruimte-boven">Een tempo zie je na minstens 3 trainingen, verspreid over 2 weken of meer, in de laatste 8 weken.</p>'
+    : t.over4Weken === null
+      ? '<p class="lijst-meta ruimte-boven">Nog één training erbij, dan zie je ook waar je over 4 en 8 weken staat.</p>'
+      : `<p class="ruimte-boven">Als het zo doorgaat: <strong>${kgTekst(t.over4Weken)}</strong> over 4 weken, <strong>${kgTekst(t.over8Weken)}</strong> over 8 weken. <span class="lijst-meta">Een lijn door ${t.punten} trainingen, geen belofte.</span></p>`;
+  const n = o.niveau;
+  const niveau = n
+    ? `<p class="ruimte-boven"><strong>${escapeHtml(n.label)}: ${escapeHtml(n.niveauLabel)}</strong> · ${getal(n.verhouding, 2)}× je lichaamsgewicht.${
+        n.volgende ? ` Voor ${escapeHtml(n.volgende.label.toLowerCase())}: een 1RM van ${kgTekst(n.volgende.e1rm)} (nog ${kgTekst(Math.max(0, n.volgende.e1rm - o.e1rm))}).` : " Het hoogste niveau."
+      }</p>`
+    : "";
+  const records = o.records.length
+    ? `<h3 class="ruimte-boven">Records per aantal reps</h3>${tabelLos(["Reps", "Zwaarste set", "Datum"], o.records.map((r) => [r.reps, kgTekst(r.gewicht), dagKort(r.datum)]))}`
+    : "";
+  const richt = `<h3 class="ruimte-boven">Richtgewichten</h3><p class="lijst-meta">Met 2 reps over, uit je geschatte 1RM. Handig als je van rep-range wisselt.</p>${tabelLos(
+    ["Reps", "Gewicht"],
+    o.richtgewichten.map((r) => [r.reps, kgTekst(r.gewicht)]),
+  )}`;
+  inhoud.innerHTML = getallen + voorspelling + niveau + records + richt;
+}
+
+/** Een tabel die meteen zichtbaar is (tabelHtml klapt in, voor onder een grafiek). */
+function tabelLos(koppen, rijen) {
+  return `<div class="tabel-scroll"><table class="tabel weken-tabel"><thead><tr>${koppen.map((k) => `<th>${escapeHtml(k)}</th>`).join("")}</tr></thead><tbody>${rijen
+    .map((r) => `<tr>${r.map((c) => `<td>${escapeHtml(String(c))}</td>`).join("")}</tr>`)
+    .join("")}</tbody></table></div>`;
+}
+
+function tekenProVolume() {
+  const { blokken, zones, rijen } = analyse.volume;
+  const zoneLabel = Object.fromEntries(zones.map((z) => [z.zone, z.label]));
+  document.getElementById("pro-volume-uitleg").textContent = `Sets per spiergroep per week over 8 weken (hulpspieren half, technieksets half). Zones: ${zones
+    .map((z, i) => `${z.label.toLowerCase()} ${i === zones.length - 1 ? `vanaf ${z.vanaf}` : `${z.vanaf}–${zones[i + 1].vanaf}`}`)
+    .join(", ")} sets per week.`;
+  document.getElementById("pro-volume-inhoud").innerHTML = rijen.length
+    ? tabelLos(
+        ["Spiergroep", "Gem.", "Zone", "Richting", ...blokken.map((b) => dagKort(b.van).replace(/^\w+ /, ""))],
+        rijen.map((r) => [r.label, getal(r.gemiddeld, 1), zoneLabel[r.zone], r.richting ? RICHTING_TEKST[r.richting] : "–", ...r.weken.map((w) => getal(w, 1))]),
+      )
+    : '<p class="lijst-meta">Nog geen sets in de laatste 8 weken.</p>';
+}
+
+async function laadPro(g) {
+  if (!g.pro) {
+    toonProSlot(
+      document.getElementById("pro-slot"),
+      "Meer uit je voortgang",
+      "Alles hierboven is gratis. Wil je dieper graven, dan voegt Pro dit toe:",
+      ["krachttrend", "niveau", "volume", "delen"],
+    );
+    return;
+  }
+  try {
+    analyse = await api("/api/pro/analyse");
+    document.getElementById("pro-kracht").hidden = false;
+    document.getElementById("pro-volume").hidden = false;
+    tekenProKracht();
+    tekenProVolume();
+  } catch {
+    // Geen verbinding: de rest van de pagina werkt gewoon.
+  }
+}
+
+document.getElementById("pro-oefening").addEventListener("change", (e) => {
+  proOefening = e.target.value;
+  tekenProKracht();
+});
+
+vereisSessie().then((g) => {
+  laad();
+  if (!g.offline) laadPro(g);
+});

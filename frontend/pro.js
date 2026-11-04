@@ -2,14 +2,24 @@
 // gehoste pagina (Checkout resp. Billing Portal) — er draait hier geen Stripe.js, alleen een
 // redirect, zie routes/abonnement.ts.
 
-// Zolang Pro geen eigen onderdelen heeft (schema op maat en bibliotheek zijn gratis geworden)
-// verkopen we het niet: geen upgradeknop en geen ACCRD-claim voor iets dat niets toevoegt.
-// Wie al Pro heeft ziet nog wel zijn status en kan zijn abonnement beheren of opzeggen. Zet dit
-// op true zodra er weer Pro-onderdelen zijn; de server (Stripe, kruisproduct) werkt gewoon door.
-const PRO_IN_VERKOOP = false;
+// Pro te koop of niet. Even uit gestaan (november 2026) toen schema op maat en bibliotheek gratis
+// werden en Pro nog geen eigen onderdelen had; sinds Pro voor gevorderden weer aan. Uit betekent:
+// geen upgradeknop en geen ACCRD-claim; wie al Pro heeft kan zijn abonnement dan nog beheren.
+const PRO_IN_VERKOOP = true;
+
+/** De onderdelen uit common.js (PRO_ONDERDELEN); met Pro een link ernaartoe. */
+function tekenOnderdelen(pro) {
+  document.getElementById("onderdelen-kop").textContent = pro ? "Je Pro-onderdelen" : "Wat je erbij krijgt";
+  document.getElementById("onderdelen").innerHTML = PRO_ONDERDELEN.map(
+    (o) => `<li><strong>${escapeHtml(o.titel)}</strong><span>${escapeHtml(o.tekst)}</span><br />
+      ${pro ? `<a class="text-link" href="${o.pad}">Openen</a> · ` : ""}<a class="text-link" href="/wetenschap.html#${o.anker}">Hoe werkt het?</a></li>`,
+  ).join("");
+}
+tekenOnderdelen(false);
 
 vereisSessie().then((g) => {
   if (g.offline) return;
+  tekenOnderdelen(g.pro);
   const afgerekend = queryParam("afgerekend") === "1";
   document.getElementById("afgerekend-melding").hidden = !afgerekend || g.pro;
   document.getElementById("status-paneel").hidden = !g.pro;

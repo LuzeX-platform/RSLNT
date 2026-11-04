@@ -30,7 +30,8 @@ eigen deployment, eigen geheimen.
 | 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel, tempo en doeldatum), dashboard (gewicht vs. doeltempo, e1RM, sets per spiergroep, volle trainingen), herstelcheck | **gebouwd** |
 | 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | **gebouwd** |
 | 4 | Accounts: portaal, registreren met bevestigingsmail, wachtwoord vergeten, alle data per persoon, privacyverklaring, gegevens downloaden en account verwijderen | **gebouwd** |
-| 4b | Pro-paywall via Stripe (gebouwd). Schema op maat en bibliotheek zijn sinds november 2026 gratis; Pro wacht op eigen onderdelen voor gevorderden en is tot dan niet te koop | **gebouwd, Pro leeg** |
+| 4b | Pro-paywall via Stripe. Schema op maat en bibliotheek zijn sinds november 2026 gratis | **gebouwd** |
+| 4d | Pro voor gevorderden: krachtanalyse, volumezones, krachtniveau, bijsturen per set, progressieregels, technieken, blokken, advies voor vandaag en lichte dag, duurtraining, pijnlogboek, CSV en leeslinks. Gratis erbij: opwarmsets en schijvencalculator | **gebouwd** |
 | — | Garmin-koppeling (synchroniseren) | geschrapt |
 | 4c | Export naar Garmin: elke afgeronde training als FIT-bestand (krachttraining) | **gebouwd** |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
@@ -109,13 +110,40 @@ Een fase begint pas als de vorige in de sportschool werkt.
   weekvolume per spiergroep naast het doel, en wat er niet past. Downloaden als JSON, of inladen
   als programma "Op maat" (met of zonder activeren). Oefeningen die je al deed houden hun
   sleutel en dus hun geschiedenis. Hoe het werkt: Wetenschap → "Schema op maat".
-- **Pro** (`/pro.html`) — upgraden (Stripe Checkout) en je abonnement beheren (Stripe Billing
-  Portal), allebei een redirect naar een door Stripe gehoste pagina; er draait geen Stripe.js in
-  RSLNT zelf. Alles wat er nu is — loggen, voortgang, lichaam, herstel, schema op maat, de
-  bibliotheek met uitleg, een eigen programma-JSON inladen — is gratis voor iedereen met een
-  account. Pro heeft op dit moment geen eigen onderdelen: `PRO_IN_VERKOOP` in `pro.js` staat
-  uit, dus er is geen upgradeknop en geen ACCRD-claim; wie al Pro heeft kan zijn abonnement nog
-  beheren. Het eigenaarsaccount (seed, rol admin)
+- **Opwarmsets en schijven** (gratis, in de training) — bij basisoefeningen en de eerste
+  oefening een opbouw naar het voorgestelde gewicht (`backend/src/opwarmen.ts`); bij een stang
+  welke schijven er per kant op moeten (`frontend/schijven.js`, stang 20/15/10 kg).
+- **Pro** (`/pro.html`, €5 per maand) — verdieping voor wie serieuzer traint, zonder iets van de
+  gratis basis af te halen. Zonder Pro staat op elke plek waar Pro iets toevoegt een Pro-plek
+  (gestreepte rand) met wat het is; de teksten staan op één plek (`PRO_ONDERDELEN` in
+  `common.js`). Alles achter `vereistPro` (`backend/src/routes/pro.ts`):
+  - **Krachtanalyse** (Voortgang): trend over 8 weken in kg/week en %/maand, voorspelling over 4
+    en 8 weken, records per aantal reps, richtgewichten voor 3–15 reps, krachtniveau voor squat,
+    bankdrukken, deadlift (ook trap bar) en overhead press (`analyse.ts`).
+  - **Volume in zones** (Voortgang): sets per spiergroep in 8 blokken van 7 dagen, zone
+    (weinig/matig/productief/hoog) en richting.
+  - **Bijsturen per set** (training): na elke set met RIR het gewicht voor je volgende set
+    (`autoregulatie.ts`), nooit meer dan één stap omhoog.
+  - **Progressieregel per oefening** (schema-editor): dubbel, lineair, op gevoel (RIR) of vast
+    (`progressie.ts`). Pijnregel en max. één stap gelden altijd.
+  - **Technieken** (schema-editor, training): dropset, myo-reps of rest-pause na de laatste set
+    (`TrainingSet.soort`); half in je volume, niet voor progressie of e1RM.
+  - **Blokken** (`/blokken.html`): een plan Kracht (9 weken) of Spiermassa (7 weken) op het
+    actieve programma (`Programma.periodisering`, `periodisering.ts`); elke training legt haar
+    blok vast (`Training.blok`).
+  - **Advies voor vandaag** (Vandaag): gewoon trainen, een lichte dag (`Training.fase` "licht":
+    een set minder, een rep meer over) of een deloadweek, met de redenen (`belasting.ts`).
+  - **Duurtraining** (`/duur.html`): hardlopen, fietsen … met een melding als een zware benendag
+    en een harde duurtraining te dicht op elkaar vallen (`hybride.ts`).
+  - **Pijnlogboek** (`/pijn.html`): pijn per plek per week, bij welke oefeningen, en notities die je
+    op hersteld zet in plaats van verwijdert (`pijnlogboek.ts`).
+  - **Exporteren en delen** (`/delen.html`): alle sets en duurtrainingen als CSV (puntkomma,
+    decimale komma, BOM) en leeslinks voor je trainer of fysio (`/gedeeld.html#token`, 7/30/90
+    dagen, intrekbaar, alleen de hash in de database, werkt niet meer zonder Pro).
+  Upgraden gaat via Stripe Checkout, je abonnement beheren via de Billing Portal, allebei een
+  redirect naar een door Stripe gehoste pagina; er draait geen Stripe.js in RSLNT zelf.
+  `PRO_IN_VERKOOP` in `pro.js` zet de upgradeknop en de ACCRD-claim aan of uit. Het
+  eigenaarsaccount (seed, rol admin)
   is altijd Pro, zonder dat daar een abonnement voor loopt. Zie `backend/src/entitlementsPro.ts`.
   **Kruisproduct-Pro:** met een actief, betalend ACCRD-account claim je gratis Pro (Koppel met
   ACCRD, of KvK-nummer plus koppelcode) — een dagelijkse cron controleert dit opnieuw, zonder

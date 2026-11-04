@@ -214,5 +214,5 @@ export async function recenteTrainingen(gebruikerId: string, aantal = 20) {
     oefeningen: t.oefeningen
       .filter((o) => o.sets.length > 0)
       .map((o) => ({ naam: o.oefening.naam, repsMin: o.repsMin, repsMax: o.repsMax, sets: o.sets })),
-  }));
+  })).filter((t) => t.oefeningen.length > 0);
 }

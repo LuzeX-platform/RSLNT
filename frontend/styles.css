@@ -2669,3 +2669,210 @@ body.portaal {
   overscroll-behavior: contain;
   padding: 16px 20px calc(20px + env(safe-area-inset-bottom));
 }
+
+/* ---------- Pro (november 2026) ----------
+   Monochroom, zoals de rest: Pro is geen status, dus geen kleur. Het badge is de omgekeerde
+   accentkleur (tekst op --accent), die per modus al op contrast is gekozen. Een Pro-plek voor
+   wie nog geen Pro heeft is een gestreepte rand: zichtbaar dat het er is, zonder te schreeuwen. */
+
+.pro-badge {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  letter-spacing: 0.02em;
+}
+
+.pro-slot {
+  border: 1.5px dashed var(--border-strong);
+  background: transparent;
+  box-shadow: none;
+}
+
+.pro-slot .pro-slot-kop {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.pro-slot .pro-slot-kop h2 {
+  margin: 0;
+}
+
+.pro-slot ul {
+  margin: 8px 0 12px;
+  padding-left: 20px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.pro-slot ul li + li {
+  margin-top: 4px;
+}
+
+.pro-kop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pro-lijst {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pro-lijst li {
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.pro-lijst li:first-child {
+  border-top: none;
+  padding-top: 4px;
+}
+
+.pro-lijst strong {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.pro-lijst span {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+.prijs {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Opwarmsets en schijven in de training: klein en ingetogen, het hoort bij de set. */
+.opwarmen {
+  margin: 8px 0 4px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.opwarmen summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.opwarmen ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.schijven {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.schijven .text-link {
+  min-height: 32px;
+  font-size: 13px;
+}
+
+/* Bijsturing per set (Pro) en het richtgewicht bij een nieuw blok. */
+.bijsturing,
+.richtgewicht {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  font-size: 14px;
+}
+
+.set-soort {
+  font-weight: 600;
+}
+
+.techniek-hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+/* Advies voor vandaag (Pro). */
+.advies-kop {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 6px;
+}
+
+/* Blokken: een rij vakjes per week. */
+.blok-tijdlijn {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(28px, 1fr));
+  gap: 4px;
+  margin: 12px 0 6px;
+}
+
+.blok-week {
+  min-height: 36px;
+  border-radius: 6px;
+  background: var(--neutral-tint);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.blok-week.nu {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.blok-legenda {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.blok-legenda li {
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Tabel met weken (volume, pijn): de eerste kolom blijft staan bij horizontaal scrollen. */
+.weken-tabel th:first-child,
+.weken-tabel td:first-child {
+  position: sticky;
+  left: 0;
+  background: var(--surface);
+  text-align: left;
+}
+
+.weken-tabel td,
+.weken-tabel th {
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* De leeslink is ook af te drukken voor je fysio. */
+@media print {
+  .balk,
+  .tabbalk,
+  .voet,
+  .niet-printen {
+    display: none !important;
+  }
+  .panel {
+    break-inside: avoid;
+    box-shadow: none;
+  }
+}

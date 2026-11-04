@@ -21,22 +21,40 @@
   <main class="app-kolom">
     <div class="app-kop">
       <p class="kicker">RSLNT Pro</p>
-      <h1>Alles wat je nodig hebt om te trainen is gratis.</h1>
-      <p class="subtitle">Loggen, voortgang, je herstelcheck, je schema op maat en de hele oefeningenbibliotheek met uitleg: dat blijft gratis. Pro wordt een verdieping voor wie serieuzer traint, en komt later.</p>
+      <h1>Voor wie serieuzer traint.</h1>
+      <p class="subtitle">Alles om te trainen blijft gratis. Pro is verdieping: meer inzicht in je kracht en volume, sturen per set en per blok, en je training delen met je trainer of fysio.</p>
     </div>
 
     <section class="panel" id="status-paneel" hidden>
-      <span class="badge badge-succes">Pro</span>
+      <span class="badge pro-badge">Pro</span>
       <p class="subtitle ruimte-boven" id="pro-bron-tekst">Je hebt Pro. Bedankt!</p>
       <button type="button" class="knop-link" id="beheer-knop">Abonnement beheren</button>
       <p class="error" id="beheer-fout" role="alert"></p>
     </section>
 
     <section class="panel" id="upgrade-paneel" hidden>
-      <h2>Wat je erbij krijgt</h2>
-      <p class="subtitle">Pro wordt vernieuwd. Je hoeft nu niets te doen: alles in RSLNT werkt zonder Pro.</p>
-      <button type="button" class="knop-link knop-groot" id="upgrade-knop">Upgrade naar Pro</button>
+      <p class="prijs">€5 per maand</p>
+      <p class="subtitle">Maandelijks opzegbaar. Betalen gaat via Stripe; RSLNT ziet je kaart- of bankgegevens nooit.</p>
+      <button type="button" class="knop-link knop-groot ruimte-boven" id="upgrade-knop">Upgrade naar Pro</button>
       <p class="error" id="upgrade-fout" role="alert"></p>
+    </section>
+
+    <section class="panel">
+      <h2 id="onderdelen-kop">Wat je erbij krijgt</h2>
+      <ul class="pro-lijst" id="onderdelen"></ul>
+    </section>
+
+    <section class="panel">
+      <h2>Altijd gratis</h2>
+      <ul class="pro-lijst">
+        <li><strong>Trainen met een voorstel voor elke set</strong><span>Dubbele progressie, de pijnregel, stagnatie, introfase en deload. Met rusttimer en offline.</span></li>
+        <li><strong>Schema op maat en standaardschema's</strong><span>Uit je doel, dagen, tijd, materiaal en klachten.</span></li>
+        <li><strong>De oefeningenbibliotheek</strong><span>876 oefeningen met Nederlandse uitleg en foto's.</span></li>
+        <li><strong>Opwarmsets en schijvencalculator</strong><span>Opbouw naar je werkgewicht, en welke schijven op de stang.</span></li>
+        <li><strong>Voortgang, lichaam en herstel</strong><span>Gewicht met doeltempo, sets per spiergroep, geschatte 1RM en records, je herstelcheck.</span></li>
+        <li><strong>Je gegevens</strong><span>Alles downloaden, naar Garmin exporteren, alles verwijderen.</span></li>
+      </ul>
+      <p class="lijst-meta ruimte-boven">Waarom het zo werkt: de <a href="/wetenschap.html">Wetenschap-pagina</a>, ook voor elk Pro-onderdeel.</p>
     </section>
 
     <section class="panel" id="kruisproduct-paneel" hidden>

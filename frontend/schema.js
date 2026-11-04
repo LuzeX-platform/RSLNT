@@ -25,6 +25,21 @@ let oefeningen = [];
 let actiefId = null;
 let regels = [];
 let gewijzigd = false;
+/** Pro: eigen progressieregel en techniek per oefening. De server controleert het ook. */
+let pro = false;
+
+const REGELS = [
+  ["dubbel", "Dubbele progressie (standaard)"],
+  ["lineair", "Lineair: onderkant gehaald → omhoog"],
+  ["rir", "Op gevoel: genoeg RIR over → omhoog"],
+  ["vast", "Vast: je kiest zelf"],
+];
+const TECHNIEKEN = [
+  ["", "Geen"],
+  ["dropset", "Dropset"],
+  ["myoreps", "Myo-reps"],
+  ["restpauze", "Rest-pause"],
+];
 
 function regelsVan(schema) {
   return (schema?.oefeningen ?? []).map((r) => ({
@@ -37,7 +52,17 @@ function regelsVan(schema) {
     rustSeconden: r.rustSeconden,
     supersetGroep: r.supersetGroep ?? "",
     cue: r.cue ?? "",
+    progressie: r.progressie ?? "dubbel",
+    techniek: r.techniek ?? "",
   }));
+}
+
+/** Keuzelijst voor progressieregel of techniek. Zonder Pro zichtbaar maar uit, met wat het is. */
+function keuzeVeld(label, naam, waarde, opties, i) {
+  const lijst = opties.map(([w, t]) => `<option value="${w}"${w === (waarde ?? "") ? " selected" : ""}>${escapeHtml(t)}</option>`).join("");
+  // Zonder Pro mag een waarde van vroeger blijven staan; kiezen kan alleen met Pro.
+  const uit = !pro ? " disabled" : "";
+  return `<div class="breed"><label for="r${i}-${naam}">${label} <span class="badge pro-badge">Pro</span></label><select id="r${i}-${naam}" data-veld="${naam}"${uit}>${lijst}</select></div>`;
 }
 
 // ---------- Schema ----------
@@ -59,6 +84,9 @@ function veld(label, naam, waarde, i) {
 }
 
 function tekenRegels() {
+  document.getElementById("pro-uitleg").innerHTML = pro
+    ? 'Per oefening een eigen progressieregel of een techniek na de laatste set. <a href="/wetenschap.html#progressieregels">Progressieregels</a> · <a href="/wetenschap.html#technieken">Technieken</a>'
+    : 'Een eigen progressieregel en dropsets, myo-reps of rest-pause per oefening zijn <a href="/pro.html">Pro</a>. De pijnregel en max. één stap omhoog gelden altijd.';
   if (regels.length === 0) {
     regelsEl.innerHTML = '<p class="lijst-meta">Nog geen oefeningen in dit schema.</p>';
     return;
@@ -85,6 +113,8 @@ function tekenRegels() {
             ${veld("Rust (s)", "rustSeconden", r.rustSeconden, i)}
             ${veld("Superset", "supersetGroep", r.supersetGroep, i)}
             ${veld("Cue", "cue", r.cue, i)}
+            ${keuzeVeld("Progressie", "progressie", r.progressie, REGELS, i)}
+            ${keuzeVeld("Na de laatste set", "techniek", r.techniek, TECHNIEKEN, i)}
           </div>
         </div>`;
     })
@@ -118,9 +148,17 @@ regelsEl.addEventListener("click", (e) => {
   tekenRegels();
 });
 
+regelsEl.addEventListener("change", (e) => {
+  // Keuzelijsten: sommige browsers sturen bij een select alleen "change".
+  if (e.target.tagName !== "SELECT" || !["progressie", "techniek"].includes(e.target.dataset.veld)) return;
+  regels[Number(e.target.closest(".regel").dataset.index)][e.target.dataset.veld] = e.target.value;
+  gewijzigd = true;
+  succesEl.textContent = "";
+});
+
 regelsEl.addEventListener("input", (e) => {
   const naam = e.target.dataset.veld;
-  if (!naam) return;
+  if (!naam || naam === "progressie" || naam === "techniek") return;
   const r = regels[Number(e.target.closest(".regel").dataset.index)];
   r[naam] = GETALVELDEN.includes(naam) ? leesGetal(e.target.value) : e.target.value.trim();
   gewijzigd = true;
@@ -143,6 +181,8 @@ document.getElementById("regel-toevoegen").addEventListener("click", () => {
     rustSeconden: 90,
     supersetGroep: "",
     cue: "",
+    progressie: "dubbel",
+    techniek: "",
   });
   gewijzigd = true;
   tekenRegels();
@@ -159,7 +199,7 @@ document.getElementById("opslaan").addEventListener("click", async () => {
   try {
     await api(`/api/schemas/${actiefId}`, {
       methode: "PUT",
-      body: { oefeningen: regels.map((r) => ({ ...r, supersetGroep: r.supersetGroep || null })) },
+      body: { oefeningen: regels.map((r) => ({ ...r, supersetGroep: r.supersetGroep || null, techniek: r.techniek || null })) },
     });
     gewijzigd = false;
     await laadSchemas();
@@ -360,7 +400,7 @@ async function laadOefeningen() {
 }
 
 (async () => {
-  await vereisSessie();
+  pro = Boolean((await vereisSessie()).pro);
   try {
     await laadOefeningen();
     await Promise.all([laadSchemas(), laadProgrammas()]);
