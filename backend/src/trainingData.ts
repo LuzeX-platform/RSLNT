@@ -5,11 +5,34 @@
 
 import type { Programma } from "@prisma/client";
 import { prisma } from "./db.js";
-import { bepaalVoorstel, type Doel, type EerdereSessie, type GelogdeSet } from "./progressie.js";
-import { bepaalFase, type FaseInstellingen } from "./fase.js";
+import {
+  bepaalVoorstel,
+  isWerkset,
+  PROGRESSIE_REGELS,
+  werkgewicht,
+  type Doel,
+  type EerdereSessie,
+  type GelogdeSet,
+  type ProgressieRegel,
+} from "./progressie.js";
+import { bepaalFase, type Fase, type FaseInstellingen } from "./fase.js";
 import { uitDatum } from "./datum.js";
+import { opwarmsets } from "./opwarmen.js";
+import { bijsturing } from "./autoregulatie.js";
+import { blokOp, type BlokOpDag, type Blokplan } from "./periodisering.js";
+import { richtgewicht } from "./analyse.js";
+import { besteE1rm } from "./voortgang.js";
+import { heeftPro } from "./entitlementsPro.js";
 
-export const SET_VELDEN = { nummer: true, gewicht: true, reps: true, rir: true, pijn: true, pijnPlek: true } as const;
+export const SET_VELDEN = { nummer: true, gewicht: true, reps: true, rir: true, pijn: true, pijnPlek: true, soort: true } as const;
+
+/** Een techniek uit het schema en de soort set die daarbij hoort. */
+export const TECHNIEK_SETSOORT = { dropset: "drop", myoreps: "myo", restpauze: "restpauze" } as const;
+export type Techniek = keyof typeof TECHNIEK_SETSOORT;
+export const TECHNIEKEN = Object.keys(TECHNIEK_SETSOORT) as [Techniek, ...Techniek[]];
+
+export const alsRegel = (r: string | null | undefined): ProgressieRegel =>
+  (PROGRESSIE_REGELS as readonly string[]).includes(r ?? "") ? (r as ProgressieRegel) : "dubbel";
 
 type SetRij = GelogdeSet & { nummer: number };
 
@@ -17,6 +40,7 @@ export interface Sessie extends EerdereSessie {
   trainingId: string;
   datum: Date;
   sets: SetRij[];
+  blok: string | null;
 }
 
 /**
@@ -31,7 +55,7 @@ export async function historiePerOefening(
   const regels = await prisma.trainingOefening.findMany({
     where: { oefeningId: { in: oefeningIds }, training: { gebruikerId, datum }, sets: { some: {} } },
     include: {
-      training: { select: { id: true, datum: true, fase: true } },
+      training: { select: { id: true, datum: true, fase: true, blok: true } },
       sets: { orderBy: { nummer: "asc" }, select: SET_VELDEN },
     },
     orderBy: [{ training: { datum: "desc" } }, { training: { aangemaaktOp: "desc" } }],
@@ -45,7 +69,9 @@ export async function historiePerOefening(
       sets: r.sets,
       minSets: r.minSets,
       doelRir: r.doelRir,
-      deload: r.training.fase === "deload",
+      // Een lichte dag is bewust licht, net als een deload: telt niet voor progressie of stagnatie.
+      deload: r.training.fase === "deload" || r.training.fase === "licht",
+      blok: r.training.blok,
     });
     perOefening.set(r.oefeningId, lijst);
   }
@@ -89,6 +115,7 @@ export async function volgendeSchema(programma: NonNullable<Awaited<ReturnType<t
 
 /** Eén training van dit account; null als die niet bestaat of van iemand anders is. */
 export async function trainingDetail(gebruikerId: string, id: string) {
+  const pro = await heeftPro(gebruikerId);
   const training = await prisma.training.findFirst({
     where: { id, gebruikerId },
     include: {
@@ -121,7 +148,7 @@ export async function trainingDetail(gebruikerId: string, id: string) {
   // Na het afronden ook alvast het voorstel voor de volgende keer, met het doel zoals het nu in
   // het schema staat (als de oefening er nog in zit).
   let vooruit: Map<string, Sessie[]> | null = null;
-  let huidigDoel = new Map<string, Doel>();
+  let huidigDoel = new Map<string, Doel & { progressie?: string }>();
   if (training.status === "afgerond") {
     vooruit = await historiePerOefening(gebruikerId, ids, { lte: training.datum });
     const regels = await prisma.schemaOefening.findMany({
@@ -130,8 +157,9 @@ export async function trainingDetail(gebruikerId: string, id: string) {
     huidigDoel = new Map(regels.map((r) => [r.oefeningId, r]));
   }
 
-  const deload = training.fase === "deload";
+  const deload = training.fase === "deload" || training.fase === "licht";
   return {
+    pro,
     training: {
       id: training.id,
       schemaId: training.schemaId,
@@ -144,12 +172,34 @@ export async function trainingDetail(gebruikerId: string, id: string) {
       status: training.status,
       fase: training.fase,
       week: training.week,
+      blok: training.blok,
       afgerondOp: training.afgerondOp,
     },
     oefeningen: training.oefeningen.map((to) => {
       const eerder = historie.get(to.oefeningId) ?? [];
       const doel: Doel = { minSets: to.minSets, repsMin: to.repsMin, repsMax: to.repsMax };
       const origineel = originelen.get(to.origineleOefeningId ?? to.oefeningId)!;
+      const regel = alsRegel(to.progressie);
+      const voorstel = bepaalVoorstel(to.oefening, doel, eerder, { deload, regel });
+      const werksets = to.sets.filter(isWerkset);
+      // Opwarmen (gratis): naar het voorgestelde gewicht, of wat je vorige keer deed.
+      const vorigWerk = eerder[0] ? werkgewicht({ sets: eerder[0].sets.filter(isWerkset) }) : null;
+      const opwarmen = opwarmsets(voorstel.gewicht ?? vorigWerk, to.oefening.gewichtsstap, to.oefening.materiaal);
+      // Nieuw blok (Pro): een richtgewicht uit je geschatte 1RM. Alleen informatie; het voorstel
+      // blijft binnen de harde regels (max. één stap omhoog). Zie Wetenschap, #periodisering.
+      let blokRichtgewicht: { gewicht: number; reden: string } | null = null;
+      if (training.blok && eerder[0] && eerder[0].blok !== training.blok && to.oefening.gewichtsstap > 0) {
+        const e1rms = eerder.slice(0, 3).map((s) => besteE1rm(s.sets.filter(isWerkset))).filter((w): w is number => w !== null);
+        if (e1rms.length) {
+          const gewicht = richtgewicht(Math.max(...e1rms), to.repsMax, to.doelRir ?? 2, to.oefening.gewichtsstap);
+          if (gewicht > 0) {
+            blokRichtgewicht = {
+              gewicht,
+              reden: `Nieuw blok: met je geschatte 1RM haal je ${to.repsMax} reps met ${to.doelRir ?? 2} over bij ongeveer dit gewicht. Het voorstel gaat nooit meer dan één stap omhoog; kies zelf.`,
+            };
+          }
+        }
+      }
       return {
         id: to.id,
         oefeningId: to.oefeningId,
@@ -171,18 +221,45 @@ export async function trainingDetail(gebruikerId: string, id: string) {
           .map((s) => (s === origineel.sleutel ? origineel : alternatieven.get(s)))
           .filter((o) => o !== undefined && o.id !== to.oefeningId)
           .map((o) => ({ id: o!.id, naam: o!.naam })),
+        mechaniek: to.oefening.mechaniek,
+        progressie: regel,
+        techniek: to.techniek,
         sets: to.sets,
         vorigeKeer: eerder[0] ? { datum: eerder[0].datum, sets: eerder[0].sets } : null,
-        voorstel: bepaalVoorstel(to.oefening, doel, eerder, { deload }),
+        voorstel,
+        opwarmen,
+        blokRichtgewicht,
+        // Pro: bijsturen voor de volgende set, uit de sets die je vandaag al deed.
+        bijsturing:
+          pro && training.status === "bezig"
+            ? bijsturing(to.oefening, { repsMin: to.repsMin, repsMax: to.repsMax, doelRir: to.doelRir, aantalSets: to.aantalSets }, werksets)
+            : null,
         volgendeKeer: vooruit
-          ? bepaalVoorstel(to.oefening, huidigDoel.get(to.oefeningId) ?? doel, vooruit.get(to.oefeningId) ?? [])
+          ? bepaalVoorstel(to.oefening, huidigDoel.get(to.oefeningId) ?? doel, vooruit.get(to.oefeningId) ?? [], {
+              regel: pro ? alsRegel(huidigDoel.get(to.oefeningId)?.progressie ?? to.progressie) : "dubbel",
+            })
           : null,
       };
     }),
   };
 }
 
-/** De fase voor een training die vandaag start, voor het actieve programma. */
-export function faseVoor(programma: Programma, dag: string) {
-  return bepaalFase(faseInstellingen(programma), dag);
+/** Het blokplan van een programma, of null. Alleen met Pro telt het mee (zie faseVoor). */
+export function blokplanVan(programma: Programma): Blokplan | null {
+  const plan = programma.periodisering as unknown as Blokplan | null;
+  return plan && typeof plan === "object" && Array.isArray(plan.blokken) ? plan : null;
+}
+
+/**
+ * De fase voor een training die vandaag start, voor het actieve programma. Met een lopend
+ * blokplan (Pro) bepaalt het plan wanneer je deloadt, niet "elke zoveelste week": anders zou een
+ * automatische deload midden in je piekblok kunnen vallen. Een handmatige deload en de introfase
+ * gaan wel altijd voor.
+ */
+export function faseVoor(programma: Programma, dag: string, pro = false): Fase & { blok: BlokOpDag | null } {
+  const blok = pro ? blokOp(blokplanVan(programma), dag) : null;
+  const instellingen = faseInstellingen(programma);
+  const fase = bepaalFase(blok ? { ...instellingen, deloadElkeWeken: null } : instellingen, dag);
+  if (blok?.soort === "deload" && fase.fase === "normaal") return { ...fase, fase: "deload", blok };
+  return { ...fase, blok };
 }

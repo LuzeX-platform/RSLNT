@@ -2,7 +2,9 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
-import { actiefProgramma } from "../trainingData.js";
+import { actiefProgramma, TECHNIEKEN } from "../trainingData.js";
+import { PROGRESSIE_REGELS } from "../progressie.js";
+import { heeftPro } from "../entitlementsPro.js";
 import { ongeldig } from "./auth.js";
 
 const MATERIALEN = ["dumbbell", "barbell", "trap_bar", "kabel", "machine", "lichaamsgewicht", "kettlebell", "band", "overig"] as const;
@@ -27,6 +29,9 @@ const regelSchema = z
     rustSeconden: z.number().int().min(0).max(900).nullable().optional(),
     doelRir: z.number().int().min(0).max(5).nullable().optional(),
     cue: z.string().trim().max(300).optional(),
+    // Pro: eigen progressieregel en techniek. Zonder Pro mag alleen wat er al stond blijven staan.
+    progressie: z.enum(PROGRESSIE_REGELS).optional(),
+    techniek: z.enum(TECHNIEKEN).nullable().optional(),
   })
   .refine((r) => r.repsMin <= r.repsMax, { message: "Reps: de onderkant is hoger dan de bovenkant", path: ["repsMin"] })
   .refine((r) => r.minSets <= r.aantalSets, { message: "Minimum sets is hoger dan het aantal sets", path: ["minSets"] });
@@ -113,6 +118,24 @@ export async function schemaRoutes(app: FastifyInstance) {
       return reply.code(400).send({ errorCode: "ONBEKENDE_OEFENING" });
     }
 
+    // Zonder Pro geen nieuwe progressieregel of techniek. Wat er al stond (van toen je Pro had)
+    // mag blijven staan, anders zou elke andere wijziging in dit schema het stilletjes wissen.
+    // In een training telt het toch pas weer mee met Pro (zie POST /api/trainingen).
+    if (!(await heeftPro(g))) {
+      const bestaand = new Map(
+        (await prisma.schemaOefening.findMany({ where: { schemaId: schema.id } })).map((r) => [r.oefeningId, r]),
+      );
+      const nieuwPro = parsed.data.oefeningen.some((r) => {
+        const oud = bestaand.get(r.oefeningId);
+        const progressie = r.progressie ?? "dubbel";
+        const techniek = r.techniek ?? null;
+        return (progressie !== "dubbel" && progressie !== oud?.progressie) || (techniek !== null && techniek !== oud?.techniek);
+      });
+      if (nieuwPro) {
+        return reply.code(402).send({ errorCode: "PRO_VEREIST", bericht: "Een eigen progressieregel of techniek is voor Pro-leden." });
+      }
+    }
+
     await prisma.$transaction([
       prisma.schemaOefening.deleteMany({ where: { schemaId: schema.id } }),
       prisma.schema.update({
@@ -131,6 +154,8 @@ export async function schemaRoutes(app: FastifyInstance) {
               rustSeconden: r.rustSeconden ?? null,
               doelRir: r.doelRir ?? null,
               cue: r.cue ?? "",
+              progressie: r.progressie ?? "dubbel",
+              techniek: r.techniek ?? null,
             })),
           },
         },

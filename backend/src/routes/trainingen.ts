@@ -2,7 +2,21 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
-import { actiefProgramma, faseInstellingen, faseVoor, SET_VELDEN, trainingDetail, volgendeSchema } from "../trainingData.js";
+import {
+  actiefProgramma,
+  alsRegel,
+  faseInstellingen,
+  faseVoor,
+  SET_VELDEN,
+  TECHNIEK_SETSOORT,
+  trainingDetail,
+  volgendeSchema,
+  type Techniek,
+} from "../trainingData.js";
+import { heeftPro } from "../entitlementsPro.js";
+import { doelInBlok } from "../periodisering.js";
+import { bijsturing } from "../autoregulatie.js";
+import { isWerkset } from "../progressie.js";
 import { PIJN_PLEK_SLEUTELS } from "../pijn.js";
 import { doelInFase } from "../fase.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
@@ -19,14 +33,16 @@ const setSchema = z
     rir: z.number().int().min(0).max(4).nullable(),
     pijn: pijnSchaal.optional(),
     pijnPlek: z.enum(PIJN_PLEK_SLEUTELS).nullable().optional(),
+    // Pro: een techniekset na de gewone sets. Alleen toegestaan als de oefening die techniek heeft.
+    soort: z.enum(["normaal", "drop", "myo", "restpauze"]).optional(),
     // Oude app-versie (of de offline-wachtrij van vóór de wijziging): kniepijn = pijn in de knie.
     kniepijn: pijnSchaal.optional(),
   })
-  .transform(({ kniepijn, pijn, pijnPlek, ...rest }) => {
+  .transform(({ kniepijn, pijn, pijnPlek, soort, ...rest }) => {
     const waarde = pijn !== undefined ? pijn : (kniepijn ?? null);
     // Een plek zonder pijncijfer zegt niets.
     const plek = waarde === null ? null : pijn !== undefined ? (pijnPlek ?? null) : "knie";
-    return { ...rest, pijn: waarde, pijnPlek: plek };
+    return { ...rest, pijn: waarde, pijnPlek: plek, soort: soort ?? "normaal" };
   });
 
 const setParams = z.object({
@@ -64,8 +80,12 @@ export async function trainingRoutes(app: FastifyInstance) {
       prisma.lichaamsgewicht.findMany({ where: { gebruikerId: g, datum: { gte: naarDatum(verschuifDag(dag, -6)) } } }),
     ]);
 
-    const [volgende, herstel] = await Promise.all([programma ? volgendeSchema(programma) : null, herstelVandaag(g, dag)]);
-    const fase = programma ? faseVoor(programma, dag) : null;
+    const [volgende, herstel, pro] = await Promise.all([
+      programma ? volgendeSchema(programma) : null,
+      herstelVandaag(g, dag),
+      heeftPro(g),
+    ]);
+    const fase = programma ? faseVoor(programma, dag, pro) : null;
     const laatsteDag = recent[0] ? recent[0].datum.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" }) : null;
     // Rustdagen tussen de vorige training en vandaag; het programma adviseert er minstens zoveel.
     const rustdagen = laatsteDag ? Math.round((naarDatum(dag).getTime() - naarDatum(laatsteDag).getTime()) / 86400000) - 1 : null;
@@ -100,6 +120,7 @@ export async function trainingRoutes(app: FastifyInstance) {
         datum: t.datum,
         status: t.status,
         fase: t.fase,
+        blok: t.blok,
         aantalSets: t.oefeningen.reduce((som, o) => som + o._count.sets, 0),
       })),
       herstel,
@@ -140,23 +161,33 @@ export async function trainingRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/trainingen", async (request, reply) => {
-    const parsed = z.object({ schemaId: z.string().min(1) }).safeParse(request.body);
+    // licht: de lichte dag (Pro), alleen voor deze training.
+    const parsed = z.object({ schemaId: z.string().min(1), licht: z.boolean().optional() }).safeParse(request.body);
     if (!parsed.success) return ongeldig(reply, parsed.error);
 
     const g = gid(request);
+    const pro = await heeftPro(g);
+    if (parsed.data.licht && !pro) {
+      return reply.code(402).send({ errorCode: "PRO_VEREIST", bericht: "De lichte dag is voor Pro-leden." });
+    }
     // Eén training tegelijk: een tweede start is bijna altijd een dubbele tik.
     const bezig = await prisma.training.findFirst({ where: { gebruikerId: g, status: "bezig" }, select: { id: true } });
     if (bezig) return reply.code(409).send({ errorCode: "TRAINING_BEZIG", id: bezig.id });
 
     const schema = await prisma.schema.findFirst({
       where: { id: parsed.data.schemaId, programma: { gebruikerId: g } },
-      include: { programma: true, oefeningen: { orderBy: { volgorde: "asc" } } },
+      include: { programma: true, oefeningen: { orderBy: { volgorde: "asc" }, include: { oefening: { select: { mechaniek: true } } } } },
     });
     if (!schema) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     if (schema.oefeningen.length === 0) return reply.code(400).send({ errorCode: "SCHEMA_LEEG" });
 
-    // De fase (intro/deload) wordt bij het starten vastgelegd, met het aangepaste doel per oefening.
-    const fase = faseVoor(schema.programma, vandaag());
+    // De fase (intro/deload/licht) en het blok (Pro) worden bij het starten vastgelegd, met het
+    // aangepaste doel per oefening. Eerst het blok, dan de fase: een deload of lichte dag
+    // halveert of verlicht wat het blok voorschrijft. Een lichte dag gaat niet over een intro of
+    // deload heen: die zijn al licht.
+    const basisFase = faseVoor(schema.programma, vandaag(), pro);
+    const fase = parsed.data.licht && basisFase.fase === "normaal" ? { ...basisFase, fase: "licht" as const } : basisFase;
+    const blok = fase.blok && fase.blok.soort !== "deload" ? fase.blok.soort : null;
     const instellingen = faseInstellingen(schema.programma);
     const training = await prisma.training.create({
       data: {
@@ -164,20 +195,28 @@ export async function trainingRoutes(app: FastifyInstance) {
         schemaId: schema.id,
         fase: fase.fase,
         week: fase.week,
+        blok: fase.blok?.soort ?? null,
         oefeningen: {
           create: schema.oefeningen.map((r) => {
-            const doel = doelInFase({ aantalSets: r.aantalSets, minSets: r.minSets, doelRir: r.doelRir }, fase.fase, instellingen);
+            const inBlok = blok
+              ? doelInBlok(r, blok, r.oefening.mechaniek === "compound")
+              : { aantalSets: r.aantalSets, minSets: r.minSets, repsMin: r.repsMin, repsMax: r.repsMax, doelRir: r.doelRir };
+            const doel = doelInFase(inBlok, fase.fase, instellingen);
             return {
               oefeningId: r.oefeningId,
               volgorde: r.volgorde,
               aantalSets: doel.aantalSets,
               minSets: doel.minSets,
               doelRir: doel.doelRir,
-              repsMin: r.repsMin,
-              repsMax: r.repsMax,
+              repsMin: inBlok.repsMin,
+              repsMax: inBlok.repsMax,
               supersetGroep: r.supersetGroep,
               rustSeconden: r.rustSeconden,
               cue: r.cue,
+              // Zonder Pro geldt de standaardregel en geen techniek, ook als die in het schema
+              // staat (bijvoorbeeld van toen je Pro nog had).
+              progressie: pro ? alsRegel(r.progressie) : "dubbel",
+              techniek: pro ? r.techniek : null,
             };
           }),
         },
@@ -323,11 +362,15 @@ export async function trainingRoutes(app: FastifyInstance) {
     if (!parsed.success) return ongeldig(reply, parsed.error);
     const { id, toId, nummer } = params.data;
 
+    const g = gid(request);
     const regel = await prisma.trainingOefening.findFirst({
-      where: { id: toId, trainingId: id, training: { gebruikerId: gid(request) } },
-      select: { id: true },
+      where: { id: toId, trainingId: id, training: { gebruikerId: g } },
+      include: { oefening: { select: { gewichtsstap: true } } },
     });
     if (!regel) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
+    if (parsed.data.soort !== "normaal" && TECHNIEK_SETSOORT[regel.techniek as Techniek] !== parsed.data.soort) {
+      return reply.code(400).send({ errorCode: "GEEN_TECHNIEK", bericht: "Deze oefening heeft die techniek niet in je schema." });
+    }
 
     const set = await prisma.trainingSet.upsert({
       where: { trainingOefeningId_nummer: { trainingOefeningId: regel.id, nummer } },
@@ -335,7 +378,13 @@ export async function trainingRoutes(app: FastifyInstance) {
       create: { trainingOefeningId: regel.id, nummer, ...parsed.data },
       select: SET_VELDEN,
     });
-    return { set };
+    // Pro: meteen het gewicht voor je volgende set, uit wat je vandaag al deed.
+    let sturing = null;
+    if (await heeftPro(g)) {
+      const sets = await prisma.trainingSet.findMany({ where: { trainingOefeningId: regel.id }, orderBy: { nummer: "asc" }, select: SET_VELDEN });
+      sturing = bijsturing(regel.oefening, regel, sets.filter(isWerkset));
+    }
+    return { set, bijsturing: sturing };
   });
 
   app.delete<{ Params: SetParams }>("/api/trainingen/:id/oefeningen/:toId/sets/:nummer", async (request, reply) => {

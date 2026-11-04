@@ -11,8 +11,10 @@ import {
   SETS_PER_TRAINING_GRENS,
   SETS_PER_WEEK_REFERENTIE,
   teVolPerTraining,
+  setsVoorVolume,
   type SetSpieren,
 } from "../voortgang.js";
+import { isWerkset } from "../progressie.js";
 import { ALLE_SPIER_LABELS, programmaDoel, spierLabels } from "../spieren.js";
 
 export async function voortgangRoutes(app: FastifyInstance) {
@@ -80,7 +82,7 @@ export async function voortgangRoutes(app: FastifyInstance) {
             t.oefeningen.map((to) => ({
               spierenPrimair: to.oefening.spierenPrimair,
               spierenSecundair: to.oefening.spierenSecundair,
-              sets: to.sets.length,
+              sets: setsVoorVolume(to.sets),
             })),
           ),
       );
@@ -127,7 +129,7 @@ export async function voortgangRoutes(app: FastifyInstance) {
     for (const t of trainingen) {
       for (const to of t.oefeningen) {
         if (to.oefening.gewichtsstap <= 0) continue;
-        const beste = besteE1rm(to.sets);
+        const beste = besteE1rm(to.sets.filter(isWerkset));
         if (beste === null) continue;
         const rij = perOefening.get(to.oefeningId) ?? { id: to.oefeningId, naam: to.oefening.naam, punten: [], laatst: 0, volgorde: 0 };
         rij.punten.push({ datum: dagVan(t.datum), e1rm: beste });

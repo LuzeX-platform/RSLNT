@@ -22,7 +22,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
   /** Een oefening van het eerste account, op sleutel. */
   const mijnOefening = (sleutel: string) => prisma.oefening.findUnique({ where: { gebruikerId_sleutel: { gebruikerId: ikId, sleutel } } });
 
-  type Antwoord = { statusCode: number; json: () => any; headers: Record<string, unknown>; rawPayload: Buffer };
+  type Antwoord = { statusCode: number; json: () => any; body: string; headers: Record<string, unknown>; rawPayload: Buffer };
   async function vraag(method: string, url: string, payload?: unknown): Promise<Antwoord> {
     return app.inject({ method: method as "GET", url, payload: payload as object, headers: { cookie } });
   }
@@ -195,7 +195,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal(await zet({ pijn: 3, pijnPlek: "teen" }), 400);
     assert.equal(await zet({ pijn: 11 }), 400);
     const detail = (await vraag("GET", `/api/trainingen/${benen}`)).json();
-    assert.deepEqual(Object.keys(detail.oefeningen[1].sets[0]).sort(), ["gewicht", "nummer", "pijn", "pijnPlek", "reps", "rir"]);
+    assert.deepEqual(Object.keys(detail.oefeningen[1].sets[0]).sort(), ["gewicht", "nummer", "pijn", "pijnPlek", "reps", "rir", "soort"]);
     assert.equal((await vraag("DELETE", pad)).statusCode, 200);
   });
 
@@ -1003,6 +1003,212 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       delete process.env.LUZEX_INTERN_SLEUTEL;
       await new Promise((resolve) => nepAccrd.close(resolve));
     }
+  });
+
+  /** Een sessiecookie zonder in te loggen: de inlogroute heeft een rate limit per IP, en alle tests delen er één. */
+  const sessieVoor = async (email: string) => {
+    const { maakSessieToken } = await import("../src/auth.js");
+    const { COOKIE_NAME } = await import("../src/plugins/requireAuth.js");
+    const g = await prisma.gebruiker.findUniqueOrThrow({ where: { email } });
+    return `${COOKIE_NAME}=${maakSessieToken({ gebruikerId: g.id, email: g.email, versie: g.sessieVersie })}`;
+  };
+
+  test("Pro voor gevorderden: zonder Pro 402 op elk Pro-onderdeel, de gratis basis blijft werken", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    await prisma.gebruiker.create({
+      data: { email: "eva@test.nl", naam: "Eva de Vries", wachtwoordHash: await hashWachtwoord("eva-wachtwoord-1"), emailBevestigdOp: new Date() },
+    });
+    const cookieEva = await sessieVoor("eva@test.nl");
+    const dicht: [string, string, unknown?][] = [
+      ["GET", "/api/pro/analyse"],
+      ["GET", "/api/pro/vandaag"],
+      ["GET", "/api/pro/periodisering"],
+      ["PUT", "/api/pro/periodisering", { doel: "kracht", start: "2026-11-04" }],
+      ["DELETE", "/api/pro/periodisering"],
+      ["GET", "/api/pro/duur"],
+      ["POST", "/api/pro/duur", { datum: "2026-11-01", soort: "hardlopen", minuten: 30, intensiteit: "rustig" }],
+      ["GET", "/api/pro/pijn"],
+      ["POST", "/api/pro/pijn/notities", { datum: "2026-11-01", plek: "knie", ernst: 3 }],
+      ["GET", "/api/pro/export/sets.csv"],
+      ["GET", "/api/pro/export/duur.csv"],
+      ["GET", "/api/pro/deellinks"],
+      ["POST", "/api/pro/deellinks", { naam: "Trainer", onderdelen: ["kracht"], dagen: 7 }],
+    ];
+    for (const [methode, pad, body] of dicht) {
+      const res = await vraagAls(cookieEva, methode, pad, body);
+      assert.equal(res.statusCode, 402, `${methode} ${pad}`);
+      assert.equal(res.json().errorCode, "PRO_VEREIST");
+    }
+    // De gratis basis: standaardschema, training, opwarmsets — geen bijsturing.
+    assert.equal((await vraagAls(cookieEva, "POST", "/api/standaardschema", { dagenPerWeek: 3 })).statusCode, 200);
+    const scherm = (await vraagAls(cookieEva, "GET", "/api/vandaag")).json();
+    assert.equal((await vraagAls(cookieEva, "POST", "/api/trainingen", { schemaId: scherm.volgendeSchema.id, licht: true })).statusCode, 402);
+    const { schemas } = (await vraagAls(cookieEva, "GET", "/api/schemas")).json();
+    const regels = schemas[0].oefeningen.map((r: any) => ({ ...r, supersetGroep: r.supersetGroep || null }));
+    // Zonder Pro geen eigen progressieregel of techniek; een gewone wijziging mag wel.
+    assert.equal((await vraagAls(cookieEva, "PUT", `/api/schemas/${schemas[0].id}`, { oefeningen: [{ ...regels[0], techniek: "dropset" }, ...regels.slice(1)] })).statusCode, 402);
+    assert.equal((await vraagAls(cookieEva, "PUT", `/api/schemas/${schemas[0].id}`, { oefeningen: [{ ...regels[0], progressie: "rir" }, ...regels.slice(1)] })).statusCode, 402);
+    assert.equal((await vraagAls(cookieEva, "PUT", `/api/schemas/${schemas[0].id}`, { oefeningen: regels })).statusCode, 200);
+    const start = (await vraagAls(cookieEva, "POST", "/api/trainingen", { schemaId: scherm.volgendeSchema.id })).json();
+    const detail = (await vraagAls(cookieEva, "GET", `/api/trainingen/${start.id}`)).json();
+    assert.equal(detail.pro, false);
+    const eerste = detail.oefeningen[0];
+    const set = await vraagAls(cookieEva, "PUT", `/api/trainingen/${start.id}/oefeningen/${eerste.id}/sets/1`, { gewicht: 40, reps: 8, rir: 4, pijn: null });
+    assert.equal(set.statusCode, 200);
+    assert.equal(set.json().bijsturing, null, "bijsturen per set is Pro");
+    assert.equal((await vraagAls(cookieEva, "PUT", `/api/trainingen/${start.id}/oefeningen/${eerste.id}/sets/5`, { gewicht: 30, reps: 8, rir: 0, pijn: null, soort: "drop" })).statusCode, 400);
+    await vraagAls(cookieEva, "POST", `/api/trainingen/${start.id}/afronden`);
+    const volgende = (await vraagAls(cookieEva, "GET", `/api/trainingen/${start.id}`)).json().oefeningen[0];
+    assert.ok(Array.isArray(volgende.opwarmen), "opwarmsets zijn gratis");
+    assert.equal((await vraagAls("", "POST", "/api/gedeeld", { token: "x".repeat(32) })).statusCode, 404);
+  });
+
+  test("Pro: analyse, advies voor vandaag, lichte dag, blokken, technieken en bijsturen per set", async () => {
+    const bezig = await prisma.training.findFirst({ where: { gebruikerId: ikId, status: "bezig" } });
+    if (bezig) await vraag("POST", `/api/trainingen/${bezig.id}/afronden`);
+    const analyse = (await vraag("GET", "/api/pro/analyse")).json();
+    assert.ok(analyse.oefeningen.length > 0);
+    const o = analyse.oefeningen[0];
+    assert.equal(o.richtgewichten.length, 6);
+    assert.ok(o.records.length > 0);
+    assert.equal(analyse.volume.blokken.length, 8);
+    assert.ok(analyse.volume.rijen.every((r: any) => r.weken.length === 8 && r.label));
+
+    const advies = (await vraag("GET", "/api/pro/vandaag")).json();
+    assert.ok(["normaal", "lichte_dag", "deload"].includes(advies.advies));
+    assert.ok(advies.redenen.length > 0);
+    assert.equal(typeof advies.hybride.week.minuten, "number");
+
+    // Lichte dag: één set minder dan het schema, een rep meer over.
+    const scherm = (await vraag("GET", "/api/vandaag")).json();
+    const { schemas } = (await vraag("GET", "/api/schemas")).json();
+    const schema = schemas.find((s: any) => s.id === scherm.volgendeSchema.id);
+    const licht = (await vraag("POST", "/api/trainingen", { schemaId: schema.id, licht: true })).json();
+    const lichtDetail = (await vraag("GET", `/api/trainingen/${licht.id}`)).json();
+    if (scherm.programma.fase.fase === "normaal") {
+      assert.equal(lichtDetail.training.fase, "licht");
+      assert.equal(lichtDetail.oefeningen[0].aantalSets, Math.max(1, schema.oefeningen[0].aantalSets - 1));
+    }
+    assert.equal((await vraag("DELETE", `/api/trainingen/${licht.id}`)).statusCode, 200);
+
+    // Blokken: een krachtplan vanaf vandaag; de training legt het blok vast (opbouw: RIR +1).
+    const dag = scherm.gewicht.vandaag;
+    assert.equal((await vraag("PUT", "/api/pro/periodisering", { doel: "kracht", start: "2020-01-01" })).statusCode, 400);
+    const plan = (await vraag("PUT", "/api/pro/periodisering", { doel: "kracht", start: dag })).json();
+    assert.equal(plan.plan.totaalWeken, 9);
+    assert.equal(plan.blok.soort, "opbouw");
+    const inBlok = (await vraag("POST", "/api/trainingen", { schemaId: schema.id })).json();
+    const blokDetail = (await vraag("GET", `/api/trainingen/${inBlok.id}`)).json();
+    assert.equal(blokDetail.training.blok, "opbouw");
+    if (blokDetail.training.fase === "normaal" && schema.oefeningen[0].doelRir !== null) {
+      assert.equal(blokDetail.oefeningen[0].doelRir, Math.min(4, schema.oefeningen[0].doelRir + 1));
+    }
+    assert.equal((await vraag("DELETE", `/api/trainingen/${inBlok.id}`)).statusCode, 200);
+    assert.equal((await vraag("DELETE", "/api/pro/periodisering")).json().plan, null);
+
+    // Technieken en een eigen progressieregel in het schema; de training neemt ze over.
+    const regels = schema.oefeningen.map((r: any) => ({ ...r, supersetGroep: r.supersetGroep || null }));
+    const metTechniek = [{ ...regels[0], techniek: "dropset", progressie: "lineair" }, ...regels.slice(1)];
+    assert.equal((await vraag("PUT", `/api/schemas/${schema.id}`, { oefeningen: metTechniek })).statusCode, 200);
+    const t = (await vraag("POST", "/api/trainingen", { schemaId: schema.id })).json();
+    const td = (await vraag("GET", `/api/trainingen/${t.id}`)).json();
+    const eerste = td.oefeningen[0];
+    assert.equal(eerste.techniek, "dropset");
+    assert.equal(eerste.progressie, "lineair");
+    assert.equal(td.pro, true);
+    const pad = (n: number) => `/api/trainingen/${t.id}/oefeningen/${eerste.id}/sets/${n}`;
+    // Onder de range met 0 over: zwaarder dan bedoeld, de volgende set gaat omlaag.
+    const s1 = await vraag("PUT", pad(1), { gewicht: 60, reps: Math.max(0, eerste.repsMin - 1), rir: 0, pijn: null });
+    if (eerste.aantalSets > 1 && eerste.gewichtsstap > 0) {
+      assert.equal(s1.json().bijsturing.actie, "omlaag", JSON.stringify(s1.json().bijsturing));
+      assert.ok(s1.json().bijsturing.gewicht < 60);
+    }
+    const dropNummer = eerste.aantalSets + 1;
+    assert.equal((await vraag("PUT", pad(dropNummer), { gewicht: 45, reps: 8, rir: 0, pijn: null, soort: "drop" })).statusCode, 200);
+    assert.equal((await vraag("PUT", pad(dropNummer + 1), { gewicht: 45, reps: 8, rir: 0, pijn: null, soort: "myo" })).statusCode, 400);
+    const naDrop = (await vraag("GET", `/api/trainingen/${t.id}`)).json().oefeningen[0];
+    assert.equal(naDrop.sets.find((s: any) => s.nummer === dropNummer).soort, "drop");
+    assert.equal((await vraag("DELETE", `/api/trainingen/${t.id}`)).statusCode, 200);
+    assert.equal((await vraag("PUT", `/api/schemas/${schema.id}`, { oefeningen: regels })).statusCode, 200);
+  });
+
+  test("Pro: duurtraining, pijnlogboek, export en leeslinks — elk account alleen het eigen", async () => {
+    const cookieEva = await sessieVoor("eva@test.nl");
+    const evaId = (await prisma.gebruiker.findUniqueOrThrow({ where: { email: "eva@test.nl" } })).id;
+    await prisma.gebruiker.update({ where: { id: evaId }, data: { pro: true } });
+    const dag = (await vraag("GET", "/api/vandaag")).json().gewicht.vandaag;
+
+    // Duurtraining
+    assert.equal((await vraag("POST", "/api/pro/duur", { datum: dag, soort: "hardlopen", minuten: 0, intensiteit: "rustig" })).statusCode, 400);
+    const duur = (await vraag("POST", "/api/pro/duur", { datum: dag, soort: "hardlopen", minuten: 40, afstandKm: 8.25, intensiteit: "interval", notitie: "6×800" })).json();
+    const lijst = (await vraag("GET", "/api/pro/duur")).json();
+    assert.equal(lijst.duurtrainingen[0].afstandMeter, 8250);
+    assert.equal(lijst.week.minuten, 40);
+    assert.equal((await vraagAls(cookieEva, "GET", "/api/pro/duur")).json().duurtrainingen.length, 0, "Eva ziet A's duurtraining niet");
+    assert.equal((await vraagAls(cookieEva, "DELETE", `/api/pro/duur/${duur.id}`)).statusCode, 404);
+    assert.match((await vraag("GET", "/api/pro/export/duur.csv")).body, /^﻿Datum;Soort;Minuten;Afstand \(km\)/);
+    assert.match((await vraag("GET", "/api/pro/export/duur.csv")).body, /Hardlopen;40;8,25;interval;6×800/);
+
+    // Pijnlogboek
+    const notitie = (await vraag("POST", "/api/pro/pijn/notities", { datum: dag, plek: "knie", ernst: 3, notitie: "Zeurt na traplopen" })).json();
+    assert.equal((await vraagAls(cookieEva, "PATCH", `/api/pro/pijn/notities/${notitie.id}`, { status: "hersteld" })).statusCode, 404);
+    assert.equal((await vraag("PATCH", `/api/pro/pijn/notities/${notitie.id}`, { status: "hersteld" })).statusCode, 200);
+    const pijn = (await vraag("GET", "/api/pro/pijn")).json();
+    assert.equal(pijn.notities[0].status, "hersteld");
+    assert.equal(pijn.notities[0].herstelOp, dag);
+    assert.ok(pijn.plekken.some((p: any) => p.plek === "knie"), "pijn per set uit eerdere tests telt mee");
+    assert.equal((await vraagAls(cookieEva, "GET", "/api/pro/pijn")).json().notities.length, 0);
+
+    // Export van alle sets
+    const sets = await vraag("GET", "/api/pro/export/sets.csv");
+    assert.equal(sets.statusCode, 200);
+    assert.match(String(sets.headers["content-type"]), /text\/csv/);
+    assert.match(sets.body, /^﻿Datum;Training;Fase;Blok;Oefening;Set;Techniek;Gewicht \(kg\);Reps;RIR/);
+    assert.ok(sets.body.split("\r\n").length > 3, sets.body);
+
+    // Leeslink: alleen de gekozen onderdelen, intrekken werkt meteen, verlopen ook.
+    assert.equal((await vraag("POST", "/api/pro/deellinks", { naam: "Fysio", onderdelen: [], dagen: 30 })).statusCode, 400);
+    const nieuw = (await vraag("POST", "/api/pro/deellinks", { naam: "Fysio Sanne", onderdelen: ["pijn", "kracht"], dagen: 30 })).json();
+    const token = nieuw.url.split("#")[1];
+    assert.ok(token.length >= 30);
+    assert.equal(await prisma.deellink.count({ where: { tokenHash: token } }), 0, "alleen de hash staat in de database");
+    const gezien = await vraagAls("", "POST", "/api/gedeeld", { token });
+    assert.equal(gezien.statusCode, 200);
+    const inhoud = gezien.json();
+    assert.equal(inhoud.van, "Ik");
+    assert.equal(inhoud.voor, "Fysio Sanne");
+    assert.equal(inhoud.trainingen, null, "niet gekozen, niet gedeeld");
+    assert.equal(inhoud.duur, null);
+    assert.ok(inhoud.pijn.notities.length > 0);
+    assert.ok(!JSON.stringify(inhoud).includes("ik@test.nl"));
+    assert.ok(!JSON.stringify(inhoud).includes("lichaamsgewicht"));
+    assert.equal((await vraagAls(cookieEva, "POST", `/api/pro/deellinks/${nieuw.link.id}/intrekken`)).statusCode, 404, "Eva trekt A's link niet in");
+    assert.equal((await vraagAls(cookieEva, "GET", "/api/pro/deellinks")).json().links.length, 0);
+    assert.ok((await vraag("GET", "/api/pro/deellinks")).json().links[0].laatstBekekenOp);
+    assert.equal((await vraag("POST", `/api/pro/deellinks/${nieuw.link.id}/intrekken`)).statusCode, 200);
+    assert.equal((await vraagAls("", "POST", "/api/gedeeld", { token })).statusCode, 404);
+
+    const evaLink = (await vraagAls(cookieEva, "POST", "/api/pro/deellinks", { naam: "Trainer", onderdelen: ["trainingen"], dagen: 7 })).json();
+    const evaToken = evaLink.url.split("#")[1];
+    const evaGedeeld = (await vraagAls("", "POST", "/api/gedeeld", { token: evaToken })).json();
+    assert.equal(evaGedeeld.van, "Eva", "alleen de voornaam");
+    assert.equal(evaGedeeld.trainingen.length, 1);
+    await prisma.gebruiker.update({ where: { id: evaId }, data: { pro: false } });
+    assert.equal((await vraagAls("", "POST", "/api/gedeeld", { token: evaToken })).statusCode, 404, "zonder Pro werkt de link niet meer");
+    await prisma.gebruiker.update({ where: { id: evaId }, data: { pro: true } });
+    await prisma.deellink.updateMany({ where: { gebruikerId: evaId }, data: { verlooptOp: new Date(Date.now() - 1000) } });
+    assert.equal((await vraagAls("", "POST", "/api/gedeeld", { token: evaToken })).statusCode, 404, "verlopen");
+
+    // In je gegevensdownload, zonder tokenhash; weg bij het verwijderen van je account.
+    const exp = (await vraagAls(cookieEva, "GET", "/api/account/export")).json();
+    assert.equal(exp.deellinks.length, 1);
+    assert.ok(!JSON.stringify(exp).includes("tokenHash"));
+    await vraagAls(cookieEva, "POST", "/api/pro/duur", { datum: dag, soort: "fietsen", minuten: 30, intensiteit: "rustig" });
+    assert.equal((await vraagAls(cookieEva, "DELETE", "/api/account", { wachtwoord: "eva-wachtwoord-1" })).statusCode, 200);
+    for (const tabel of ["duurtraining", "pijnnotitie", "deellink"] as const) {
+      assert.equal(await (prisma[tabel] as any).count({ where: { gebruikerId: evaId } }), 0, tabel);
+    }
+    assert.equal((await vraag("GET", "/api/pro/duur")).json().duurtrainingen.length, 1, "A houdt de eigen duurtraining");
   });
 
   test("account: gegevens downloaden en verwijderen met alles erop en eraan", async () => {
