@@ -31,7 +31,8 @@ data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licent
   src/datum.ts        kalenderdagen in Europe/Amsterdam (de server draait in UTC)
   src/mailer.ts       SMTP via nodemailer (zoals CMMNTY); zonder SMTP_HOST gelogd en in testPostvak
   src/stripe.ts       Stripe-client + de Price-id van Pro, allebei lazy uit env (null/throw zonder)
-  src/entitlementsPro.ts  vereistPro(): preHandler voor Pro-only routes, fail-closed (zie "Afspraken")
+  src/entitlementsPro.ts  vereistPro(): preHandler voor Pro-only routes, fail-closed (zie "Afspraken").
+                      Nu door geen route gebruikt: bibliotheek en schema op maat zijn gratis; blijft staan voor nieuwe Pro-onderdelen
   src/luzexKruisproduct.ts  Kruisproduct-Pro v2: claimt/controleert bij ACCRD op kvk-nummer (SCRNN speelt hier geen rol meer in)
   src/routes/kruisproduct.ts  POST /api/account/kruisproduct-claim: de klant vult zelf zijn kvk-nummer in
   src/kruisproductCron.ts  dagelijkse Render-cron die Kruisproduct-Pro opnieuw controleert
@@ -46,8 +47,8 @@ frontend/           losse HTML + één script per pagina, geen build-stap
                       sessie, offline-wachtrij, 402 PRO_VEREIST → /pro.html — door elke pagina geladen
   grafiek.js          SVG-grafieken zonder bibliotheek: tijdGrafiek (punten, lijn, band) en staafGrafiek
                       (met referentielijn of een doel per rij)
-  bibliotheek.js      lijst (filters in de URL) en detail (?id=) van de oefeningenbibliotheek, Pro
-  personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import, voorstel Pro
+  bibliotheek.js      lijst (filters in de URL) en detail (?id=) van de oefeningenbibliotheek, gratis
+  personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import, gratis
   pro.js              upgraden en abonnement beheren, beide een redirect naar Stripe
   beheer.js           alleen rol admin: aantal aanmeldingen, bevestigd, Pro en de laatste 50
   sw.js               service worker: netwerk eerst, cache als terugval

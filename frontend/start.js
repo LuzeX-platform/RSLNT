@@ -35,13 +35,9 @@ function toonStap2(gebruiker) {
     ? "Kies hoe vaak je traint. Een ander aantal dagen werkt je standaardschema bij; je geschiedenis blijft."
     : "Kies hoe vaak je traint, dan staat je eerste training klaar.";
   const opMaat = document.getElementById("op-maat");
-  if (gebruiker?.pro) {
-    opMaat.href = naarStap2 ? "/personaliseren.html" : "/personaliseren.html?start=1";
-    opMaat.textContent = "Schema op maat";
-  } else {
-    opMaat.href = "/pro.html";
-    opMaat.textContent = "Schema op maat met Pro";
-  }
+  // Het schema op maat is gratis (zie routes/personalisatie.ts), dus geen omweg via /pro.html.
+  opMaat.href = naarStap2 ? "/personaliseren.html" : "/personaliseren.html?start=1";
+  opMaat.textContent = "Schema op maat";
 }
 
 document.getElementById("start-form").addEventListener("submit", async (e) => {

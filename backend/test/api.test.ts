@@ -819,13 +819,13 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const ingelogd = await vraagAls("", "POST", "/api/auth/inloggen", { email: "cas@test.nl", wachtwoord: "cas-wachtwoord-1" });
     const cookieCas = sessieCookie(ingelogd);
 
-    // Zonder Pro: 402 op de bibliotheek en het schema op maat, maar voorkeuren instellen mag wel.
-    const zonderPro = await vraagAls(cookieCas, "GET", "/api/bibliotheek");
-    assert.equal(zonderPro.statusCode, 402);
-    assert.equal(zonderPro.json().errorCode, "PRO_VEREIST");
-    assert.equal((await vraagAls(cookieCas, "GET", "/api/bibliotheek/Leg_Press")).statusCode, 402);
-    assert.equal((await vraagAls(cookieCas, "POST", "/api/bibliotheek/Leg_Press/toevoegen", { schemaId: "iets" })).statusCode, 402);
-    assert.equal((await vraagAls(cookieCas, "POST", "/api/voorstel")).statusCode, 402);
+    // Zonder Pro: de bibliotheek, de uitleg en het schema op maat zijn gratis.
+    assert.equal((await vraagAls(cookieCas, "GET", "/api/bibliotheek")).statusCode, 200);
+    const detail = await vraagAls(cookieCas, "GET", "/api/bibliotheek/Leg_Press");
+    assert.equal(detail.statusCode, 200);
+    assert.equal(detail.json().oefening.uitlegTaal, "nl");
+    assert.notEqual((await vraagAls(cookieCas, "POST", "/api/bibliotheek/Leg_Press/toevoegen", { schemaId: "iets" })).statusCode, 402);
+    assert.equal((await vraagAls(cookieCas, "POST", "/api/voorstel")).statusCode, 200);
     assert.equal((await vraagAls(cookieCas, "GET", "/api/voorkeuren")).statusCode, 200);
 
     // Pro wordt alleen door de Stripe-webhook gezet (zie entitlementsPro.ts) — hier direct in de
@@ -849,7 +849,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     });
     const cookieDirk = sessieCookie(await vraagAls("", "POST", "/api/auth/inloggen", { email: "dirk@test.nl", wachtwoord: "dirk-wachtwoord-1" }));
     assert.equal((await vraagAls(cookieDirk, "GET", "/api/vandaag")).json().programma, null);
-    assert.equal((await vraagAls(cookieDirk, "POST", "/api/voorstel")).statusCode, 402, "op maat blijft Pro");
+    assert.equal((await vraagAls(cookieDirk, "POST", "/api/voorstel")).statusCode, 200, "op maat is gratis");
 
     for (const dagen of [1, 5, "3"]) {
       assert.equal((await vraagAls(cookieDirk, "POST", "/api/standaardschema", { dagenPerWeek: dagen })).statusCode, 400, `dagen ${dagen}`);

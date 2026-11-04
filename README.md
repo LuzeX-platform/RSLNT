@@ -30,7 +30,7 @@ eigen deployment, eigen geheimen.
 | 2 | Gezondheidsmenu (lengte, vet%, BMI, FFMI, calorie- en eiwitdoel, tempo en doeldatum), dashboard (gewicht vs. doeltempo, e1RM, sets per spiergroep, volle trainingen), herstelcheck | **gebouwd** |
 | 3 | Oefeningenbibliotheek (876 oefeningen, publiek domein) en personalisatiemenu met schemavoorstel | **gebouwd** |
 | 4 | Accounts: portaal, registreren met bevestigingsmail, wachtwoord vergeten, alle data per persoon, privacyverklaring, gegevens downloaden en account verwijderen | **gebouwd** |
-| 4b | Pro-paywall via Stripe: schema op maat en de oefeningenbibliotheek zijn Pro, loggen/voortgang/herstel blijven gratis | **gebouwd** |
+| 4b | Pro-paywall via Stripe (gebouwd). Schema op maat en bibliotheek zijn sinds november 2026 gratis; Pro wacht op eigen onderdelen voor gevorderden en is tot dan niet te koop | **gebouwd, Pro leeg** |
 | — | Garmin-koppeling (synchroniseren) | geschrapt |
 | 4c | Export naar Garmin: elke afgeronde training als FIT-bestand (krachttraining) | **gebouwd** |
 | 5 | AI-coach: Claude past het voorstel aan binnen vaste opties | — |
@@ -47,7 +47,7 @@ Een fase begint pas als de vorige in de sportschool werkt.
   sessies vervallen). Niet bevestigde accounts verdwijnen na 7 dagen.
 - **Start** (nieuw account) — geslacht, geboortedatum, lengte en gewicht, daarna je schema:
   gratis het **standaardschema** (2× of 3× full body, 4× boven/onder; sportschool, 60 minuten,
-  beginnersvriendelijk), met Pro het schema op maat. Via Schema → Standaardschema kies je later
+  beginnersvriendelijk), of het schema op maat. Via Schema → Standaardschema kies je later
   een ander aantal dagen (`POST /api/standaardschema`, programma "standaard").
 - **Account** — naam en wachtwoord wijzigen, al je gegevens downloaden (JSON), uitloggen (wist
   ook de offline-kopieën op de telefoon) en je account met alles verwijderen.
@@ -98,12 +98,12 @@ Een fase begint pas als de vorige in de sportschool werkt.
   min. sets, rep-range, RIR, rust, superset, cue). Oefeningen toevoegen met gewichtsstap en
   per kant. **Programma's** inladen als JSON (eerst gecontroleerd), activeren en terug
   downloaden.
-- **Oefeningen** (via Schema, **Pro**) — 876 oefeningen uit Free Exercise DB met foto's en uitleg
+- **Oefeningen** (via Schema, gratis) — 876 oefeningen uit Free Exercise DB met foto's en uitleg
   (Engels), zoeken ook in het Nederlands ("bankdrukken", "kuit"), filters op spiergroep,
   materiaal en beweging. Per oefening: spieren, materiaal, cue, favoriet of
   "niet voor mij", toevoegen aan een training en vergelijkbare oefeningen. In een training en in
   de schema-editor staat bij elke gekoppelde oefening een link naar de uitleg.
-- **Schema op maat** (via Schema, **Pro**) — doel, ervaring, dagen per week, minuten per
+- **Schema op maat** (via Schema, gratis) — doel, ervaring, dagen per week, minuten per
   training, materiaal, klachten (knie, schouder, onderrug), extra aandacht en doelgewicht met
   datum. Je krijgt een voorstel met per training de oefeningen, sets, reps, RIR en rust, het
   weekvolume per spiergroep naast het doel, en wat er niet past. Downloaden als JSON, of inladen
@@ -111,13 +111,15 @@ Een fase begint pas als de vorige in de sportschool werkt.
   sleutel en dus hun geschiedenis. Hoe het werkt: Wetenschap → "Schema op maat".
 - **Pro** (`/pro.html`) — upgraden (Stripe Checkout) en je abonnement beheren (Stripe Billing
   Portal), allebei een redirect naar een door Stripe gehoste pagina; er draait geen Stripe.js in
-  RSLNT zelf. Alles daarbuiten — loggen, voortgang, lichaam, herstel, een eigen programma-JSON
-  inladen — blijft gratis voor iedereen met een account. Het eigenaarsaccount (seed, rol admin)
+  RSLNT zelf. Alles wat er nu is — loggen, voortgang, lichaam, herstel, schema op maat, de
+  bibliotheek met uitleg, een eigen programma-JSON inladen — is gratis voor iedereen met een
+  account. Pro heeft op dit moment geen eigen onderdelen: `PRO_IN_VERKOOP` in `pro.js` staat
+  uit, dus er is geen upgradeknop en geen ACCRD-claim; wie al Pro heeft kan zijn abonnement nog
+  beheren. Het eigenaarsaccount (seed, rol admin)
   is altijd Pro, zonder dat daar een abonnement voor loopt. Zie `backend/src/entitlementsPro.ts`.
-  **Kruisproduct-Pro:** heb je bij het bevestigen van je e-mailadres een actief, betalend
-  ACCRD- of SCRNN-account (zelfde adres), dan krijg je Pro automatisch gratis — een dagelijkse
-  cron controleert dit opnieuw en trekt het in zodra dat account niet meer actief is, zonder
-  ooit een betaald Stripe-abonnement aan te raken. Zie `backend/src/luzexEntitlement.ts` en
+  **Kruisproduct-Pro:** met een actief, betalend ACCRD-account claim je gratis Pro (Koppel met
+  ACCRD, of KvK-nummer plus koppelcode) — een dagelijkse cron controleert dit opnieuw, zonder
+  ooit een betaald Stripe-abonnement aan te raken. Zie `backend/src/luzexKruisproduct.ts` en
   hub/CLAUDE.md, "Kruisproduct-Pro".
 - **Wetenschap** — per regel: wat het onderzoek zegt, wat RSLNT ermee doet, hoe zeker het is
   (meta-analyse, studie, consensus, preprint, praktijkregel) en de bron. Openbaar leesbaar.
