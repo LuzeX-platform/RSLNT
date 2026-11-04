@@ -30,6 +30,20 @@
     </section>
 
     <section class="panel">
+      <h2>E-mail</h2>
+      <p class="subtitle">Bevestigings- en resetmails gaan via deze mailserver.</p>
+      <ul class="mail-status" id="mail-status"><li>Laden…</li></ul>
+      <form id="testmail-form" class="ruimte-boven" novalidate>
+        <label for="testmail-naar">Testmail sturen naar</label>
+        <input id="testmail-naar" type="email" autocomplete="off" placeholder="Leeg = naar jezelf" />
+        <p class="lijst-meta">Tip: open mail-tester.com, kopieer het adres dat je daar krijgt, plak het hier en klik daarna op mail-tester op “Check your score”.</p>
+        <button type="submit" class="ruimte-boven">Testmail sturen</button>
+        <p class="error" id="mail-fout" role="alert"></p>
+        <p class="success" id="mail-succes" role="status"></p>
+      </form>
+    </section>
+
+    <section class="panel">
       <h2>Pro cadeau geven</h2>
       <p class="subtitle">Vul een e-mailadres in. Heeft dat adres al een account, dan krijgt het meteen Pro. Zo niet, dan krijgt het Pro zodra iemand zich met dit adres aanmeldt en het bevestigt.</p>
       <form id="cadeau-form" class="ruimte-boven" novalidate>

@@ -37,6 +37,12 @@ export function appUrl(): string {
   return basis.trim().replace(/\/+$/, "");
 }
 
+/** Voor het beheer: staat de mail ingesteld, en vanaf welk adres? Nooit de gebruikersnaam of
+ *  het wachtwoord. Zonder SMTP_HOST "werkt" alles zonder fout maar komt er niets aan. */
+export function mailStatus(): { ingesteld: boolean; server: string | null; afzender: string } {
+  return { ingesteld: Boolean(process.env.SMTP_HOST), server: process.env.SMTP_HOST ?? null, afzender: afzender() };
+}
+
 /** Waarschuwingen bij het starten: zonder deze instellingen kan niemand zijn account bevestigen. */
 export function mailWaarschuwingen(): string[] {
   if (process.env.NODE_ENV !== "production") return [];
