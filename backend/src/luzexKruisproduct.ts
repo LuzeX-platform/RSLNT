@@ -28,14 +28,15 @@ function basisUrlEnSleutel(): { basisUrl: string; sleutel: string } | null {
  * "fout" terug (nooit "toegekend") zodat de aanroepende route dit nooit per ongeluk als succes
  * leest; de aanroeper beslist zelf hoe hij dat aan de klant meldt.
  */
-export async function claimKruisproductPro(kvkNummer: string, wisselen?: boolean): Promise<ClaimResultaat> {
+export async function claimKruisproductPro(kvkNummer: string, code: string, wisselen?: boolean): Promise<ClaimResultaat> {
   const config = basisUrlEnSleutel();
   if (!config) return { status: "fout" };
   try {
     const response = await fetch(`${config.basisUrl}/api/intern/luzex-kruisproduct-claim`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Luzex-Intern-Sleutel": config.sleutel },
-      body: JSON.stringify({ kvkNummer, product: "rslnt", wisselen }),
+      // De koppelcode uit ACCRD: het KvK-nummer alleen is openbaar (zie kruisproductCode.ts in ACCRD).
+      body: JSON.stringify({ kvkNummer, code, product: "rslnt", wisselen }),
       signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) return { status: "fout" };

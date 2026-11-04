@@ -789,7 +789,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     // over de hele testreeks, en een extra login laat een latere test op 429 stuklopen.
     const bo = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "bo@test.nl" } });
     await prisma.gebruiker.update({ where: { id: bo.id }, data: { pro: true, proBron: "handmatig" } });
-    const claim = await vraagAls(cookieB, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "1234 5678" });
+    const claim = await vraagAls(cookieB, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "1234 5678", code: "K7QM-3XHP" });
     assert.equal(claim.statusCode, 409);
     assert.equal(claim.json().errorCode, "AL_PRO");
     assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { id: bo.id } })).proBron, "handmatig");
@@ -887,7 +887,9 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       req.on("data", (stuk) => (body += stuk));
       req.on("end", () => {
         const data = body ? JSON.parse(body) : {};
-        if (data.kvkNummer === "33334444" && !data.wisselen) {
+        if (data.code !== "K7QM-3XHP") {
+          res.end(JSON.stringify({ status: "niet_actief" }));
+        } else if (data.kvkNummer === "33334444" && !data.wisselen) {
           res.end(JSON.stringify({ status: "al_gekozen", huidigeKeuze: "cmmnty" }));
         } else if (data.kvkNummer === "11112222" || (data.kvkNummer === "33334444" && data.wisselen)) {
           res.end(JSON.stringify({ status: "toegekend" }));
@@ -918,18 +920,23 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       assert.equal((await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker.pro, false);
 
       // Een kvk-nummer dat niet aan een actief ACCRD-account hangt: afgewezen, geen Pro.
-      const nietActief = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "00000000" });
+      const nietActief = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "00000000", code: "K7QM-3XHP" });
       assert.equal(nietActief.statusCode, 400);
       assert.equal(nietActief.json().errorCode, "NIET_ACTIEF");
 
+      // Het juiste (openbare) KvK-nummer met een verkeerde koppelcode: afgewezen, geen Pro.
+      const verkeerdeCode = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444", wisselen: true, code: "AAAA-BBBB" });
+      assert.equal(verkeerdeCode.statusCode, 400);
+      assert.equal(verkeerdeCode.json().errorCode, "NIET_ACTIEF");
+
       // Een kvk-nummer dat al CMMNTY gekozen heeft: zonder wisselen geweigerd met de huidige keuze.
-      const algekozen = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444" });
+      const algekozen = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444", code: "K7QM-3XHP" });
       assert.equal(algekozen.statusCode, 409);
       assert.equal(algekozen.json().huidigeKeuze, "cmmnty");
       assert.equal((await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker.pro, false);
 
       // Expliciet wisselen: nu wel toegekend.
-      const wissel = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444", wisselen: true });
+      const wissel = await vraagAls(cookieDaan, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "33334444", wisselen: true, code: "K7QM-3XHP" });
       assert.equal(wissel.statusCode, 200);
 
       const sessie = (await vraagAls(cookieDaan, "GET", "/api/auth/sessie")).json().gebruiker;

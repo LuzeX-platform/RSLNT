@@ -44,10 +44,12 @@
 
     <section class="panel" id="kruisproduct-paneel" hidden>
       <h2>Al een betalend ACCRD-account?</h2>
-      <p class="subtitle">Werk je met ACCRD, als organisatie of als onderaannemer van een organisatie die ervoor betaalt? Dan heb je gratis Pro. Vul het KvK-nummer in dat in ACCRD staat: je vindt het daar onder Mijn abonnement. Spaties of punten mogen.</p>
+      <p class="subtitle">Werk je met ACCRD, als organisatie of als onderaannemer van een organisatie die ervoor betaalt? Dan heb je gratis Pro. Je KvK-nummer en je koppelcode staan in ACCRD onder Mijn abonnement. Spaties of punten mogen.</p>
       <form id="kruisproduct-formulier">
         <label for="kvk-invoer">KvK-nummer</label>
         <input type="text" id="kvk-invoer" name="kvkNummer" inputmode="numeric" autocomplete="off" required />
+        <label for="code-invoer">Koppelcode uit ACCRD</label>
+        <input type="text" id="code-invoer" name="code" maxlength="20" autocomplete="off" autocapitalize="characters" placeholder="bijv. K7QM-3XHP" required />
         <button type="submit" class="knop-link">Claim gratis Pro</button>
       </form>
       <p class="error" id="kruisproduct-fout" role="alert"></p>

@@ -55,7 +55,8 @@ async function verstuurKruisproductClaim(kvkNummer, wisselen) {
   const wisselPaneel = document.getElementById("kruisproduct-wisselen");
   fout.textContent = "";
   try {
-    await api("/api/account/kruisproduct-claim", { methode: "POST", body: { kvkNummer, wisselen } });
+    const code = document.getElementById("code-invoer").value.trim();
+    await api("/api/account/kruisproduct-claim", { methode: "POST", body: { kvkNummer, code, wisselen } });
     wisselPaneel.hidden = true;
     window.location.reload();
   } catch (f) {
