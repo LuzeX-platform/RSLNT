@@ -783,6 +783,18 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
 
     await prisma.gebruiker.deleteMany({ where: { email: { in: ["fee@test.nl", "gijs@test.nl", "hans@test.nl"] } } });
 
+    // Wie Pro als cadeau heeft, kan dat niet inruilen voor Pro via ACCRD: dan zou de cron het
+    // later intrekken. De server weigert dat voordat hij ACCRD ook maar vraagt.
+    // Met de al ingelogde Bo, niet met een nieuwe login: de inloglimiet (10 per kwartier) telt
+    // over de hele testreeks, en een extra login laat een latere test op 429 stuklopen.
+    const bo = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "bo@test.nl" } });
+    await prisma.gebruiker.update({ where: { id: bo.id }, data: { pro: true, proBron: "handmatig" } });
+    const claim = await vraagAls(cookieB, "POST", "/api/account/kruisproduct-claim", { kvkNummer: "1234 5678" });
+    assert.equal(claim.statusCode, 409);
+    assert.equal(claim.json().errorCode, "AL_PRO");
+    assert.equal((await prisma.gebruiker.findUniqueOrThrow({ where: { id: bo.id } })).proBron, "handmatig");
+    await prisma.gebruiker.update({ where: { id: bo.id }, data: { pro: bo.pro, proBron: bo.proBron } });
+
     // Mailstatus: zonder SMTP_HOST zichtbaar "niet ingesteld", en de testknop zegt dat ook.
     assert.equal((await vraag("GET", "/api/admin/mail")).json().ingesteld, false);
     assert.equal((await vraag("POST", "/api/admin/mail/test", { naar: "test-abc@srv1.mail-tester.com" })).statusCode, 503);

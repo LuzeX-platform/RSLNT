@@ -2,15 +2,14 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
-import { claimKruisproductPro } from "../luzexKruisproduct.js";
+import { claimKruisproductPro, schoonKvkNummer } from "../luzexKruisproduct.js";
 
 // Kruisproduct-Pro v2: de klant vult hier zelf zijn kvk-nummer in om gratis Pro te claimen op
 // basis van een actief, betalend ACCRD-account. Zie luzexKruisproduct.ts en hub/CLAUDE.md voor
-// het volledige mechanisme. Bewust geen eigen check of de klant al Pro heeft (zoals bij de oude
-// bevestigroute): een Stripe-betaler die hier per ongeluk op klikt, krijgt gewoon "toegekend"
-// (idempotent bij ACCRD) en wij zetten proBron hier altijd op "accrd" — maar dat raakt nooit een
-// Stripe-klant per ongeluk zijn kaartgegevens of facturatie, en als hij zijn Stripe-abonnement
-// opzegt zet de webhook proBron toch weer op null bij de volgende statuswijziging, niet hier.
+// het volledige mechanisme. Wie al Pro heeft uit een andere bron (een Stripe-abonnement, of een
+// cadeau van de eigenaar) wordt geweigerd: anders zou die bron "accrd" worden en trekt
+// kruisproductCron.ts zijn Pro in zodra zijn ACCRD-account stopt, terwijl hij gewoon betaalt of
+// het cadeau nog geldt (zie hub/CLAUDE.md, "wordt nooit overschreven door deze claim-route").
 
 const claimSchema = z.object({
   kvkNummer: z.string().trim().min(1).max(20),
@@ -21,7 +20,13 @@ export async function kruisproductRoutes(app: FastifyInstance) {
   app.post("/api/account/kruisproduct-claim", { preHandler: requireIngelogd }, async (request, reply) => {
     const parsed = claimSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ errorCode: "ONGELDIGE_INVOER" });
-    const { kvkNummer, wisselen } = parsed.data;
+    const kvkNummer = schoonKvkNummer(parsed.data.kvkNummer);
+    const { wisselen } = parsed.data;
+
+    const huidig = await prisma.gebruiker.findUniqueOrThrow({ where: { id: gid(request) } });
+    if (huidig.pro && huidig.proBron !== "accrd") {
+      return reply.code(409).send({ errorCode: "AL_PRO", bericht: "Je hebt al Pro." });
+    }
 
     const resultaat = await claimKruisproductPro(kvkNummer, wisselen);
 
