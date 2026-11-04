@@ -81,3 +81,41 @@ document.getElementById("kruisproduct-wisselen-knop").addEventListener("click", 
   if (!laatstIngevuldKvk) return;
   await verstuurKruisproductClaim(laatstIngevuldKvk, true);
 });
+
+// "Koppel met ACCRD": de knop alleen als ACCRD hier ingesteld is. Terug uit ACCRD staan
+// accrd_token en state in de URL; die ronden we af en halen we meteen uit de adresbalk, zodat
+// een herlaadactie of een gedeelde link het token niet nog eens probeert.
+const terugUitAccrd = new URLSearchParams(window.location.search);
+if (terugUitAccrd.get("accrd_token") || terugUitAccrd.get("accrd")) history.replaceState(null, "", window.location.pathname);
+
+vereisSessie().then(async (g) => {
+  if (g.offline || g.pro) return;
+  api("/api/account/kruisproduct-koppelen")
+    .then(({ beschikbaar }) => { document.getElementById("koppel-accrd-blok").hidden = !beschikbaar; })
+    .catch(() => {});
+  const token = terugUitAccrd.get("accrd_token");
+  const state = terugUitAccrd.get("state");
+  if (!token || !state) return;
+  const fout = document.getElementById("kruisproduct-fout");
+  try {
+    await api("/api/account/kruisproduct-koppelen/afronden", { methode: "POST", body: { token, state } });
+    window.location.reload();
+  } catch (f) {
+    fout.textContent = foutTekst(f);
+    document.getElementById("kruisproduct-paneel").scrollIntoView({ block: "center" });
+  }
+});
+
+document.getElementById("koppel-accrd").addEventListener("click", async (event) => {
+  const knop = event.currentTarget;
+  const fout = document.getElementById("kruisproduct-fout");
+  fout.textContent = "";
+  knop.disabled = true;
+  try {
+    const { url } = await api("/api/account/kruisproduct-koppelen/start", { methode: "POST" });
+    window.location.href = url;
+  } catch (f) {
+    fout.textContent = foutTekst(f);
+    knop.disabled = false;
+  }
+});

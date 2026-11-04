@@ -955,6 +955,52 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     }
   });
 
+  test("Koppel met ACCRD: start zet een state-cookie, afronden wisselt het token alleen met die state in", async () => {
+    const http = await import("node:http");
+    let verwachteState = "";
+    const nepAccrd = http.createServer((req, res) => {
+      res.setHeader("content-type", "application/json");
+      let body = "";
+      req.on("data", (d) => (body += d));
+      req.on("end", () => {
+        const { token, state, product } = JSON.parse(body || "{}");
+        const goed = req.headers["x-luzex-intern-sleutel"] === "test-sleutel" && token === "goed-token-0123456789abcdef" && state === verwachteState && product === "rslnt";
+        res.end(JSON.stringify(goed ? { status: "toegekend", kvkNummer: "77778888" } : { status: "ongeldig" }));
+      });
+    });
+    await new Promise<void>((resolve) => nepAccrd.listen(0, resolve));
+    process.env.ACCRD_INTERN_URL = `http://127.0.0.1:${(nepAccrd.address() as import("node:net").AddressInfo).port}`;
+    process.env.LUZEX_INTERN_SLEUTEL = "test-sleutel";
+    // Bo kan hier al Pro hebben uit een eerdere test; even gratis zetten en daarna terugzetten.
+    const boVoor = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "bo@test.nl" } });
+    await prisma.gebruiker.update({ where: { id: boVoor.id }, data: { pro: false, proBron: null } });
+    try {
+      assert.equal((await vraagAls(cookieB, "GET", "/api/account/kruisproduct-koppelen")).json().beschikbaar, true);
+      const start = await vraagAls(cookieB, "POST", "/api/account/kruisproduct-koppelen/start");
+      assert.equal(start.statusCode, 200);
+      const url = new URL(start.json().url);
+      assert.equal(url.searchParams.get("product"), "rslnt");
+      verwachteState = url.searchParams.get("state")!;
+      const stateCookie = start.cookies.find((c) => c.name === "kruisproduct_state")!;
+      assert.equal(stateCookie.value, verwachteState);
+
+      const zonderCookie = await vraagAls(cookieB, "POST", "/api/account/kruisproduct-koppelen/afronden", { token: "goed-token-0123456789abcdef", state: verwachteState });
+      assert.equal(zonderCookie.json().errorCode, "KOPPELING_VERLOPEN");
+
+      const goed = await vraagAls(`${cookieB}; kruisproduct_state=${stateCookie.value}`, "POST", "/api/account/kruisproduct-koppelen/afronden", { token: "goed-token-0123456789abcdef", state: verwachteState });
+      assert.equal(goed.statusCode, 200);
+      const bo = await prisma.gebruiker.findUniqueOrThrow({ where: { email: "bo@test.nl" } });
+      assert.equal(bo.pro, true);
+      assert.equal(bo.proBron, "accrd");
+      assert.equal(bo.kruisproductKvkNummer, "77778888");
+    } finally {
+      await prisma.gebruiker.update({ where: { id: boVoor.id }, data: { pro: boVoor.pro, proBron: boVoor.proBron, kruisproductKvkNummer: boVoor.kruisproductKvkNummer } });
+      delete process.env.ACCRD_INTERN_URL;
+      delete process.env.LUZEX_INTERN_SLEUTEL;
+      await new Promise((resolve) => nepAccrd.close(resolve));
+    }
+  });
+
   test("account: gegevens downloaden en verwijderen met alles erop en eraan", async () => {
     // B traint eerst, zodat er trainingen, sets en oefeningen zijn om te verwijderen.
     const scherm = (await vraagAls(cookieB, "GET", "/api/vandaag")).json();
