@@ -9,7 +9,7 @@ vereisSessie().then((g) => {
   document.getElementById("kop").textContent = g.naam;
   document.getElementById("email").textContent = g.email;
   document.getElementById("naam").value = g.naam;
-  document.getElementById("pro-status").textContent = g.pro ? "Je hebt Pro." : "Je gebruikt RSLNT gratis: trainen, je schema op maat, de bibliotheek en de uitleg.";
+  document.getElementById("pro-status").textContent = g.pro ? "Je hebt Pro: analyse, advies voor vandaag, blokken, technieken, duurtraining, pijnlogboek en delen." : "Je gebruikt RSLNT gratis: trainen met een voorstel per set, je schema op maat, de bibliotheek en je voortgang. Pro is verdieping voor wie serieuzer traint.";
   // Het eigenaarsaccount beheert de app en kan niet zichzelf verwijderen.
   document.getElementById("verwijder-paneel").hidden = g.rol === "admin";
   document.getElementById("beheer-paneel").hidden = g.rol !== "admin";

@@ -60,6 +60,9 @@ model Gebruiker {
   herstelchecks Herstelcheck[]
   profiel       Profiel?
   voorkeuren    Voorkeuren?
+  duurtrainingen Duurtraining[]
+  pijnnotities  Pijnnotitie[]
+  deellinks     Deellink[]
 }
 
 model Oefening {
@@ -121,6 +124,10 @@ model Programma {
   deloadTot         DateTime? @db.Date
   /// Het geïmporteerde bestand, ongewijzigd: voor export en voor latere fases (doel, regels).
   bron              Json?
+  /// Pro: een blokplan (periodisering.ts): { doel, start, blokken: [{ soort, weken }] }. Leeg =
+  /// geen blokken. Een training legt haar blok vast (Training.blok), dus stoppen of een nieuw
+  /// plan herschrijft de geschiedenis niet.
+  periodisering     Json?
   aangemaaktOp      DateTime  @default(now())
 
   gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
@@ -165,6 +172,10 @@ model SchemaOefening {
   rustSeconden  Int?
   doelRir       Int?
   cue           String  @default("")
+  /// Pro: dubbel | lineair | rir | vast (zie progressie.ts). Zonder Pro geldt altijd "dubbel".
+  progressie    String  @default("dubbel")
+  /// Pro: dropset | myoreps | restpauze na de laatste set, of null.
+  techniek      String?
 
   schema   Schema   @relation(fields: [schemaId], references: [id], onDelete: Cascade)
   oefening Oefening @relation(fields: [oefeningId], references: [id])
@@ -180,8 +191,11 @@ model Training {
   notitie      String    @default("")
   /// bezig | afgerond
   status       String    @default("bezig")
-  /// normaal | intro | deload — vastgelegd bij het starten.
+  /// normaal | intro | deload | licht — vastgelegd bij het starten. "licht" is de lichte dag
+  /// (Pro): één set minder en een rep meer over, alleen voor deze training.
   fase         String    @default("normaal")
+  /// Pro: het blok uit het blokplan (opbouw, volume, intensivering, piek), vastgelegd bij het starten.
+  blok         String?
   /// Week van het programma (1 = eerste week), vastgelegd bij het starten.
   week         Int?
   afgerondOp   DateTime?
@@ -211,6 +225,9 @@ model TrainingOefening {
   cue                 String  @default("")
   /// Gezet als je deze oefening voor een alternatief hebt gewisseld: de oefening uit het schema.
   origineleOefeningId String?
+  /// Momentopname van de progressieregel en techniek van die dag ("dubbel" zonder Pro).
+  progressie          String  @default("dubbel")
+  techniek            String?
 
   training Training      @relation(fields: [trainingId], references: [id], onDelete: Cascade)
   oefening Oefening      @relation(fields: [oefeningId], references: [id])
@@ -232,6 +249,9 @@ model TrainingSet {
   pijn               Int?
   /// Waar: knie, schouder, elleboog, pols, onderrug, heup, enkel, anders (pijn.ts). Leeg: niet gezegd.
   pijnPlek           String?
+  /// normaal | drop | myo | restpauze. Een techniekset (Pro) komt na de gewone sets, telt voor de
+  /// helft mee in je volume en niet mee voor je progressie of je geschatte 1RM.
+  soort              String   @default("normaal")
   opgeslagenOp       DateTime @default(now()) @updatedAt
 
   trainingOefening TrainingOefening @relation(fields: [trainingOefeningId], references: [id], onDelete: Cascade)
@@ -344,4 +364,65 @@ model ProUitnodiging {
   aangemaaktOp  DateTime  @default(now())
   ingewisseldOp DateTime?
   ingetrokkenOp DateTime?
+}
+
+/// Pro: een duurtraining (hardlopen, fietsen …) naast je krachttraining, voor het hybride advies.
+model Duurtraining {
+  id           String   @id @default(cuid())
+  gebruikerId  String
+  datum        DateTime @db.Date
+  /// hardlopen | fietsen | zwemmen | roeien | wandelen | anders
+  soort        String
+  minuten      Int
+  /// In hele meters; leeg mag.
+  afstandMeter Int?
+  /// rustig | duur | tempo | interval
+  intensiteit  String
+  notitie      String   @default("")
+  aangemaaktOp DateTime @default(now())
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@index([gebruikerId, datum])
+}
+
+/// Pro: een notitie in het pijnlogboek, naast de pijn die je per set en in de herstelcheck geeft.
+/// Niet verwijderen maar op "hersteld" zetten: zo blijft het verloop voor je fysio te zien.
+model Pijnnotitie {
+  id           String    @id @default(cuid())
+  gebruikerId  String
+  datum        DateTime  @db.Date
+  /// pijn.ts
+  plek         String
+  /// 0–10
+  ernst        Int
+  notitie      String    @default("")
+  /// actief | hersteld
+  status       String    @default("actief")
+  herstelOp    DateTime? @db.Date
+  aangemaaktOp DateTime  @default(now())
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@index([gebruikerId, datum])
+}
+
+/// Pro: een leeslink voor je trainer of fysio. Alleen de sha256-hash van het token staat hier.
+/// Intrekken zet een datum; de rij blijft, zodat je ziet wie wanneer toegang had.
+model Deellink {
+  id              String    @id @default(cuid())
+  gebruikerId     String
+  tokenHash       String    @unique
+  /// Voor wie, bijvoorbeeld "Fysio Sanne". Alleen voor jezelf.
+  naam            String
+  /// trainingen | kracht | pijn | duur
+  onderdelen      String[]
+  verlooptOp      DateTime
+  ingetrokkenOp   DateTime?
+  laatstBekekenOp DateTime?
+  aangemaaktOp    DateTime  @default(now())
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@index([gebruikerId])
 }

@@ -16,11 +16,36 @@ const opslaanTimers = new Map();
 const wisselOpen = new Set();
 
 /** Waar het onderzoek achter een voorstel staat (wetenschap.html). */
-function waaromAnker(v) {
+function waaromAnker(v, o) {
   if (v.pijnRegel) return "pijn";
   if (v.actie === "terug") return "stagnatie";
   if (v.actie === "deload") return "deload";
+  if (o && o.progressie && o.progressie !== "dubbel") return "progressieregels";
   return "progressie";
+}
+
+// ---------- Technieken (Pro) ----------
+
+const TECHNIEK = {
+  dropset: { soort: "drop", knop: "+ Dropset", label: "Dropset", rust: 0, hint: "Meteen door, zonder rust: ongeveer 20% lichter, tot je nog 1 rep over hebt." },
+  myoreps: { soort: "myo", knop: "+ Myo-rep-set", label: "Myo-reps", rust: 15, hint: "15 seconden rust, dan 3–5 reps met hetzelfde gewicht. Herhaal tot je de reps niet meer haalt. Elke mini-set apart loggen." },
+  restpauze: { soort: "restpauze", knop: "+ Rest-pause-set", label: "Rest-pause", rust: 20, hint: "15–20 seconden rust, dan zoveel reps als netjes kan met hetzelfde gewicht. Eén of twee keer." },
+};
+const SOORT_TECHNIEK = Object.fromEntries(Object.values(TECHNIEK).map((t) => [t.soort, t]));
+const REGEL_NAMEN = { lineair: "lineair", rir: "op gevoel (RIR)", vast: "vast" };
+
+const isWerkrij = (rij) => !rij.soort || rij.soort === "normaal";
+
+// ---------- Schijven (gratis) ----------
+// Het gewicht van je stang is per sportschool anders; je keuze blijft op deze telefoon staan.
+const STANGEN = [20, 15, 10];
+function stangGewicht() {
+  try {
+    const w = Number(localStorage.getItem("rslnt-stang"));
+    return STANGEN.includes(w) ? w : 20;
+  } catch {
+    return 20;
+  }
 }
 
 /** Zonder gewichtsstap (dead bug) geen gewichtveld; een back extension met een schijf heeft er wel een. */
@@ -94,8 +119,24 @@ function voorstelHtml(v) {
   return `
     <div class="voorstel voorstel-${v.actie}">
       <span class="voorstel-waarde">${voorstelWaarde(v)}</span>
-      <span class="voorstel-reden">${escapeHtml(v.reden)} <a class="waarom" href="/wetenschap.html#${waaromAnker(v)}">Waarom?</a></span>
+      <span class="voorstel-reden">${escapeHtml(v.reden)} <a class="waarom" href="/wetenschap.html#${waaromAnker(v, huidigeOefening)}">Waarom?</a></span>
     </div>`;
+}
+
+/** Voor waaromAnker: de oefening waarvan we nu het voorstel tekenen. */
+let huidigeOefening = null;
+
+function opwarmenHtml(o, index) {
+  if (detail.training.status !== "bezig" || !o.opwarmen?.length) return "";
+  // Bij basisoefeningen en de eerste oefening; een isolatieoefening halverwege is al warm.
+  if (o.mechaniek !== "compound" && index > 0) return "";
+  const sets = o.opwarmen.map((s) => `<li>${kg(s.gewicht)} × ${s.reps}${o.materiaal === "barbell" ? ` <span class="lijst-meta">(${escapeHtml(schijvenTekst(s.gewicht, stangGewicht()))})</span>` : ""}</li>`).join("");
+  return `<details class="opwarmen"><summary>Opwarmsets</summary><ol>${sets}</ol><p class="lijst-meta">Rustig, met een korte pauze. Ze tellen niet mee. <a class="waarom" href="/wetenschap.html#opwarmsets">Waarom?</a></p></details>`;
+}
+
+function bijsturingHtml(o) {
+  if (!o.bijsturing) return "";
+  return `<p class="bijsturing" id="bijsturing-${o.id}"><strong>Volgende set: ${kg(o.bijsturing.gewicht)}.</strong> ${escapeHtml(o.bijsturing.reden)} <a class="waarom" href="/wetenschap.html#autoregulatie">Waarom?</a></p>`;
 }
 
 // ---------- Rijen (sets) ----------
@@ -126,7 +167,25 @@ function beginwaarden(o, nummer, vorigeRij) {
     opgeslagen: false,
     aangeraakt: false,
     pijnOpen: pijnVorige,
+    soort: "normaal",
   };
+}
+
+/** Een techniekset (Pro) na je laatste set: gewicht uit je laatste werkset. */
+function techniekRij(o, nummer) {
+  const t = TECHNIEK[o.techniek];
+  // Uit je laatst opgeslagen werkset: wat je echt deed, niet wat er nog in een open set staat.
+  const werk = rijenPer.get(o.id).filter((r) => isWerkrij(r) && r.gewicht !== null);
+  const opgeslagen = werk.filter((r) => r.opgeslagen);
+  const basis = (opgeslagen[opgeslagen.length - 1] ?? werk[werk.length - 1])?.gewicht ?? o.voorstel.gewicht ?? werkgewichtVorigeKeer(o);
+  const stap = o.gewichtsstap || 1;
+  let gewicht = null;
+  if (!isZonderGewicht(o) && basis !== null) {
+    // Dropset ~20% lichter, naar beneden op de stap (wat er in het rek ligt); de rest zelfde gewicht.
+    gewicht = t.soort === "drop" ? Math.max(0, Math.floor((basis * 0.8) / stap + 1e-9) * stap) : basis;
+    gewicht = Math.round(gewicht * 100) / 100;
+  }
+  return { nummer, gewicht, reps: t.soort === "drop" ? o.repsMin : 4, rir: null, pijn: null, pijnPlek: null, opgeslagen: false, aangeraakt: false, pijnOpen: false, soort: t.soort };
 }
 
 function maakRijen(o) {
@@ -137,7 +196,7 @@ function maakRijen(o) {
     const s = opgeslagen.get(nummer);
     rijen.push(
       s
-        ? { ...s, opgeslagen: true, aangeraakt: true, pijnOpen: s.pijn !== null }
+        ? { soort: "normaal", ...s, opgeslagen: true, aangeraakt: true, pijnOpen: s.pijn !== null }
         : beginwaarden(o, nummer, rijen[rijen.length - 1]),
     );
   }
@@ -179,10 +238,18 @@ function setHtml(o, rij) {
           <button type="button" data-actie="gewicht-plus" aria-label="Gewicht omhoog">+</button>
         </div>
       </div>`;
+  // Pro: de bijsturing staat boven de set waar hij over gaat, de eerste open werkset.
+  const eersteOpen = rijenPer.get(o.id)?.find((r) => !r.opgeslagen && isWerkrij(r));
+  const sturing = detail.training.status === "bezig" && eersteOpen === rij ? bijsturingHtml(o) : "";
   return `
     <div class="set${rij.opgeslagen ? " opgeslagen" : ""}" data-to="${o.id}" data-nummer="${rij.nummer}">
+      ${sturing}
       <div class="set-kop">
-        <span class="set-nummer">Set ${rij.nummer}${rij.nummer > o.aantalSets ? " (extra)" : ""}</span>
+        <span class="set-nummer">${
+          isWerkrij(rij)
+            ? `Set ${rij.nummer}${rij.nummer > o.aantalSets ? " (extra)" : ""}`
+            : `<span class="set-soort">${escapeHtml(SOORT_TECHNIEK[rij.soort]?.label ?? rij.soort)}</span> · set ${rij.nummer}`
+        }</span>
         <button type="button" class="secondary pijn-knop${rij.pijn !== null && rij.pijn >= 4 ? " pijn-hoog" : ""}" data-actie="pijn-open" aria-expanded="${rij.pijnOpen}">${pijnKnopTekst(rij)}</button>
       </div>
       <div class="set-velden${lg ? " enkel" : ""}">
@@ -197,6 +264,8 @@ function setHtml(o, rij) {
           </div>
         </div>
       </div>
+      ${schijvenHtml(o, rij)}
+      ${isWerkrij(rij) ? "" : `<p class="techniek-hint">${escapeHtml(SOORT_TECHNIEK[rij.soort]?.hint ?? "")}</p>`}
       <div class="keuze-rij">
         <span class="veld-label">RIR</span>
         <div class="keuzes" role="group" aria-label="Reps in reserve">${keuzesHtml(rij, "rir", 4)}</div>
@@ -218,6 +287,13 @@ function setHtml(o, rij) {
     </div>`;
 }
 
+/** Bij een stang: welke schijven per kant. Tik op de stang om 20/15/10 kg te kiezen. */
+function schijvenHtml(o, rij) {
+  if (o.materiaal !== "barbell" || rij.gewicht === null) return "";
+  const stang = stangGewicht();
+  return `<div class="schijven"><span>Schijven: ${escapeHtml(schijvenTekst(rij.gewicht, stang))}</span><button type="button" class="text-link" data-actie="stang" aria-label="Gewicht van de stang wisselen">stang ${stang} kg</button></div>`;
+}
+
 function wisselHtml(o) {
   const rijen = rijenPer.get(o.id);
   const kanWisselen = detail.training.status === "bezig" && o.alternatieven.length > 0 && !rijen.some((r) => r.opgeslagen);
@@ -235,11 +311,14 @@ function wisselHtml(o) {
     </div>`;
 }
 
-function oefeningHtml(o) {
+function oefeningHtml(o, index) {
   const rijen = rijenPer.get(o.id);
+  huidigeOefening = o;
   const badges = [
     o.supersetGroep ? `<span class="badge superset-badge">Superset ${escapeHtml(o.supersetGroep)}</span>` : "",
     o.gewisseld ? `<span class="badge">In plaats van ${escapeHtml(o.gewisseld.van)}</span>` : "",
+    o.progressie && o.progressie !== "dubbel" ? `<span class="badge">Regel: ${escapeHtml(REGEL_NAMEN[o.progressie] ?? o.progressie)}</span>` : "",
+    o.techniek ? `<span class="badge">${escapeHtml(TECHNIEK[o.techniek]?.label ?? o.techniek)}</span>` : "",
   ].join("");
   const meta = doelMetaTekst(o);
   return `
@@ -256,8 +335,13 @@ function oefeningHtml(o) {
       ${wisselHtml(o)}
       <p class="vorige">${vorigeTekst(o)}</p>
       ${voorstelHtml(o.voorstel)}
+      ${o.blokRichtgewicht ? `<p class="richtgewicht"><strong>Richtgewicht: ${kg(o.blokRichtgewicht.gewicht)}.</strong> ${escapeHtml(o.blokRichtgewicht.reden)} <a class="waarom" href="/wetenschap.html#periodisering">Waarom?</a></p>` : ""}
+      ${opwarmenHtml(o, index)}
       <div class="sets">${rijen.map((rij) => setHtml(o, rij)).join("")}</div>
-      <button type="button" class="secondary set-extra" data-actie="extra-set">+ Extra set</button>
+      <div class="knop-rij">
+        <button type="button" class="secondary set-extra" data-actie="extra-set">+ Extra set</button>
+        ${o.techniek && TECHNIEK[o.techniek] ? `<button type="button" class="secondary set-extra" data-actie="extra-techniek">${TECHNIEK[o.techniek].knop}</button>` : ""}
+      </div>
     </section>`;
 }
 
@@ -283,6 +367,7 @@ function verstuurSet(o, rij) {
       rir: rij.rir,
       pijn: rij.pijn,
       pijnPlek: rij.pijn === null ? null : rij.pijnPlek,
+      soort: rij.soort ?? "normaal",
     },
   });
 }
@@ -315,21 +400,44 @@ function slaOp(o, rij) {
   foutEl.textContent = "";
   rij.opgeslagen = true;
   rij.aangeraakt = true;
-  verstuurSet(o, rij);
+  const verstuurd = verstuurSet(o, rij);
   tekenSet(o, rij);
   tekenTeller();
+  if (detail.pro && isWerkrij(rij)) verstuurd.then(() => haalBijsturing(o));
 
   // De volgende set neemt het gewicht en de reps over, zolang je die nog niet zelf hebt aangepast.
   const rijen = rijenPer.get(o.id);
   const volgende = rijen.find((r) => r.nummer === rij.nummer + 1);
-  if (volgende && !volgende.opgeslagen && !volgende.aangeraakt) {
+  if (volgende && !volgende.opgeslagen && !volgende.aangeraakt && isWerkrij(volgende) === isWerkrij(rij)) {
     if (!isZonderGewicht(o)) volgende.gewicht = rij.gewicht;
     // Pijn bij deze set: bij de volgende staat het pijnblok open, met dezelfde plek alvast gekozen.
     if (rij.pijn !== null) Object.assign(volgende, { pijnOpen: true, pijnPlek: volgende.pijnPlek ?? rij.pijnPlek });
     tekenSet(o, volgende);
   }
   scrollNaarVolgende(o, rij);
-  startRust(o);
+  startRust(o, isWerkrij(rij) ? undefined : SOORT_TECHNIEK[rij.soort]?.rust);
+}
+
+/**
+ * Pro: het gewicht voor je volgende set, berekend op de server uit wat je vandaag al deed. Pas
+ * als de set echt binnen is (de wachtrij is leeg), en een set die je zelf al aanpaste blijft zoals
+ * hij is. Zonder bereik: geen bijsturing, de rest werkt gewoon.
+ */
+async function haalBijsturing(o) {
+  if (leesWachtrij().length > 0) return;
+  try {
+    const vers = await api(`/api/trainingen/${trainingId}`);
+    const nieuw = vers.oefeningen.find((x) => x.id === o.id);
+    if (!nieuw) return;
+    o.bijsturing = nieuw.bijsturing;
+    document.getElementById(`oefening-${o.id}`)?.querySelectorAll(".bijsturing").forEach((el) => el.remove());
+    const volgende = rijenPer.get(o.id).find((r) => !r.opgeslagen && isWerkrij(r));
+    if (!volgende) return;
+    if (o.bijsturing && !volgende.aangeraakt && !isZonderGewicht(o)) volgende.gewicht = o.bijsturing.gewicht;
+    tekenSet(o, volgende);
+  } catch {
+    // geen verbinding
+  }
 }
 
 /** Na een set: door naar de volgende open set, of naar de volgende oefening. Eén hand, geen gescroll. */
@@ -365,6 +473,27 @@ oefeningenEl.addEventListener("click", (e) => {
       return;
     }
     wissel(o, knop.dataset.oefening);
+    return;
+  }
+
+  if (actie === "extra-techniek") {
+    const o = oefeningMetId(knop.closest(".oefening").dataset.to);
+    const rijen = rijenPer.get(o.id);
+    const rij = techniekRij(o, (rijen[rijen.length - 1]?.nummer ?? 0) + 1);
+    rijen.push(rij);
+    tekenSet(o, rij);
+    oefeningenEl.querySelector(`.set[data-to="${o.id}"][data-nummer="${rij.nummer}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    return;
+  }
+
+  if (actie === "stang") {
+    const volgende = STANGEN[(STANGEN.indexOf(stangGewicht()) + 1) % STANGEN.length];
+    try {
+      localStorage.setItem("rslnt-stang", String(volgende));
+    } catch {
+      // privémodus: dan alleen voor nu
+    }
+    teken();
     return;
   }
 
@@ -443,6 +572,13 @@ oefeningenEl.addEventListener("focusout", (e) => {
   if (!gevonden) return;
   const waarde = gevonden.rij[veld];
   e.target.value = waarde === null ? "" : veld === "gewicht" ? getal(waarde) : String(waarde);
+  // De schijven onder de set meteen bij, zonder de set opnieuw te tekenen (zie hierboven).
+  if (veld === "gewicht") {
+    const oud = e.target.closest(".set")?.querySelector(".schijven");
+    const nieuw = schijvenHtml(gevonden.o, gevonden.rij);
+    if (oud) oud.outerHTML = nieuw || "";
+    else if (nieuw) e.target.closest(".set-velden")?.insertAdjacentHTML("afterend", nieuw);
+  }
 });
 
 let notitieTimer;
@@ -500,8 +636,8 @@ document.body.append(rustEl);
 let rust = null;
 let geluid = null;
 
-function startRust(o) {
-  if (!o.rustSeconden) return;
+function startRust(o, seconden = o.rustSeconden) {
+  if (!seconden) return;
   // Het geluid moet tijdens een tik worden klaargezet, anders blijft het op iOS stil.
   try {
     geluid ??= new AudioContext();
@@ -510,7 +646,7 @@ function startRust(o) {
     geluid = null;
   }
   clearInterval(rust?.interval);
-  rust = { eind: Date.now() + o.rustSeconden * 1000, naam: o.naam, klaar: false };
+  rust = { eind: Date.now() + seconden * 1000, naam: o.naam, klaar: false };
   rust.interval = setInterval(tekenRust, 250);
   tekenRust();
 }
@@ -640,7 +776,16 @@ function pasWachtrijToe() {
   if (notitie) detail.training.notitie = notitie.body.notitie;
 }
 
-/** Introfase of deload, en het opwarmen, bovenaan de training. */
+const BLOK_NAMEN = { opbouw: "Opbouw", volume: "Volume", intensivering: "Intensivering", piek: "Piek", deload: "Deload" };
+const BLOK_UITLEG = {
+  opbouw: "Zelfde sets en reps, één rep meer over.",
+  volume: "Eén set extra per oefening.",
+  intensivering: "Basisoefeningen minder reps, meer gewicht.",
+  piek: "Basisoefeningen 2–4 reps, een set minder.",
+  deload: "Halve sets, zelfde gewicht.",
+};
+
+/** Introfase, deload, lichte dag of blok, en het opwarmen, bovenaan de training. */
 function tekenFase(training, afgerond) {
   const paneel = document.getElementById("fase-paneel");
   const delen = [];
@@ -649,6 +794,12 @@ function tekenFase(training, afgerond) {
   }
   if (training.fase === "deload") {
     delen.push('<p><strong>Deloadweek.</strong> Halve sets, zelfde gewicht. Herstellen hoort bij trainen. <a class="waarom" href="/wetenschap.html#deload">Waarom?</a></p>');
+  }
+  if (training.fase === "licht") {
+    delen.push('<p><strong>Lichte dag.</strong> Eén set minder en een rep meer over, alleen voor vandaag. Telt niet mee voor je progressie. <a class="waarom" href="/wetenschap.html#slim-herstel">Waarom?</a></p>');
+  }
+  if (training.blok && BLOK_NAMEN[training.blok]) {
+    delen.push(`<p><strong>Blok: ${BLOK_NAMEN[training.blok]}.</strong> ${BLOK_UITLEG[training.blok]} <a class="waarom" href="/wetenschap.html#periodisering">Waarom?</a></p>`);
   }
   if (training.opwarmen && !afgerond) delen.push(`<p><strong>Opwarmen:</strong> ${escapeHtml(training.opwarmen)}</p>`);
   paneel.innerHTML = delen.join("");
@@ -666,7 +817,15 @@ function teken() {
 
   // Rijen alleen opnieuw opbouwen bij het laden, niet na afronden: dan blijft wat er staat staan.
   for (const o of oefeningen) if (!rijenPer.has(o.id)) rijenPer.set(o.id, maakRijen(o));
-  oefeningenEl.innerHTML = oefeningen.map(oefeningHtml).join("");
+  oefeningenEl.innerHTML = oefeningen.map((o, i) => oefeningHtml(o, i)).join("");
+  if (!detail.pro) {
+    toonProSlot(
+      document.getElementById("pro-slot"),
+      "Meer uit je training",
+      "Je voorstel, de pijnregel, opwarmsets en de schijvencalculator zijn gratis. Pro voegt toe:",
+      ["bijsturen", "technieken", "regels", "advies"],
+    );
+  }
   tekenTeller();
 
   const vooruitblik = document.getElementById("vooruitblik");

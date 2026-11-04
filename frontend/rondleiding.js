@@ -41,7 +41,7 @@ const STAPPEN = [
   },
   {
     titel: "Klaar",
-    tekst: "Rechtsboven staat Account: je wachtwoord, je gegevens en Pro. Daar kun je deze uitleg ook opnieuw bekijken.",
+    tekst: "Rechtsboven staat Account: je wachtwoord, je gegevens en Pro. Alles hierboven is gratis; Pro is verdieping voor wie serieuzer traint (analyse, blokken, technieken, delen met je trainer). Ook deze uitleg vind je daar terug.",
   },
 ];
 

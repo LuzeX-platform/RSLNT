@@ -16,12 +16,24 @@
 //      doel-RIR over → één kleinste stap omhoog. Nooit meer dan één stap.
 //   6. Anders: zelfde gewicht.
 // Pijn of RIR die niet is ingevuld is onbekend, niet 0: die telt niet mee.
+//
+// Pro: een andere progressieregel per oefening (opties.regel). De pijnregel, de deload en de
+// max-één-stap-regel gelden voor elke regel; alleen stap 5 verschilt:
+//   * lineair: alle sets minstens de onderkant van de range (je doel-reps) → één stap omhoog.
+//   * rir: alle sets in de range én elke set met minstens één rep méér over dan het doel →
+//     één stap omhoog. Zonder ingevulde RIR geen stap: deze regel stuurt op gevoel.
+//   * vast: je kiest zelf; RSLNT stelt alleen terug voor bij pijn (geen stagnatieregel).
+// Techniekssets (dropset, myo-reps, rest-pause) tellen niet mee voor progressie of stagnatie:
+// die zijn per definitie lichter of korter. Voor de pijnregel tellen ze wél mee.
 // Deloadtrainingen tellen niet mee voor stagnatie en progressie (ze zijn bewust licht), wel
 // voor de pijnregel.
 
 import { PIJN_PLEKKEN, type PijnPlek } from "./pijn.js";
 
 export type Actie = "eerste_keer" | "omhoog" | "gelijk" | "terug" | "moeilijker" | "deload";
+
+export const PROGRESSIE_REGELS = ["dubbel", "lineair", "rir", "vast"] as const;
+export type ProgressieRegel = (typeof PROGRESSIE_REGELS)[number];
 
 export interface OefeningInfo {
   materiaal: string;
@@ -42,7 +54,12 @@ export interface GelogdeSet {
   pijn: number | null;
   /** Waar (pijn.ts); leeg als het niet gezegd is. */
   pijnPlek?: string | null;
+  /** normaal (leeg) | drop | myo | restpauze */
+  soort?: string;
 }
+
+/** Een gewone werkset, geen techniekset. */
+export const isWerkset = (s: { soort?: string | null }) => !s.soort || s.soort === "normaal";
 
 /** De sets van één eerdere training voor deze oefening, met het plan van die dag. */
 export interface EerdereSessie {
@@ -144,18 +161,24 @@ function tienProcentTerug(wg: number, stap: number): number {
  * Het voorstel voor de volgende keer.
  * @param doel de rep-range zoals die nú in het schema staat (daar train je de volgende keer op)
  * @param historie eerdere sessies van deze oefening, nieuwste eerst
- * @param opties.deload de training waarvoor dit voorstel is, is een deloadtraining
+ * @param opties.deload de training waarvoor dit voorstel is, is een deloadtraining (of een lichte dag)
+ * @param opties.regel de progressieregel (Pro); zonder: dubbele progressie
  */
 export function bepaalVoorstel(
   oefening: OefeningInfo,
   doel: Doel,
   historie: EerdereSessie[],
-  opties: { deload?: boolean } = {},
+  opties: { deload?: boolean; regel?: ProgressieRegel } = {},
 ): Voorstel {
-  const sessies = historie.filter((s) => s.sets.length > 0);
+  const regel = opties.regel ?? "dubbel";
+  const metSets = historie.filter((s) => s.sets.length > 0);
+  // Voor de pijnregel alle sets; voor de rest alleen werksets.
+  const sessies = metSets
+    .map((s) => ({ ...s, sets: s.sets.filter(isWerkset) }))
+    .filter((s) => s.sets.length > 0);
   const zonderGewicht = isZonderGewicht(oefening);
 
-  if (sessies.length === 0) {
+  if (metSets.length === 0) {
     return {
       actie: "eerste_keer",
       gewicht: null,
@@ -169,12 +192,12 @@ export function bepaalVoorstel(
   const stap = oefening.gewichtsstap;
   // Voor progressie en stagnatie tellen deloadtrainingen niet; zijn er alleen deloads, dan die.
   const werkSessies = sessies.filter((s) => !s.deload);
-  const vorige = werkSessies[0] ?? sessies[0];
+  const vorige = werkSessies[0] ?? sessies[0] ?? metSets[0];
   const wg = zonderGewicht ? null : werkgewicht(vorige);
 
-  const pijn = pijnSignaal(sessies);
+  const pijn = pijnSignaal(metSets);
   if (pijn) {
-    const basis = zonderGewicht ? null : werkgewicht(sessies[0]);
+    const basis = zonderGewicht ? null : werkgewicht(sessies[0] ?? metSets[0]);
     if (basis === null) {
       return { actie: "terug", gewicht: null, reden: `${pijn} Rustiger aan: minder reps of een lichtere variant.`, pijnRegel: true };
     }
@@ -191,6 +214,15 @@ export function bepaalVoorstel(
     };
   }
 
+  if (regel === "vast") {
+    return {
+      actie: "gelijk",
+      gewicht: wg,
+      reden: "Vaste regel: je kiest zelf wanneer het zwaarder wordt. RSLNT grijpt alleen in bij pijn.",
+      pijnRegel: false,
+    };
+  }
+
   if (werkSessies.length >= 2 && onderRange(werkSessies[0], doel) && onderRange(werkSessies[1], doel)) {
     const reden = `Twee trainingen op rij onder de ${doel.repsMin} reps.`;
     if (wg === null) {
@@ -202,6 +234,44 @@ export function bepaalVoorstel(
 
   const reps = vorige.sets.map((s) => s.reps).join("/");
   const zelfde = zonderGewicht ? "Zelfde variant, probeer meer reps." : "Zelfde gewicht.";
+  const minSetsVorige = vorige.minSets ?? doel.minSets;
+
+  if (regel === "lineair" || regel === "rir") {
+    const genoegSets = vorige.sets.length >= minSetsVorige;
+    const inRange = genoegSets && vorige.sets.every((s) => s.reps >= doel.repsMin);
+    const doelRir = vorige.doelRir ?? 2;
+    let klaar: boolean;
+    let nietKlaar: string;
+    if (regel === "lineair") {
+      klaar = inRange && rirGehaald(vorige);
+      nietKlaar = !genoegSets
+        ? `Vorige keer ${vorige.sets.length} van minimaal ${minSetsVorige} sets. ${zelfde}`
+        : !inRange
+          ? `Vorige keer ${reps}: nog niet alle sets op ${doel.repsMin}. ${zelfde}`
+          : `Vorige keer ${reps}: wel ${doel.repsMin} reps, maar met minder dan ${doelRir} over. ${zelfde}`;
+    } else {
+      const zonderRir = vorige.sets.some((s) => s.rir === null);
+      klaar = inRange && !zonderRir && vorige.sets.every((s) => (s.rir as number) >= doelRir + 1);
+      nietKlaar = !inRange
+        ? `Vorige keer ${reps}: nog niet alle sets in de range. ${zelfde}`
+        : zonderRir
+          ? `Op gevoel: vul bij elke set je RIR in, dan weet RSLNT wanneer het omhoog kan. ${zelfde}`
+          : `Vorige keer RIR ${vorige.sets.map((s) => s.rir).join("/")}: omhoog als elke set ${doelRir + 1} of meer over heeft. ${zelfde}`;
+    }
+    if (klaar && zonderGewicht) {
+      return { actie: "moeilijker", gewicht: null, reden: `Vorige keer ${reps}: gehaald. Tijd voor een moeilijkere variant.`, pijnRegel: false };
+    }
+    if (klaar && wg !== null) {
+      const waarom = regel === "lineair" ? `alle sets op ${doel.repsMin} of meer` : `elke set ${doelRir + 1}+ reps over`;
+      return {
+        actie: "omhoog",
+        gewicht: rond(wg + stap),
+        reden: `Vorige keer ${reps} met ${kg(wg)}: ${waarom}. Eén stap omhoog (+${kg(stap)}).`,
+        pijnRegel: false,
+      };
+    }
+    return { actie: "gelijk", gewicht: wg, reden: nietKlaar, pijnRegel: false };
+  }
 
   if (repsBovenkant(vorige, doel)) {
     if (!rirGehaald(vorige)) {
@@ -230,7 +300,7 @@ export function bepaalVoorstel(
     }
   }
 
-  const minSets = vorige.minSets ?? doel.minSets;
+  const minSets = minSetsVorige;
   const reden =
     vorige.sets.length < minSets
       ? `Vorige keer ${vorige.sets.length} van minimaal ${minSets} sets. ${zelfde}`

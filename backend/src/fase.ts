@@ -2,11 +2,13 @@
 //   * Introfase (eerste weken na activeren): minder sets en meer reps in reserve, zodat pezen
 //     en knieën kunnen wennen.
 //   * Deload (elke zoveelste week, of op verzoek): minder sets, zelfde gewicht.
+//   * Lichte dag (Pro, alleen voor één training): één set minder en een rep meer over. Bedoeld
+//     voor een dag waarop je herstel tegenvalt, zonder meteen een hele week te deloaden.
 // Week 1 begint op de startdatum van het programma (de dag van activeren).
 
 import { naarDatum } from "./datum.js";
 
-export type FaseNaam = "normaal" | "intro" | "deload";
+export type FaseNaam = "normaal" | "intro" | "deload" | "licht";
 
 export interface FaseInstellingen {
   /** JJJJ-MM-DD */
@@ -56,6 +58,14 @@ export function doelInFase(regel: RegelDoel, fase: FaseNaam, p: FaseInstellingen
       aantalSets,
       minSets: Math.min(regel.minSets, aantalSets),
       doelRir: p.introRir ?? regel.doelRir,
+    };
+  }
+  if (fase === "licht") {
+    const aantalSets = Math.max(1, regel.aantalSets - 1);
+    return {
+      aantalSets,
+      minSets: Math.min(regel.minSets, aantalSets),
+      doelRir: Math.min(4, (regel.doelRir ?? 2) + 1),
     };
   }
   if (fase === "deload") {

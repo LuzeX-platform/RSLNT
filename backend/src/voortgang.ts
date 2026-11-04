@@ -1,6 +1,8 @@
 // Pure logica voor het dashboard: geschatte 1RM en sets per spiergroep. Formules en bronnen staan
 // op de Wetenschap-pagina (#e1rm en #volume).
 
+import { isWerkset } from "./progressie.js";
+
 const rond = (waarde: number, decimalen = 1) => Math.round(waarde * 10 ** decimalen) / 10 ** decimalen;
 
 /**
@@ -61,5 +63,15 @@ export function teVolPerTraining(regels: SetSpieren[]): { spier: string; sets: n
 /** De kalenderdag van een tijdstip in Nederland. */
 export function dagVan(moment: Date): string {
   return moment.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" });
+}
+
+
+/**
+ * Sets voor het volume: een werkset telt 1, een techniekset (dropset, myo-reps, rest-pause) ½.
+ * Zo'n set is korter en lichter dan een gewone; helemaal niet tellen doet hem tekort, als volle
+ * set tellen overschat hem. Praktijkregel, zie Wetenschap, #technieken.
+ */
+export function setsVoorVolume(sets: { soort?: string }[]): number {
+  return sets.reduce((som, s) => som + (isWerkset(s) ? 1 : 0.5), 0);
 }
 

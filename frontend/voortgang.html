@@ -88,6 +88,31 @@
       <p class="subtitle">Je hoogste geschatte 1RM per oefening.</p>
       <ul class="lijst" id="records"></ul>
     </section>
+
+    <!-- Pro: verdieping voor wie serieuzer traint. Zonder Pro staat hier één Pro-plek. -->
+    <section class="panel" id="pro-kracht" hidden>
+      <div class="pro-kop">
+        <h2>Krachtanalyse</h2>
+        <span class="badge pro-badge">Pro</span>
+      </div>
+      <p class="subtitle">Je tempo over de laatste 8 weken, waar je heen gaat, je records per aantal reps en richtgewichten.</p>
+      <label for="pro-oefening">Oefening</label>
+      <select id="pro-oefening"></select>
+      <div id="pro-kracht-inhoud"></div>
+      <p class="lijst-meta ruimte-boven"><a href="/wetenschap.html#krachttrend">Hoe we rekenen</a> · <a href="/wetenschap.html#krachtniveau">Krachtniveau</a></p>
+    </section>
+
+    <section class="panel" id="pro-volume" hidden>
+      <div class="pro-kop">
+        <h2>Volume in zones</h2>
+        <span class="badge pro-badge">Pro</span>
+      </div>
+      <p class="subtitle" id="pro-volume-uitleg"></p>
+      <div id="pro-volume-inhoud"></div>
+      <p class="lijst-meta ruimte-boven"><a href="/wetenschap.html#volume-zones">Waar de zones vandaan komen</a> · <a href="/delen.html">Exporteren als CSV</a></p>
+    </section>
+
+    <section class="panel" id="pro-slot" hidden></section>
   </main>
 
   <script src="/common.js"></script>

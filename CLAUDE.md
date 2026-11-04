@@ -31,8 +31,17 @@ data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licent
   src/datum.ts        kalenderdagen in Europe/Amsterdam (de server draait in UTC)
   src/mailer.ts       SMTP via nodemailer (zoals CMMNTY); zonder SMTP_HOST gelogd en in testPostvak
   src/stripe.ts       Stripe-client + de Price-id van Pro, allebei lazy uit env (null/throw zonder)
-  src/entitlementsPro.ts  vereistPro(): preHandler voor Pro-only routes, fail-closed (zie "Afspraken").
-                      Nu door geen route gebruikt: bibliotheek en schema op maat zijn gratis; blijft staan voor nieuwe Pro-onderdelen
+  src/entitlementsPro.ts  vereistPro() en heeftPro(): fail-closed (zie "Afspraken")
+  src/routes/pro.ts   alles van Pro: /api/pro/* (analyse, vandaag, periodisering, duur, pijn, export, deellinks)
+  src/routes/gedeeld.ts  POST /api/gedeeld: de leeslink, zonder login, alleen met een geldig token
+  src/proData.ts      database rond Pro, gedeeld door pro.ts en gedeeld.ts
+  src/opwarmen.ts     pure logica (gratis): opwarmsets naar je werkgewicht
+  src/analyse.ts      pure logica (Pro): krachttrend, records per reps, richtgewichten, volumezones, krachtniveau
+  src/autoregulatie.ts  pure logica (Pro): bijsturen per set op RIR
+  src/periodisering.ts  pure logica (Pro): blokplan, blok op een dag, doel per blok
+  src/belasting.ts    pure logica (Pro): advies voor vandaag (normaal, lichte dag, deload)
+  src/hybride.ts      pure logica (Pro): duurtraining naast krachttraining
+  src/pijnlogboek.ts  pure logica (Pro): pijn per plek per week
   src/luzexKruisproduct.ts  Kruisproduct-Pro v2: claimt/controleert bij ACCRD op kvk-nummer (SCRNN speelt hier geen rol meer in)
   src/routes/kruisproduct.ts  POST /api/account/kruisproduct-claim: de klant vult zelf zijn kvk-nummer in
   src/kruisproductCron.ts  dagelijkse Render-cron die Kruisproduct-Pro opnieuw controleert
@@ -49,7 +58,10 @@ frontend/           losse HTML + één script per pagina, geen build-stap
                       (met referentielijn of een doel per rij)
   bibliotheek.js      lijst (filters in de URL) en detail (?id=) van de oefeningenbibliotheek, gratis
   personaliseren.js   schema op maat: voorkeuren, voorstel, inladen via /api/programmas/import, gratis
-  pro.js              upgraden en abonnement beheren, beide een redirect naar Stripe
+  pro.js              wat Pro is (PRO_ONDERDELEN uit common.js), upgraden en abonnement beheren
+  schijven.js         schijvencalculator (gratis); ook in node te laden voor de test
+  duur.js, pijn.js, delen.js, blokken.js  Pro-pagina's; zonder Pro tonen ze een Pro-plek
+  gedeeld.js          de leeslink voor een trainer of fysio (openbaar, noindex)
   beheer.js           alleen rol admin: aantal aanmeldingen, bevestigd, Pro en de laatste 50
   sw.js               service worker: netwerk eerst, cache als terugval
   wetenschap.html     openbare pagina: per regel het onderzoek, de zekerheid en de bron
@@ -74,6 +86,16 @@ frontend/           losse HTML + één script per pagina, geen build-stap
   juist de paywall zelf, niet een bestaand betalend account. `Gebruiker.pro` wordt uitsluitend
   gezet door de Stripe-webhook (routes/abonnement.ts) of Kruisproduct-Pro (hierboven), nooit
   door een route rechtstreeks.
+- **Pro haalt nooit iets van de gratis basis af.** Trainen, het voorstel, de pijnregel, voortgang,
+  bibliotheek en schema op maat blijven gratis. Pro voegt toe, en laat zich zien met een Pro-plek
+  (`toonProSlot()` in common.js) op de plek waar het iets toevoegt, nooit vóór de gratis inhoud.
+  Een nieuw Pro-onderdeel: route achter `vereistPro` in routes/pro.ts, een regel in
+  `PRO_ONDERDELEN` (common.js), een sectie op de Wetenschap-pagina en een test in de
+  paywall-test ("zonder Pro 402 op elk Pro-onderdeel").
+- **Pro binnen de harde regels.** Bijsturen per set, progressieregels, technieken, blokken en de
+  lichte dag veranderen nooit de pijnregel of de max-één-stap-regel. Een training legt vast wat
+  er gold (`TrainingOefening.progressie`/`techniek`, `Training.blok`/`fase`); zonder Pro geldt bij
+  het starten weer de standaard, ook als het schema nog iets anders zegt.
 - **Kruisproduct-Pro v2** (zie hub/CLAUDE.md voor de volledige afspraak): uitsluitend ACCRD, op
   kvk-nummer, en nooit automatisch — de klant claimt zelf via `POST /api/account/kruisproduct-claim`.
   `kruisproductKvkNummer` (niet `proBron`) is het filter waarop `kruisproductCron.ts` mag
@@ -114,7 +136,7 @@ frontend/           losse HTML + één script per pagina, geen build-stap
   import niets overschrijft wat je zelf aanpaste. Elke combinatie van voorkeuren moet een geldig
   bestand opleveren: dat test generator.test.ts voor alle doelen, niveaus, dagen en opstellingen.
 - **Bibliotheek is vastgepind** (BRON_COMMIT); afbeeldingen komen van raw.githubusercontent.com
-  op die commit (staat in de CSP). De uitleg blijft Engels; schrijf geen vertalingen in de data.
+  op die commit (staat in de CSP). De Nederlandse uitleg staat los in data/uitleg-nl.json.
 - **Formules alleen in de backend** (lichaam.ts, voortgang.ts); de frontend toont wat de API
   teruggeeft. Elke formule heeft een sectie op de Wetenschap-pagina.
 - **Mobiel eerst**: alles wat je tijdens een training aanraakt is minstens 44px hoog,

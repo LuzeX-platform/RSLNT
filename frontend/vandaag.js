@@ -5,11 +5,11 @@ const startFout = document.getElementById("start-fout");
 const andereSchemas = document.getElementById("andere-schemas");
 let gegevens = null;
 
-async function start(schemaId) {
+async function start(schemaId, licht = false) {
   startFout.textContent = "";
   startKnop.disabled = true;
   try {
-    const { id } = await api("/api/trainingen", { methode: "POST", body: { schemaId } });
+    const { id } = await api("/api/trainingen", { methode: "POST", body: licht ? { schemaId, licht } : { schemaId } });
     window.location.href = `/training.html?id=${id}`;
   } catch (fout) {
     if (fout.status === 409 && fout.data?.id) {
@@ -134,7 +134,7 @@ function tekenRecent() {
       (t) => `
       <li>
         <a class="lijst-rij" href="/training.html?id=${encodeURIComponent(t.id)}">
-          <span><strong>${escapeHtml(t.schemaCode)} · ${escapeHtml(t.schemaNaam)}</strong><br /><span class="lijst-meta">${datumKort(t.datum)} · ${t.aantalSets} sets${t.fase === "deload" ? " · deload" : t.fase === "intro" ? " · intro" : ""}</span></span>
+          <span><strong>${escapeHtml(t.schemaCode)} · ${escapeHtml(t.schemaNaam)}</strong><br /><span class="lijst-meta">${datumKort(t.datum)} · ${t.aantalSets} sets${t.fase === "deload" ? " · deload" : t.fase === "intro" ? " · intro" : t.fase === "licht" ? " · lichte dag" : ""}</span></span>
           ${t.status === "bezig" ? '<span class="badge badge-bezig">Bezig</span>' : '<span class="badge badge-succes">Klaar</span>'}
         </a>
       </li>`,
@@ -262,8 +262,84 @@ document.getElementById("herstel-form").addEventListener("submit", async (e) => 
     const body = { ...herstelKeuze, pijnPlekken: herstelKeuze.pijn >= 2 ? herstelKeuze.pijnPlekken : [] };
     gegevens.herstel = await api(`/api/herstel/${gegevens.gewicht.vandaag}`, { methode: "PUT", body });
     tekenHerstel();
+    // Het advies voor vandaag hangt van je check af.
+    haalSessie().then((g) => g && !g.offline && laadAdvies(g));
   } catch (fout) {
     foutEl.textContent = foutTekst(fout);
+  }
+});
+
+// ---------- Advies voor vandaag (Pro) ----------
+
+const ADVIES_KOP = { normaal: "Gewoon trainen", lichte_dag: "Liever een lichte dag", deload: "Tijd voor een deloadweek" };
+
+function adviesHtml(a) {
+  const { bezig, volgendeSchema, programma } = gegevens;
+  const kanStarten = !bezig && volgendeSchema;
+  // Een introfase of deload is al licht; daar komt geen lichte dag bovenop (zie POST /api/trainingen).
+  const alLicht = programma && programma.fase.fase !== "normaal";
+  const knoppen = [];
+  if (kanStarten && a.advies === "lichte_dag" && !alLicht) knoppen.push('<button type="button" data-advies="licht">Start lichte training</button>');
+  if (a.advies === "deload" && programma?.fase.fase !== "deload") knoppen.push('<button type="button" data-advies="deload">Start deloadweek</button>');
+  if (kanStarten && a.advies !== "lichte_dag" && programma?.fase.fase === "normaal") {
+    knoppen.push(`<button type="button" class="text-link" data-advies="licht">${a.advies === "deload" ? "Alleen vandaag licht" : "Toch een lichte dag"}</button>`);
+  }
+  const blok = a.blok
+    ? `<p class="ruimte-boven"><strong>Blok: ${escapeHtml(a.blok.label)}</strong> · week ${a.blok.weekInBlok} van ${a.blok.wekenInBlok} (plan: week ${a.blok.week} van ${a.blok.totaalWeken}). <a href="/blokken.html">Je plan</a></p>`
+    : '<p class="lijst-meta ruimte-boven">Naar een doel toe trainen? <a href="/blokken.html">Plan blokken</a></p>';
+  const hybride = a.hybride.meldingen.map((m) => `<p class="melding ruimte-boven">${escapeHtml(m)}</p>`).join("");
+  const duur = a.hybride.week.sessies
+    ? `${a.hybride.week.sessies} duurtraining${a.hybride.week.sessies === 1 ? "" : "en"}, ${a.hybride.week.minuten} min in 7 dagen. `
+    : "";
+  return `
+    <div class="pro-kop"><h2>Advies voor vandaag</h2><span class="badge pro-badge">Pro</span></div>
+    <p class="advies-kop">${ADVIES_KOP[a.advies]}</p>
+    <ul class="lijst-meta">${a.redenen.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>
+    ${alLicht && a.advies !== "normaal" ? `<p class="lijst-meta ruimte-boven">Je zit al in je ${programma.fase.fase === "intro" ? "introfase" : "deloadweek"}: die is al licht. Train rustig en luister naar je lichaam.</p>` : ""}
+    ${knoppen.length ? `<div class="knop-rij ruimte-boven">${knoppen.join("")}</div>` : ""}
+    ${blok}
+    ${hybride}
+    <p class="lijst-meta ruimte-boven">${duur}<a href="/duur.html">Duurtraining loggen</a> · <a href="/wetenschap.html#slim-herstel">Waarom?</a></p>`;
+}
+
+async function laadAdvies(g) {
+  const paneel = document.getElementById("advies-paneel");
+  // Zonder schema eerst de eerste stap; dan nog geen Pro erbij.
+  if (!gegevens.programma) return;
+  if (!g.pro) {
+    toonProSlot(
+      paneel,
+      "Advies voor vandaag",
+      "Je herstelcheck en voorstel werken gratis. Met Pro maakt RSLNT er een concrete keuze van, en houdt het rekening met je duurtraining:",
+      ["advies", "bijsturen", "blokken", "hybride"],
+    );
+    return;
+  }
+  try {
+    const advies = await api("/api/pro/vandaag");
+    paneel.classList.remove("pro-slot");
+    paneel.innerHTML = adviesHtml(advies);
+    paneel.hidden = false;
+  } catch {
+    paneel.hidden = true;
+  }
+}
+
+document.getElementById("advies-paneel").addEventListener("click", async (e) => {
+  const knop = e.target.closest("[data-advies]");
+  if (!knop) return;
+  if (knop.dataset.advies === "licht") {
+    start(gegevens.volgendeSchema.id, true);
+    return;
+  }
+  if (!confirm("Een week deload: halve sets, zelfde gewicht. Starten?")) return;
+  try {
+    await api(`/api/programmas/${gegevens.programma.id}/deload`, { methode: "POST", body: { aan: true } });
+    gegevens = await api("/api/vandaag");
+    tekenTraining();
+    laadAdvies(await haalSessie());
+  } catch (fout) {
+    startFout.textContent = foutTekst(fout);
   }
 });
 
@@ -273,7 +349,7 @@ async function laad() {
     day: "numeric",
     month: "long",
   });
-  await vereisSessie();
+  const sessie = await vereisSessie();
   try {
     gegevens = await api("/api/vandaag");
   } catch (fout) {
@@ -285,6 +361,7 @@ async function laad() {
   tekenTraining();
   tekenGewicht();
   tekenRecent();
+  if (!sessie.offline) laadAdvies(sessie);
 }
 
 laad();

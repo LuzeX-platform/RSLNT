@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Blokken — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker"><span class="badge pro-badge">Pro</span> Schema</p>
+      <h1>Periodisering in blokken</h1>
+      <p class="subtitle">Een plan voor de komende weken. Per blok schuiven je sets, reps en RIR mee; het gewicht blijft het voorstel van RSLNT, met dezelfde vangrails.</p>
+    </div>
+
+    <section class="panel" id="pro-slot" hidden></section>
+
+    <div id="pro-inhoud" hidden>
+      <section class="panel" id="plan-paneel" hidden>
+        <div class="panel-kop">
+          <h2 id="plan-titel">Je plan</h2>
+          <a class="text-link" href="/wetenschap.html#periodisering">Waarom?</a>
+        </div>
+        <p class="subtitle" id="plan-samenvatting"></p>
+        <div class="blok-tijdlijn" id="tijdlijn" aria-hidden="true"></div>
+        <ul class="blok-legenda" id="legenda"></ul>
+        <button type="button" class="text-link gevaar-link ruimte-boven" id="stoppen">Plan stoppen</button>
+        <p class="error" id="stop-fout" role="alert"></p>
+      </section>
+
+      <section class="panel">
+        <h2 id="kies-titel">Kies een plan</h2>
+        <p class="subtitle" id="kies-uitleg">Voor je actieve programma. Een nieuw plan vervangt het vorige; trainingen die je al deed houden hun blok.</p>
+        <form id="plan-form" novalidate>
+          <span class="veld-label">Doel</span>
+          <div class="keuzes keuzes-tekst" id="doelen" role="radiogroup" aria-label="Doel"></div>
+          <div id="sjabloon-uitleg"></div>
+          <label for="start">Eerste dag</label>
+          <input id="start" type="date" required />
+          <button type="submit" class="ruimte-boven">Plan starten</button>
+          <p class="error" id="fout" role="alert"></p>
+        </form>
+      </section>
+    </div>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/blokken.js"></script>
+</body>
+</html>

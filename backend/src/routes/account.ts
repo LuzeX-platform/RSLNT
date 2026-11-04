@@ -12,7 +12,7 @@ import { stripeClient } from "../stripe.js";
 
 /** Alles wat RSLNT van één account bewaart, behalve het wachtwoord en de tokens. */
 export async function alleGegevens(gebruikerId: string) {
-  const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen] = await Promise.all([
+  const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen, duurtrainingen, pijnnotities, deellinks] = await Promise.all([
     prisma.gebruiker.findUniqueOrThrow({
       where: { id: gebruikerId },
       select: { naam: true, email: true, rol: true, pro: true, aangemaaktOp: true, emailBevestigdOp: true, toestemmingOp: true, privacyVersie: true },
@@ -32,6 +32,14 @@ export async function alleGegevens(gebruikerId: string) {
       orderBy: { datum: "asc" },
       include: { oefeningen: { orderBy: { volgorde: "asc" }, include: { sets: { orderBy: { nummer: "asc" } } } } },
     }),
+    prisma.duurtraining.findMany({ where: { gebruikerId }, orderBy: { datum: "asc" } }),
+    prisma.pijnnotitie.findMany({ where: { gebruikerId }, orderBy: { datum: "asc" } }),
+    // Zonder de tokenhash: die zegt niemand iets en hoort niet in een bestand dat je doorstuurt.
+    prisma.deellink.findMany({
+      where: { gebruikerId },
+      orderBy: { aangemaaktOp: "asc" },
+      select: { naam: true, onderdelen: true, aangemaaktOp: true, verlooptOp: true, ingetrokkenOp: true, laatstBekekenOp: true },
+    }),
   ]);
   return {
     toelichting: "Al je gegevens uit LuzeX RSLNT. Datums in UTC. Zie /privacy.html voor wat we bewaren en waarom.",
@@ -45,6 +53,9 @@ export async function alleGegevens(gebruikerId: string) {
     oefeningen,
     programmas,
     trainingen,
+    duurtrainingen,
+    pijnnotities,
+    deellinks,
   };
 }
 
@@ -70,6 +81,9 @@ export async function verwijderAccount(gebruikerId: string) {
     prisma.herstelcheck.deleteMany({ where: { gebruikerId } }),
     prisma.profiel.deleteMany({ where: { gebruikerId } }),
     prisma.voorkeuren.deleteMany({ where: { gebruikerId } }),
+    prisma.duurtraining.deleteMany({ where: { gebruikerId } }),
+    prisma.pijnnotitie.deleteMany({ where: { gebruikerId } }),
+    prisma.deellink.deleteMany({ where: { gebruikerId } }),
     prisma.gebruiker.delete({ where: { id: gebruikerId } }),
   ]);
 }
