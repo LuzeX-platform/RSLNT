@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import { claimKruisproductPro, schoonKvkNummer } from "../luzexKruisproduct.js";
+import { AUTH_LIMIET } from "./auth.js";
 
 // Kruisproduct-Pro v2: de klant vult hier zelf zijn kvk-nummer in om gratis Pro te claimen op
 // basis van een actief, betalend ACCRD-account. Zie luzexKruisproduct.ts en hub/CLAUDE.md voor
@@ -13,11 +14,13 @@ import { claimKruisproductPro, schoonKvkNummer } from "../luzexKruisproduct.js";
 
 const claimSchema = z.object({
   kvkNummer: z.string().trim().min(1).max(20),
+  code: z.string().trim().min(1).max(40),
   wisselen: z.boolean().optional(),
 });
 
 export async function kruisproductRoutes(app: FastifyInstance) {
-  app.post("/api/account/kruisproduct-claim", { preHandler: requireIngelogd }, async (request, reply) => {
+  // Strenge limiet: met deze route zou je anders koppelcodes kunnen raden.
+  app.post("/api/account/kruisproduct-claim", { preHandler: requireIngelogd, config: AUTH_LIMIET }, async (request, reply) => {
     const parsed = claimSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ errorCode: "ONGELDIGE_INVOER" });
     const kvkNummer = schoonKvkNummer(parsed.data.kvkNummer);
@@ -28,7 +31,7 @@ export async function kruisproductRoutes(app: FastifyInstance) {
       return reply.code(409).send({ errorCode: "AL_PRO", bericht: "Je hebt al Pro." });
     }
 
-    const resultaat = await claimKruisproductPro(kvkNummer, wisselen);
+    const resultaat = await claimKruisproductPro(kvkNummer, parsed.data.code, wisselen);
 
     if (resultaat.status === "toegekend") {
       await prisma.gebruiker.update({
@@ -47,7 +50,7 @@ export async function kruisproductRoutes(app: FastifyInstance) {
     if (resultaat.status === "niet_actief") {
       return reply.code(400).send({
         errorCode: "NIET_ACTIEF",
-        bericht: "Dit KvK-nummer is niet gekoppeld aan een actief, betalend ACCRD-account.",
+        bericht: "Dit KvK-nummer en deze koppelcode horen niet bij een actief, betalend ACCRD-account. Kijk in ACCRD onder Mijn abonnement.",
       });
     }
 
