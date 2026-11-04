@@ -2,15 +2,22 @@
 // gehoste pagina (Checkout resp. Billing Portal) — er draait hier geen Stripe.js, alleen een
 // redirect, zie routes/abonnement.ts.
 
+// Zolang Pro geen eigen onderdelen heeft (schema op maat en bibliotheek zijn gratis geworden)
+// verkopen we het niet: geen upgradeknop en geen ACCRD-claim voor iets dat niets toevoegt.
+// Wie al Pro heeft ziet nog wel zijn status en kan zijn abonnement beheren of opzeggen. Zet dit
+// op true zodra er weer Pro-onderdelen zijn; de server (Stripe, kruisproduct) werkt gewoon door.
+const PRO_IN_VERKOOP = false;
+
 vereisSessie().then((g) => {
   if (g.offline) return;
   const afgerekend = queryParam("afgerekend") === "1";
   document.getElementById("afgerekend-melding").hidden = !afgerekend || g.pro;
   document.getElementById("status-paneel").hidden = !g.pro;
   document.getElementById("upgrade-paneel").hidden = g.pro;
+  document.getElementById("upgrade-knop").hidden = !PRO_IN_VERKOOP;
   // Alleen zinnig voor wie nog geen Pro heeft: wie al Pro heeft (via Stripe of al via ACCRD)
   // heeft hier niets te claimen.
-  document.getElementById("kruisproduct-paneel").hidden = g.pro;
+  document.getElementById("kruisproduct-paneel").hidden = g.pro || !PRO_IN_VERKOOP;
   if (g.pro && g.proBron === "handmatig") {
     document.getElementById("pro-bron-tekst").textContent = "Je hebt Pro gekregen van RSLNT. Je betaalt er niets voor.";
     document.getElementById("beheer-knop").hidden = true;
@@ -93,7 +100,7 @@ const terugUitAccrd = new URLSearchParams(window.location.search);
 if (terugUitAccrd.get("accrd_token") || terugUitAccrd.get("accrd")) history.replaceState(null, "", window.location.pathname);
 
 vereisSessie().then(async (g) => {
-  if (g.offline || g.pro) return;
+  if (g.offline || g.pro || !PRO_IN_VERKOOP) return;
   api("/api/account/kruisproduct-koppelen")
     .then(({ beschikbaar }) => { document.getElementById("koppel-accrd-blok").hidden = !beschikbaar; })
     .catch(() => {});

@@ -8,7 +8,7 @@
 // nieuw tabblad" gewoon werken. Een gewone <dialog> met showModal(), net als rondleiding.js: de
 // browser regelt focus, Escape en dat de pagina erachter even niet te bedienen is.
 //
-// Geen Pro (402/403)? Dan gewoon de link volgen: de bibliotheekpagina legt uit wat Pro is.
+// Lukt ophalen niet (402/403 of offline)? Dan gewoon de link volgen naar de bibliotheekpagina.
 //
 // "Waarom?"-links (/wetenschap.html#anker) tonen alleen dat ene onderdeel van Wetenschap. De
 // pagina wordt één keer opgehaald en daarna uit het geheugen gebruikt; de service worker houdt

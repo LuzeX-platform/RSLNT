@@ -32,7 +32,7 @@ const STAPPEN = [
   {
     icoon: "schema",
     titel: "Schema",
-    tekst: "Je programma en je oefeningen. Hier pas je aan wat je traint. Met Pro maak je een schema op maat.",
+    tekst: "Je programma en je oefeningen. Hier pas je aan wat je traint, of maak je een schema op maat.",
   },
   {
     icoon: "wetenschap",
