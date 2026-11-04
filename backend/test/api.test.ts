@@ -782,6 +782,11 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls("", "POST", "/api/auth/inloggen", { email: "hans@test.nl", wachtwoord: "hans-wachtwoord-1" })).statusCode, 200);
 
     await prisma.gebruiker.deleteMany({ where: { email: { in: ["fee@test.nl", "gijs@test.nl", "hans@test.nl"] } } });
+
+    // Mailstatus: zonder SMTP_HOST zichtbaar "niet ingesteld", en de testknop zegt dat ook.
+    assert.equal((await vraag("GET", "/api/admin/mail")).json().ingesteld, false);
+    assert.equal((await vraag("POST", "/api/admin/mail/test", { naar: "test-abc@srv1.mail-tester.com" })).statusCode, 503);
+    assert.equal((await vraag("POST", "/api/admin/mail/test", { naar: "geen-adres" })).statusCode, 400);
   });
 
   test("Pro-paywall: bibliotheek en schema op maat alleen voor Pro-leden", async () => {

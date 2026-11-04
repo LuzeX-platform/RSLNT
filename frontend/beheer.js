@@ -106,7 +106,38 @@ document.getElementById("uitnodigingen").addEventListener("click", async (event)
   }
 });
 
+async function laadMail() {
+  try {
+    const m = await api("/api/admin/mail");
+    document.getElementById("mail-status").innerHTML = m.ingesteld
+      ? `<li>✓ Mailserver: ${escapeHtml(m.server)}</li><li>✓ Afzender: ${escapeHtml(m.afzender)}</li>`
+      : "<li>✗ Geen mailserver ingesteld. Er gaat nu géén mail de deur uit: zet de SMTP-waarden in Render.</li>";
+  } catch {
+    document.getElementById("mail-status").innerHTML = "<li>Kon de mailstatus niet laden.</li>";
+  }
+}
+
+document.getElementById("testmail-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const fout = document.getElementById("mail-fout");
+  const succes = document.getElementById("mail-succes");
+  const knop = event.target.querySelector("button");
+  const adres = document.getElementById("testmail-naar").value.trim();
+  fout.textContent = "";
+  succes.textContent = "";
+  knop.disabled = true;
+  try {
+    const { naar } = await api("/api/admin/mail/test", { methode: "POST", body: adres ? { naar: adres } : {} });
+    succes.textContent = `Verstuurd naar ${naar}.`;
+  } catch (f) {
+    fout.textContent = foutTekst(f);
+  } finally {
+    knop.disabled = false;
+  }
+});
+
 vereisSessie().then((g) => {
   if (g.offline || g.rol !== "admin") return;
   laadOverzicht();
+  laadMail();
 });

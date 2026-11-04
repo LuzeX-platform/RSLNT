@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../db.js";
 import { requireAdmin, requireIngelogd } from "../plugins/requireAuth.js";
 import { wisselProUitnodigingIn } from "../proUitnodiging.js";
+import { mailStatus, verstuurMail } from "../mailer.js";
 
 // Alleen voor het eigenaarsaccount: hoeveel mensen zich hebben aangemeld, hoeveel daarvan hun
 // e-mailadres bevestigd hebben, en hoeveel Pro hebben (betaald, of via Kruisproduct-Pro — zie
@@ -50,6 +51,32 @@ export async function adminRoutes(app: FastifyInstance) {
       recent,
       uitnodigingen,
     };
+  });
+
+  app.get("/api/admin/mail", async () => mailStatus());
+
+  // Testmail naar een zelfgekozen adres, met de echte foutmelding van de mailserver als het
+  // misgaat. Bedoeld voor een adres van mail-tester.com: dat geeft de mail een cijfer en zegt
+  // wat er aan SPF, DKIM, DMARC of de inhoud mankeert. Zonder adres gaat hij naar de eigenaar.
+  app.post("/api/admin/mail/test", async (request, reply) => {
+    const parsed = z.object({ naar: z.string().trim().email().max(200).optional() }).safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ errorCode: "ONGELDIGE_INVOER", bericht: "Vul een geldig e-mailadres in." });
+    if (!mailStatus().ingesteld) {
+      return reply.code(503).send({ errorCode: "MAIL_NIET_INGESTELD", bericht: "Er is geen mailserver ingesteld: zet SMTP_HOST en de andere SMTP-waarden in Render." });
+    }
+    const eigenaar = await prisma.gebruiker.findUniqueOrThrow({ where: { id: request.gebruiker!.gebruikerId } });
+    const naar = parsed.data.naar ?? eigenaar.email;
+    try {
+      await verstuurMail({
+        naar,
+        onderwerp: "Bevestig je e-mailadres — LuzeX RSLNT (test)",
+        // Zo dicht mogelijk bij een echte bevestigingsmail, anders meet mail-tester iets anders.
+        tekst: "Hoi,\n\nDit is een testmail van RSLNT, opgebouwd zoals een bevestigingsmail. Komt hij aan, dan komen bevestigingsmails ook aan.\n\n" + `${process.env.APP_URL ?? ""}/bevestigen.html?token=test`,
+      });
+      return { ok: true, naar };
+    } catch (fout) {
+      return reply.code(502).send({ errorCode: "MAIL_MISLUKT", bericht: `De mailserver weigerde: ${(fout as Error).message}` });
+    }
   });
 
   // Voor wie de bevestigingsmail niet krijgt (Microsoft-adressen zetten mail van een nieuw domein
