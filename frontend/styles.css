@@ -2876,3 +2876,19 @@ body.portaal {
     box-shadow: none;
   }
 }
+
+/* Schema-editor: per oefening alleen de naam en een samenvatting; de velden klappen open. Zo
+   is het schema een lijst om in te wisselen, en staan sets en reps er pas als je ze zoekt. */
+.regel-samenvatting {
+  margin: 4px 0 0 4px;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.regel-acties {
+  margin-top: 10px;
+}
+
+.regel-acties button {
+  min-height: 44px;
+}
