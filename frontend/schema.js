@@ -1,4 +1,5 @@
-// Schema-editor: de trainingen (A, B, C …) van het actieve programma, met sets, rep-range, RIR,
+// Schema-editor: de trainingen (A, B, C …) van het actieve programma als lijst van oefeningen om
+// in te wisselen (alternatieven bovenaan); sets, rep-range, RIR,
 // rust, superset en cue per oefening; de oefeningenlijst met gewichtsstap; en programma's
 // inladen uit een JSON-bestand. Een schema wordt in één keer opgeslagen (de hele lijst vervangt de oude).
 
@@ -93,16 +94,33 @@ function tekenRegels() {
   }
   regelsEl.innerHTML = regels
     .map((r, i) => {
-      const opties = oefeningen
-        .map((o) => `<option value="${o.id}"${o.id === r.oefeningId ? " selected" : ""}>${escapeHtml(o.naam)}</option>`)
-        .join("");
+      // Een oefening die al elders in dit schema staat, kan er niet twee keer in (de server weigert dat ook).
+      const elders = new Set(regels.filter((_, j) => j !== i).map((x) => x.oefeningId));
+      const optie = (o) =>
+        `<option value="${o.id}"${o.id === r.oefeningId ? " selected" : ""}${elders.has(o.id) ? " disabled" : ""}>${escapeHtml(o.naam)}${elders.has(o.id) ? " (staat er al in)" : ""}</option>`;
+      // Wisselen gaat meestal naar een alternatief: die staan bovenaan, de rest eronder.
+      const huidig = oefeningen.find((o) => o.id === r.oefeningId);
+      const alternatieven = huidig
+        ? oefeningen.filter((o) => o.id !== huidig.id && (huidig.alternatieven.includes(o.sleutel) || o.alternatieven.includes(huidig.sleutel)))
+        : [];
+      const opties = alternatieven.length
+        ? `${optie(huidig)}<optgroup label="Alternatieven">${alternatieven.map(optie).join("")}</optgroup><optgroup label="Alle oefeningen">${oefeningen
+            .filter((o) => o.id !== huidig.id && !alternatieven.includes(o))
+            .map(optie)
+            .join("")}</optgroup>`
+        : oefeningen.map(optie).join("");
       return `
         <div class="regel" data-index="${i}">
           <div class="regel-kop">
-            <select data-veld="oefeningId" aria-label="Oefening ${i + 1}">${opties}</select>
-            <button type="button" class="icoon-knop" data-actie="omhoog" aria-label="Omhoog"${i === 0 ? " disabled" : ""}>↑</button>
-            <button type="button" class="icoon-knop" data-actie="omlaag" aria-label="Omlaag"${i === regels.length - 1 ? " disabled" : ""}>↓</button>
-            <button type="button" class="icoon-knop" data-actie="weg" aria-label="Uit schema halen">×</button>
+            <select data-veld="oefeningId" aria-label="Oefening ${i + 1}, tik om te wisselen">${opties}</select>
+            <button type="button" class="icoon-knop" data-actie="details" aria-expanded="${Boolean(r._open)}" aria-label="Sets, reps en meer">${r._open ? "▴" : "▾"}</button>
+          </div>
+          <p class="regel-samenvatting">${escapeHtml(samenvatting(r))}</p>
+          <div class="regel-details"${r._open ? "" : " hidden"}>
+          <div class="knop-rij regel-acties">
+            <button type="button" class="secondary" data-actie="omhoog"${i === 0 ? " disabled" : ""}>↑ Omhoog</button>
+            <button type="button" class="secondary" data-actie="omlaag"${i === regels.length - 1 ? " disabled" : ""}>↓ Omlaag</button>
+            <button type="button" class="text-link gevaar-link" data-actie="weg">Uit schema</button>
           </div>
           <div class="regel-velden">
             ${veld("Sets", "aantalSets", r.aantalSets, i)}
@@ -116,9 +134,21 @@ function tekenRegels() {
             ${keuzeVeld("Progressie", "progressie", r.progressie, REGELS, i)}
             ${keuzeVeld("Na de laatste set", "techniek", r.techniek, TECHNIEKEN, i)}
           </div>
+          </div>
         </div>`;
     })
     .join("");
+}
+
+/** "3 × 8–12 · RIR 2 · rust 1:30": wat er staat, zonder alle velden open. */
+function samenvatting(r) {
+  const reps = r.repsMin === r.repsMax ? `${r.repsMin ?? "?"}` : `${r.repsMin ?? "?"}–${r.repsMax ?? "?"}`;
+  const delen = [`${r.aantalSets ?? "?"} × ${reps}`];
+  if (r.doelRir !== null && r.doelRir !== undefined) delen.push(`RIR ${r.doelRir}`);
+  if (r.rustSeconden) delen.push(`rust ${Math.floor(r.rustSeconden / 60)}:${String(r.rustSeconden % 60).padStart(2, "0")}`);
+  if (r.supersetGroep) delen.push(`superset ${r.supersetGroep}`);
+  if (r.techniek) delen.push(TECHNIEKEN.find(([w]) => w === r.techniek)?.[1].toLowerCase() ?? r.techniek);
+  return delen.join(" · ");
 }
 
 function kiesSchema(id) {
@@ -141,6 +171,12 @@ regelsEl.addEventListener("click", (e) => {
   const knop = e.target.closest("[data-actie]");
   if (!knop) return;
   const i = Number(knop.closest(".regel").dataset.index);
+  // Details open- of dichtklappen is geen wijziging aan het schema.
+  if (knop.dataset.actie === "details") {
+    regels[i]._open = !regels[i]._open;
+    tekenRegels();
+    return;
+  }
   if (knop.dataset.actie === "weg") regels.splice(i, 1);
   if (knop.dataset.actie === "omhoog" && i > 0) [regels[i - 1], regels[i]] = [regels[i], regels[i - 1]];
   if (knop.dataset.actie === "omlaag" && i < regels.length - 1) [regels[i + 1], regels[i]] = [regels[i], regels[i + 1]];
@@ -149,6 +185,14 @@ regelsEl.addEventListener("click", (e) => {
 });
 
 regelsEl.addEventListener("change", (e) => {
+  // Andere oefening gekozen: opnieuw tekenen, zodat de alternatieven bij de nieuwe oefening horen.
+  if (e.target.dataset.veld === "oefeningId") {
+    regels[Number(e.target.closest(".regel").dataset.index)].oefeningId = e.target.value;
+    gewijzigd = true;
+    succesEl.textContent = "";
+    tekenRegels();
+    return;
+  }
   // Keuzelijsten: sommige browsers sturen bij een select alleen "change".
   if (e.target.tagName !== "SELECT" || !["progressie", "techniek"].includes(e.target.dataset.veld)) return;
   regels[Number(e.target.closest(".regel").dataset.index)][e.target.dataset.veld] = e.target.value;
@@ -161,6 +205,8 @@ regelsEl.addEventListener("input", (e) => {
   if (!naam || naam === "progressie" || naam === "techniek") return;
   const r = regels[Number(e.target.closest(".regel").dataset.index)];
   r[naam] = GETALVELDEN.includes(naam) ? leesGetal(e.target.value) : e.target.value.trim();
+  const kop = e.target.closest(".regel").querySelector(".regel-samenvatting");
+  if (kop) kop.textContent = samenvatting(r);
   gewijzigd = true;
   succesEl.textContent = "";
 });
@@ -199,7 +245,7 @@ document.getElementById("opslaan").addEventListener("click", async () => {
   try {
     await api(`/api/schemas/${actiefId}`, {
       methode: "PUT",
-      body: { oefeningen: regels.map((r) => ({ ...r, supersetGroep: r.supersetGroep || null, techniek: r.techniek || null })) },
+      body: { oefeningen: regels.map(({ _open, ...r }) => ({ ...r, supersetGroep: r.supersetGroep || null, techniek: r.techniek || null })) },
     });
     gewijzigd = false;
     await laadSchemas();
