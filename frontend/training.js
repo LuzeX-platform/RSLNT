@@ -14,6 +14,12 @@ const rijenPer = new Map();
 const opslaanTimers = new Map();
 /** Oefeningen waarvan de wissellijst openstaat. */
 const wisselOpen = new Set();
+/**
+ * Inklappen: een opgeslagen set wordt één regel, een oefening met al haar sets één kaartje. Zo
+ * staat bovenaan wat je nog moet doen. Wat je zelf weer openklapt, klappen we niet vanzelf dicht.
+ */
+const ingeklapt = new Set();
+const zelfOpen = new Set();
 
 /** Waar het onderzoek achter een voorstel staat (wetenschap.html). */
 function waaromAnker(v, o) {
@@ -225,7 +231,51 @@ function pijnKnopTekst(rij) {
   return `Pijn ${rij.pijn}${rij.pijnPlek ? ` · ${PIJN_PLEKKEN[rij.pijnPlek].toLowerCase()}` : ""}`;
 }
 
+/** Alle geplande werksets opgeslagen (en een techniekset gedaan als die in het schema staat). */
+function isKlaar(o) {
+  const rijen = rijenPer.get(o.id) ?? [];
+  const werk = rijen.filter((r) => r.opgeslagen && isWerkrij(r)).length;
+  return werk >= o.aantalSets;
+}
+
+/** Klap dicht als de oefening klaar is, behalve als je hem zelf openklapte of nog een techniekset kunt doen. */
+function klapDichtAlsKlaar(o) {
+  if (!isKlaar(o) || zelfOpen.has(o.id)) return false;
+  const techniekGedaan = (rijenPer.get(o.id) ?? []).some((r) => r.opgeslagen && !isWerkrij(r));
+  if (o.techniek && TECHNIEK[o.techniek] && !techniekGedaan && detail.training.status === "bezig") return false;
+  ingeklapt.add(o.id);
+  return true;
+}
+
+/** "60 kg × 8, 8, 7" of "20×10, 22,5×8 (kg×reps)", met een techniekset erachter. */
+function setsKort(o, rijen) {
+  const werk = rijen.filter((r) => r.opgeslagen && isWerkrij(r));
+  const techniek = rijen.filter((r) => r.opgeslagen && !isWerkrij(r));
+  const gewichten = [...new Set(werk.map((r) => r.gewicht))];
+  let kern;
+  if (isZonderGewicht(o) || gewichten.every((g) => g === null)) kern = `${werk.map((r) => r.reps).join(", ")} reps`;
+  else if (gewichten.length === 1) kern = `${kg(gewichten[0])} × ${werk.map((r) => r.reps).join(", ")}`;
+  else kern = werk.map((r) => `${getal(r.gewicht)}×${r.reps}`).join(", ") + " (kg×reps)";
+  const extra = techniek.length ? ` + ${techniek.length} ${(SOORT_TECHNIEK[techniek[0].soort]?.label ?? "extra").toLowerCase()}` : "";
+  return `${werk.length} ${werk.length === 1 ? "set" : "sets"} · ${kern}${extra}`;
+}
+
+/** Eén opgeslagen set als regel: wat je deed, tik om aan te passen. */
+function setDichtHtml(o, rij) {
+  const delen = [isWerkrij(rij) ? `Set ${rij.nummer}` : `${SOORT_TECHNIEK[rij.soort]?.label ?? rij.soort}`];
+  delen.push(isZonderGewicht(o) || rij.gewicht === null ? `${rij.reps} reps` : `${kg(rij.gewicht)} × ${rij.reps}`);
+  if (rij.rir !== null) delen.push(`RIR ${rij.rir}`);
+  if (rij.pijn !== null) delen.push(`pijn ${rij.pijn}${rij.pijnPlek ? ` (${PIJN_PLEKKEN[rij.pijnPlek].toLowerCase()})` : ""}`);
+  return `
+    <div class="set opgeslagen set-dicht" data-to="${o.id}" data-nummer="${rij.nummer}">
+      <button type="button" class="set-regel" data-actie="set-open" aria-label="${escapeHtml(delen.join(", "))}, aanpassen">
+        <span>${escapeHtml(delen.join(" · "))}</span><span class="set-status">✓ Aanpassen</span>
+      </button>
+    </div>`;
+}
+
 function setHtml(o, rij) {
+  if (rij.opgeslagen && !rij.open) return setDichtHtml(o, rij);
   const lg = isZonderGewicht(o);
   const gewichtVeld = lg
     ? ""
@@ -314,6 +364,15 @@ function wisselHtml(o) {
 function oefeningHtml(o, index) {
   const rijen = rijenPer.get(o.id);
   huidigeOefening = o;
+  if (ingeklapt.has(o.id)) {
+    return `
+    <section class="panel oefening oefening-dicht" id="oefening-${o.id}" data-to="${o.id}">
+      <button type="button" class="oefening-dicht-knop" data-actie="oefening-open" aria-expanded="false">
+        <span><strong>${escapeHtml(o.naam)}</strong><br /><span class="lijst-meta">✓ ${escapeHtml(setsKort(o, rijen))}</span></span>
+        <span aria-hidden="true">▾</span>
+      </button>
+    </section>`;
+  }
   const badges = [
     o.supersetGroep ? `<span class="badge superset-badge">Superset ${escapeHtml(o.supersetGroep)}</span>` : "",
     o.gewisseld ? `<span class="badge">In plaats van ${escapeHtml(o.gewisseld.van)}</span>` : "",
@@ -327,6 +386,7 @@ function oefeningHtml(o, index) {
         <h2>${escapeHtml(o.naam)}</h2>
         <span class="doel">${doelTekst(o)}</span>
       </div>
+      ${isKlaar(o) ? '<button type="button" class="text-link inklappen" data-actie="oefening-dicht">Inklappen ▴</button>' : ""}
       ${meta || o.bibliotheekId ? `<p class="doel-meta">${meta}${meta && o.bibliotheekId ? " · " : ""}${
         o.bibliotheekId ? `<a class="waarom" href="/bibliotheek.html?id=${encodeURIComponent(o.bibliotheekId)}">Uitleg en foto's</a>` : ""
       }</p>` : ""}
@@ -351,7 +411,16 @@ function tekenSet(o, rij) {
   const sjabloon = document.createElement("template");
   sjabloon.innerHTML = setHtml(o, rij).trim();
   if (oud) oud.replaceWith(sjabloon.content.firstChild);
-  else oefeningenEl.querySelector(`#oefening-${o.id} .sets`).append(sjabloon.content.firstChild);
+  else oefeningenEl.querySelector(`#oefening-${o.id} .sets`)?.append(sjabloon.content.firstChild);
+}
+
+/** Tekent één oefening opnieuw (in- of uitklappen), de rest blijft staan. */
+function tekenOefening(o) {
+  const oud = document.getElementById(`oefening-${o.id}`);
+  if (!oud) return;
+  const sjabloon = document.createElement("template");
+  sjabloon.innerHTML = oefeningHtml(o, detail.oefeningen.indexOf(o)).trim();
+  oud.replaceWith(sjabloon.content.firstChild);
 }
 
 // ---------- Opslaan ----------
@@ -400,6 +469,7 @@ function slaOp(o, rij) {
   foutEl.textContent = "";
   rij.opgeslagen = true;
   rij.aangeraakt = true;
+  rij.open = false;
   const verstuurd = verstuurSet(o, rij);
   tekenSet(o, rij);
   tekenTeller();
@@ -414,6 +484,8 @@ function slaOp(o, rij) {
     if (rij.pijn !== null) Object.assign(volgende, { pijnOpen: true, pijnPlek: volgende.pijnPlek ?? rij.pijnPlek });
     tekenSet(o, volgende);
   }
+  // Laatste set gedaan: de oefening klapt in en je gaat door naar de volgende.
+  if (!ingeklapt.has(o.id) && klapDichtAlsKlaar(o)) tekenOefening(o);
   scrollNaarVolgende(o, rij);
   startRust(o, isWerkrij(rij) ? undefined : SOORT_TECHNIEK[rij.soort]?.rust);
 }
@@ -476,6 +548,20 @@ oefeningenEl.addEventListener("click", (e) => {
     return;
   }
 
+  if (actie === "oefening-open" || actie === "oefening-dicht") {
+    const o = oefeningMetId(knop.closest(".oefening").dataset.to);
+    if (actie === "oefening-open") {
+      ingeklapt.delete(o.id);
+      zelfOpen.add(o.id);
+    } else {
+      ingeklapt.add(o.id);
+      zelfOpen.delete(o.id);
+    }
+    tekenOefening(o);
+    if (actie === "oefening-dicht") document.getElementById(`oefening-${o.id}`)?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+
   if (actie === "extra-techniek") {
     const o = oefeningMetId(knop.closest(".oefening").dataset.to);
     const rijen = rijenPer.get(o.id);
@@ -534,6 +620,10 @@ oefeningenEl.addEventListener("click", (e) => {
       break;
     case "pijn-open":
       rij.pijnOpen = !rij.pijnOpen;
+      tekenSet(o, rij);
+      return;
+    case "set-open":
+      rij.open = true;
       tekenSet(o, rij);
       return;
     case "opslaan":
@@ -817,6 +907,7 @@ function teken() {
 
   // Rijen alleen opnieuw opbouwen bij het laden, niet na afronden: dan blijft wat er staat staan.
   for (const o of oefeningen) if (!rijenPer.has(o.id)) rijenPer.set(o.id, maakRijen(o));
+  for (const o of oefeningen) if (!ingeklapt.has(o.id)) klapDichtAlsKlaar(o);
   oefeningenEl.innerHTML = oefeningen.map((o, i) => oefeningHtml(o, i)).join("");
   if (!detail.pro) {
     toonProSlot(
@@ -865,6 +956,8 @@ async function laad() {
     detail = await api(`/api/trainingen/${trainingId}`);
     pasWachtrijToe();
     rijenPer.clear();
+    ingeklapt.clear();
+    zelfOpen.clear();
     teken();
   } catch (fout) {
     document.getElementById("kop").textContent = fout.status === 404 ? "Training niet gevonden" : "Kon de training niet laden";
