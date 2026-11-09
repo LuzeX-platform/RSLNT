@@ -110,6 +110,11 @@ Een fase begint pas als de vorige in de sportschool werkt.
   weekvolume per spiergroep naast het doel, en wat er niet past. Downloaden als JSON, of inladen
   als programma "Op maat" (met of zonder activeren). Oefeningen die je al deed houden hun
   sleutel en dus hun geschiedenis. Hoe het werkt: Wetenschap → "Schema op maat".
+  **Met Pro: in je eigen woorden.** Typ of spreek (microfoon van het toetsenbord) in wat je wilt;
+  Claude (Anthropic, `claude-opus-5-5`) zet het om naar de keuzes hierboven, RSLNT controleert
+  het antwoord in code en zet het in het formulier. Niets wordt opgeslagen. Wat niet in de opties
+  past, zie je apart. Nodig op Render: `ANTHROPIC_API_KEY`; zonder sleutel meldt de app dat het
+  even niet kan. Zie `backend/src/wensVertalen.ts`.
 - **Opwarmsets en schijven** (gratis, in de training) — bij basisoefeningen en de eerste
   oefening een opbouw naar het voorgestelde gewicht (`backend/src/opwarmen.ts`); bij een stang
   welke schijven er per kant op moeten (`frontend/schijven.js`, stang 20/15/10 kg).

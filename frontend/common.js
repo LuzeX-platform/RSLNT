@@ -118,6 +118,7 @@ const PRO_ONDERDELEN = [
   { sleutel: "technieken", titel: "Dropsets, myo-reps en rest-pause", tekst: "Na je laatste set, met een voorstel voor het gewicht. Ze tellen half mee in je volume en niet voor je progressie.", pad: "/schema.html", anker: "technieken" },
   { sleutel: "hybride", titel: "Hybride trainen", tekst: "Log hardlopen, fietsen of zwemmen naast je krachttraining. RSLNT waarschuwt als een zware benendag en een harde duurtraining te dicht op elkaar vallen.", pad: "/duur.html", anker: "hybride" },
   { sleutel: "delen", titel: "Exporteren en delen met je trainer", tekst: "Al je sets als spreadsheet (CSV), en een leeslink voor je trainer of fysio die je zelf kiest, laat verlopen of intrekt.", pad: "/delen.html", anker: "delen" },
+  { sleutel: "wens", titel: "Schema op maat in je eigen woorden", tekst: "Typ of spreek in wat je wilt, ook als het niet in de knoppen past. Claude zet het om naar de keuzes van Schema op maat; jij kijkt ze na voordat er een schema komt.", pad: "/personaliseren.html", anker: "wens" },
   { sleutel: "pijn", titel: "Pijnlogboek", tekst: "Pijn per plek per week, bij welke oefeningen, en je eigen notities. Handig om aan je fysio te laten zien.", pad: "/pijn.html", anker: "pijnlogboek" },
 ];
 

@@ -22,6 +22,7 @@ import { dagVan, e1rm, fractioneleSets } from "../voortgang.js";
 import { PIJN_PLEK_SLEUTELS, PIJN_PLEKKEN } from "../pijn.js";
 import { duurLijst, krachtAnalyse, pijnLogboek } from "../proData.js";
 import { appUrl } from "../mailer.js";
+import { vertaalWens, WensFout, wensSchema } from "../wensVertalen.js";
 
 export const DEEL_ONDERDELEN = ["trainingen", "kracht", "pijn", "duur"] as const;
 const MAX_ACTIEVE_LINKS = 10;
@@ -44,6 +45,23 @@ const SOORT_LABEL: Record<string, string> = { normaal: "", drop: "dropset", myo:
 export async function proRoutes(app: FastifyInstance) {
   app.addHook("preHandler", requireIngelogd);
   app.addHook("preHandler", vereistPro);
+
+  // ---------- Je wens in eigen woorden ----------
+  // Claude zet de tekst om naar de keuzes van Schema op maat; er wordt niets opgeslagen. Elk
+  // verzoek kost geld, dus een eigen, krappe limiet.
+  app.post("/api/pro/wens", { config: { rateLimit: { max: 20, timeWindow: "1 hour" } } }, async (request, reply) => {
+    const parsed = wensSchema.safeParse(request.body);
+    if (!parsed.success) return ongeldig(reply, parsed.error);
+    try {
+      return await vertaalWens(parsed.data.tekst);
+    } catch (fout) {
+      if (!(fout instanceof WensFout)) throw fout;
+      request.log.warn({ code: fout.code, reden: fout.message }, "wens vertalen mislukt");
+      return reply
+        .code(fout.code === "AI_NIET_BESCHIKBAAR" ? 503 : 502)
+        .send({ errorCode: fout.code, bericht: fout.code === "AI_NIET_BESCHIKBAAR" ? "Dit kan nu even niet. Vul de keuzes hieronder zelf in." : "Dat lukte niet. Probeer het anders te zeggen, of vul de keuzes zelf in." });
+    }
+  });
 
   // ---------- Analyse ----------
   app.get("/api/pro/analyse", async (request) => krachtAnalyse(gid(request)));

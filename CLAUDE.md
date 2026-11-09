@@ -145,5 +145,8 @@ frontend/           losse HTML + één script per pagina, geen build-stap
 
 ## Later
 
-Garmin is geschrapt. Fase 5 (AI-coach via de Anthropic SDK) staat nog open; die komt dan ook in de
-privacyverklaring (welke gegevens naar Anthropic gaan).
+Garmin is geschrapt. Fase 5 (AI-coach via de Anthropic SDK) staat nog open. De eerste AI zit er al:
+`wensVertalen.ts` (Pro, `POST /api/pro/wens`) zet een wens in eigen woorden om naar de keuzes
+van Schema op maat. Zelfde patroon voor elke volgende AI: alleen de tekst die nodig is naar
+Anthropic, structured output, daarna een controle in code (`normaliseerWens`) en nooit zelf iets
+opslaan of beslissen; in tests een nep-vrager (`zetWensVrager`), nooit een echt verzoek.

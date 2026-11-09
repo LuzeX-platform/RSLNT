@@ -35,6 +35,10 @@ services:
         sync: false
       - key: SEED_NAAM
         sync: false
+      # Pro "Schema op maat in je eigen woorden": Claude zet de tekst om naar keuzes. Zonder
+      # sleutel zegt de app netjes dat het even niet kan; de rest werkt gewoon.
+      - key: ANTHROPIC_API_KEY
+        sync: false
       # Publieke adres van de app: voor de links in de bevestigings- en resetmail.
       - key: APP_URL
         sync: false

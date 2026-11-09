@@ -260,7 +260,72 @@ function download() {
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-async function laad() {
+// ---------- In je eigen woorden (Pro) ----------
+
+const WENS_LABELS = {
+  doel: "doel",
+  ervaring: "ervaring",
+  dagenPerWeek: "dagen per week",
+  minutenPerTraining: "minuten",
+  materiaal: "materiaal",
+  blessures: "klachten",
+  focus: "extra aandacht",
+  doelgewicht: "doelgewicht",
+};
+
+/** Zet wat Claude invulde in het formulier. Wat niet genoemd is, blijft staan. */
+function pasWensToe({ keuzes: k, uitleg, nietGelukt }) {
+  for (const [veld, waarde] of Object.entries(k)) {
+    if (veld === "doelgewicht") document.getElementById("doelgewicht").value = getal(waarde, 1);
+    else v[veld] = waarde;
+  }
+  tekenFormulier();
+  const ingevuld = Object.keys(k).map((veld) => WENS_LABELS[veld] ?? veld);
+  const el = document.getElementById("wens-resultaat");
+  el.innerHTML = `
+    ${uitleg ? `<p>${escapeHtml(uitleg)}</p>` : ""}
+    <p class="lijst-meta">${ingevuld.length ? `Ingevuld: ${escapeHtml(ingevuld.join(", "))}. Kijk het hieronder na.` : "Hier kon RSLNT geen keuzes uit halen. Probeer het anders te zeggen, of kies hieronder zelf."}</p>
+    ${nietGelukt.length ? `<p class="lijst-meta"><strong>Past niet in de keuzes:</strong></p><ul>${nietGelukt.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>` : ""}`;
+  el.hidden = false;
+}
+
+async function vertaalWens() {
+  const knop = document.getElementById("wens-vertaal");
+  const fout = document.getElementById("wens-fout");
+  const tekst = document.getElementById("wens").value.trim();
+  fout.textContent = "";
+  if (tekst.length < 3) {
+    fout.textContent = "Vertel eerst wat je wilt.";
+    return;
+  }
+  knop.disabled = true;
+  knop.textContent = "Even denken…";
+  try {
+    pasWensToe(await api("/api/pro/wens", { methode: "POST", body: { tekst } }));
+  } catch (f) {
+    fout.textContent = foutTekst(f);
+  } finally {
+    knop.disabled = false;
+    knop.textContent = "Vul de keuzes in";
+  }
+}
+
+function tekenWens(gebruiker) {
+  if (gebruiker?.pro) {
+    document.getElementById("wens-paneel").hidden = false;
+    document.getElementById("wens-vertaal").addEventListener("click", vertaalWens);
+  } else {
+    toonProSlot(
+      document.getElementById("wens-pro"),
+      "In je eigen woorden",
+      "Past wat je wilt niet in de knoppen hieronder? Met Pro typ of spreek je het in, en vult RSLNT de keuzes voor je in.",
+      ["wens"],
+    );
+  }
+}
+
+async function laad(gebruiker) {
+  tekenWens(gebruiker);
   if (START) {
     document.querySelector(".app-kop .kicker").textContent = "Stap 2 van 2";
     document.querySelector(".app-kop h1").textContent = "Je schema";

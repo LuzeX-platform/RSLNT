@@ -2936,3 +2936,23 @@ body.portaal {
   min-height: 36px;
   font-size: 13px;
 }
+
+/* Schema op maat in je eigen woorden (Pro): wat er is ingevuld en wat niet past. */
+.wens-resultaat {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--glas-dun-bg);
+  border: 1px solid var(--glas-rand);
+}
+
+.wens-resultaat p {
+  margin: 0 0 6px;
+}
+
+.wens-resultaat ul {
+  margin: 4px 0 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}

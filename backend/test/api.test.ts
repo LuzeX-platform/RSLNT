@@ -1013,6 +1013,38 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     return `${COOKIE_NAME}=${maakSessieToken({ gebruikerId: g.id, email: g.email, versie: g.sessieVersie })}`;
   };
 
+  test("wens in eigen woorden (Pro): Claude vult keuzes in, de controle in code houdt alleen echte opties", async () => {
+    const { zetWensVrager } = await import("../src/wensVertalen.js");
+    let gevraagd = "";
+    zetWensVrager(async (tekst) => {
+      gevraagd = tekst;
+      return { doel: "vetverlies", ervaring: null, dagenPerWeek: 4, minutenPerTraining: 40, materiaal: ["dumbbell", "kettlebell"], blessures: ["knie"], focus: ["glutes"], doelgewicht: null, uitleg: "Afvallen, thuis, vier keer.", nietGelukt: ["Hardlopen op zondag"], extraVeld: "weg" };
+    });
+    try {
+      const res = await vraag("POST", "/api/pro/wens", { tekst: "  Ik wil afvallen, 4x per week thuis met dumbbells en een kettlebell, knie is gevoelig  " });
+      assert.equal(res.statusCode, 200);
+      assert.equal(gevraagd, "Ik wil afvallen, 4x per week thuis met dumbbells en een kettlebell, knie is gevoelig");
+      assert.deepEqual(res.json().keuzes, { doel: "vetverlies", dagenPerWeek: 4, minutenPerTraining: 45, materiaal: ["dumbbell", "kettlebell"], blessures: ["knie"], focus: ["glutes"] });
+      assert.deepEqual(res.json().nietGelukt, ["Hardlopen op zondag"]);
+      // Er wordt niets opgeslagen.
+      assert.notEqual((await vraag("GET", "/api/voorkeuren")).json().voorkeuren.doel, "vetverlies");
+      assert.equal((await vraag("POST", "/api/pro/wens", { tekst: "x" })).statusCode, 400);
+      assert.equal((await vraag("POST", "/api/pro/wens", { tekst: "a".repeat(1001) })).statusCode, 400);
+    } finally {
+      zetWensVrager(null);
+    }
+    // Zonder sleutel op de server: netjes "kan nu niet", geen crash.
+    const oud = process.env.ANTHROPIC_API_KEY;
+    delete process.env.ANTHROPIC_API_KEY;
+    try {
+      const res = await vraag("POST", "/api/pro/wens", { tekst: "Drie keer per week" });
+      assert.equal(res.statusCode, 503);
+      assert.equal(res.json().errorCode, "AI_NIET_BESCHIKBAAR");
+    } finally {
+      if (oud !== undefined) process.env.ANTHROPIC_API_KEY = oud;
+    }
+  });
+
   test("Pro voor gevorderden: zonder Pro 402 op elk Pro-onderdeel, de gratis basis blijft werken", async () => {
     const { hashWachtwoord } = await import("../src/auth.js");
     await prisma.gebruiker.create({
@@ -1033,6 +1065,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       ["GET", "/api/pro/export/duur.csv"],
       ["GET", "/api/pro/deellinks"],
       ["POST", "/api/pro/deellinks", { naam: "Trainer", onderdelen: ["kracht"], dagen: 7 }],
+      ["POST", "/api/pro/wens", { tekst: "Drie keer per week, vooral billen" }],
     ];
     for (const [methode, pad, body] of dicht) {
       const res = await vraagAls(cookieEva, methode, pad, body);

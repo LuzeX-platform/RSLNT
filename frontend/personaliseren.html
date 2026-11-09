@@ -25,6 +25,16 @@
       <p class="subtitle">Vertel wat je wilt en wat je hebt. RSLNT stelt een schema voor volgens het onderzoek op de <a href="/wetenschap.html#personaliseren">Wetenschap-pagina</a>. Je ziet het eerst; er verandert pas iets als je het inlaadt.</p>
     </div>
 
+    <section class="panel" id="wens-paneel" hidden>
+      <h2>In je eigen woorden</h2>
+      <p class="subtitle">Vertel wat je wilt: je doel, hoe vaak en hoe lang, waar je traint, klachten, wat extra aandacht mag krijgen. RSLNT vult de keuzes hieronder voor je in; daarna kijk je ze na.</p>
+      <label for="wens">Je wens</label>
+      <textarea id="wens" rows="4" maxlength="1000" placeholder="Bijvoorbeeld: ik wil sterkere billen en rug, drie keer per week een uur, thuis met dumbbells en een kettlebell. Mijn schouder is soms gevoelig."></textarea>
+      <p class="veld-hint">Inspreken kan met de microfoon op het toetsenbord van je telefoon. Je tekst gaat naar Claude van Anthropic om om te zetten en wordt niet bewaard; zet er geen naam of andere persoonsgegevens in. <a href="/privacy.html#waar">Privacy</a></p>
+      <button type="button" class="ruimte-boven" id="wens-vertaal">Vul de keuzes in</button>
+      <p class="error" id="wens-fout" role="alert"></p>
+      <div class="wens-resultaat" id="wens-resultaat" role="status" hidden></div>
+    </section>
     <form id="voorkeuren-form" novalidate>
       <section class="panel">
         <h2>Je doel</h2>
@@ -84,6 +94,8 @@
       <button type="submit" class="knop-groot" id="maak">Maak mijn voorstel</button>
       <p class="error" id="form-fout" role="alert"></p>
     </form>
+
+    <section class="panel" id="wens-pro" hidden></section>
 
     <div id="voorstel" hidden>
       <section class="panel">
