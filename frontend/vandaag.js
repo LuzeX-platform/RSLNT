@@ -101,18 +101,25 @@ function tekenTraining() {
   }
   startKnop.onclick = () => start(volgendeSchema.id);
 
-  for (const schema of schemas.filter((s) => s.id !== volgendeSchema.id)) {
-    const knop = document.createElement("button");
-    knop.type = "button";
-    knop.className = "text-link set-extra";
-    knop.textContent = `Liever ${schema.code} · ${schema.naam}`;
-    knop.addEventListener("click", () => start(schema.id));
-    andereSchemas.append(knop);
+  const anderen = schemas.filter((s) => s.id !== volgendeSchema.id);
+  if (anderen.length) {
+    const lijst = document.createElement("details");
+    lijst.className = "andere-training";
+    lijst.innerHTML = "<summary>Andere training kiezen</summary>";
+    for (const schema of anderen) {
+      const knop = document.createElement("button");
+      knop.type = "button";
+      knop.className = "text-link set-extra";
+      knop.textContent = schema.naam;
+      knop.addEventListener("click", () => start(schema.id));
+      lijst.append(knop);
+    }
+    andereSchemas.append(lijst);
   }
   const week = document.createElement("a");
   week.className = "text-link set-extra";
   week.href = "/week.html";
-  week.textContent = plan ? "Je week bekijken en aanpassen →" : "Plan je week: vaste dagen voor je trainingen →";
+  week.textContent = plan ? "Je week →" : "Plan je week →";
   andereSchemas.append(week);
 }
 
@@ -228,6 +235,11 @@ const HERSTEL = [
 ];
 const STATUS = { goed: { teken: "✓", tekst: "goed" }, neutraal: { teken: "–", tekst: "gemiddeld" }, let_op: { teken: "!", tekst: "let op" } };
 let herstelKeuze = { pijnPlekken: [] };
+let herstelOpen = false;
+document.getElementById("herstel-open").addEventListener("click", () => {
+  herstelOpen = true;
+  tekenHerstel();
+});
 
 /** Vanaf 2 bij pijntjes: waar (optioneel, meer dan één mag). */
 function plekRijHtml() {
@@ -262,13 +274,16 @@ function tekenHerstel() {
   if (!programma) return;
   const form = document.getElementById("herstel-form");
   const signalenEl = document.getElementById("herstel-signalen");
+  const dicht = document.getElementById("herstel-dicht");
   if (!herstel.check) {
-    form.hidden = false;
+    form.hidden = !herstelOpen;
+    dicht.hidden = herstelOpen;
     signalenEl.hidden = true;
     tekenHerstelForm();
     return;
   }
   form.hidden = true;
+  dicht.hidden = true;
   signalenEl.hidden = false;
   const chips = herstel.signalen
     .map((s) => {
@@ -361,15 +376,8 @@ async function laadAdvies(g) {
   const paneel = document.getElementById("advies-paneel");
   // Zonder schema eerst de eerste stap; dan nog geen Pro erbij.
   if (!gegevens.programma) return;
-  if (!g.pro) {
-    toonProSlot(
-      paneel,
-      "Advies voor vandaag",
-      "Je herstelcheck en voorstel werken gratis. Met Pro maakt RSLNT er een concrete keuze van, en houdt het rekening met je duurtraining:",
-      ["advies", "bijsturen", "blokken", "hybride"],
-    );
-    return;
-  }
+  // Zonder Pro geen extra blok: Vandaag blijft kort (de Pro-kaart onderaan is genoeg).
+  if (!g.pro) return;
   try {
     const advies = await api("/api/pro/vandaag");
     paneel.classList.remove("pro-slot");

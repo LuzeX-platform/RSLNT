@@ -160,6 +160,8 @@ function tekenOntbreekt() {
   const lijst = gegevens.ontbreekt.map((o) => ONTBREEKT[o]).filter(Boolean);
   el.hidden = lijst.length === 0;
   el.textContent = `Nog nodig voor alle berekeningen: ${lijst.join(", ")}. Vul ze onderaan in bij Profiel en doel.`;
+  // Ontbreekt er iets, dan staat Profiel en doel open; anders blijft het ingeklapt.
+  if (lijst.length) document.getElementById("profiel-uitklap").open = true;
 }
 
 async function laad() {

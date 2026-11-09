@@ -27,33 +27,6 @@
 
     <section class="panel" id="wens-kaart-boven" hidden></section>
 
-    <div class="schema-links">
-      <a class="panel schema-link" href="/week.html">
-        <strong>Je week</strong>
-        <span class="lijst-meta">Welke training op welke dag, en alles in je agenda (Apple Agenda, Google).</span>
-      </a>
-      <a class="panel schema-link" href="/duurschema.html">
-        <strong>Duurschema</strong>
-        <span class="lijst-meta">Hardlopen, fietsen of zwemmen ernaast: conditie, een afstand halen of afvallen.</span>
-      </a>
-      <a class="panel schema-link" href="/personaliseren.html">
-        <strong>Schema op maat</strong>
-        <span class="lijst-meta">Doel, dagen, tijd, materiaal en blessures → een voorstel volgens het onderzoek.</span>
-      </a>
-      <a class="panel schema-link" href="/bibliotheek.html">
-        <strong>Oefeningen</strong>
-        <span class="lijst-meta">876 oefeningen met uitleg en foto's. Favorieten, alternatieven, toevoegen.</span>
-      </a>
-      <a class="panel schema-link" href="/start.html?stap=2">
-        <strong>Standaardschema</strong>
-        <span class="lijst-meta">Een vast schema voor 2, 3 of 4 dagen per week.</span>
-      </a>
-      <a class="panel schema-link" href="/blokken.html">
-        <strong>Blokken <span class="badge pro-badge">Pro</span></strong>
-        <span class="lijst-meta">Periodisering: opbouw, volume of intensivering, een piek en een deload.</span>
-      </a>
-    </div>
-    <section class="panel" id="wens-kaart-onder" hidden></section>
 
     <div class="tabs" id="tabs" role="group" aria-label="Kies een schema"></div>
 
@@ -69,8 +42,18 @@
       <p class="veld-hint">Min. sets: zoveel sets moeten op de bovenkant van de range zitten voordat het gewicht omhoog gaat. RIR: zoveel reps moet je minstens over hebben. Superset: oefeningen met dezelfde letter of hetzelfde cijfer horen bij elkaar.</p>
     </section>
 
-    <section class="panel">
-      <h2>Programma's</h2>
+    <h2 class="sectie-kop">Meer</h2>
+    <div class="schema-links schema-tegels">
+      <a class="panel schema-link" href="/week.html"><strong>Je week</strong><span class="lijst-meta">Dagen en je agenda</span></a>
+      <a class="panel schema-link" href="/duurschema.html"><strong>Duurschema</strong><span class="lijst-meta">Lopen, fietsen, zwemmen</span></a>
+      <a class="panel schema-link" href="/personaliseren.html"><strong>Schema op maat</strong><span class="lijst-meta">Een nieuw voorstel</span></a>
+      <a class="panel schema-link" href="/bibliotheek.html"><strong>Oefeningen</strong><span class="lijst-meta">Uitleg en foto's</span></a>
+      <a class="panel schema-link" href="/start.html?stap=2"><strong>Standaardschema</strong><span class="lijst-meta">2, 3 of 4 dagen</span></a>
+      <a class="panel schema-link" href="/blokken.html"><strong>Blokken <span class="badge pro-badge">Pro</span></strong><span class="lijst-meta">Periodisering</span></a>
+    </div>
+
+    <details class="panel uitklap">
+      <summary>Programma inladen (JSON)</summary>
       <p class="subtitle">Laad een programma in als JSON-bestand (zie <a href="/wetenschap.html#programma-bestand">het formaat</a>). Een programma met dezelfde id wordt bijgewerkt.</p>
       <ul class="lijst" id="programmas"></ul>
       <label for="programma-bestand">Programma-bestand (.json)</label>
@@ -81,10 +64,10 @@
       </div>
       <p class="error" id="programma-fout" role="alert"></p>
       <p class="success" id="programma-succes" role="status"></p>
-    </section>
+    </details>
 
-    <section class="panel">
-      <h2>Oefeningen</h2>
+    <details class="panel uitklap">
+      <summary>Gewichtsstappen en eigen oefeningen</summary>
       <p class="subtitle">Gewichtsstap = de kleinste stap die je sportschool heeft. Bij dumbbells: per dumbbell.</p>
       <ul class="lijst" id="oefeningen"></ul>
       <form id="oefening-form" class="oefening-form" novalidate>
@@ -118,7 +101,8 @@
         </div>
         <p class="error breed" id="oefening-fout" role="alert"></p>
       </form>
-    </section>
+    </details>
+    <section class="panel" id="wens-kaart-onder" hidden></section>
   </main>
 
   <script src="/common.js"></script>

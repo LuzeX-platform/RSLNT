@@ -34,8 +34,8 @@
         <ul class="lijst duur-sessies" id="deze-week"></ul>
       </section>
 
-      <section class="panel">
-        <h2>Je dagen</h2>
+      <details class="panel uitklap">
+        <summary>Dagen en tijd aanpassen</summary>
         <p class="subtitle" id="dagen-uitleg"></p>
         <div class="keuzes keuzes-7" id="dagen-kiezer" role="group" aria-label="Duurdagen"></div>
         <p class="lijst-meta" id="kracht-dagen"></p>
@@ -43,18 +43,21 @@
         <select id="tijd"></select>
         <p class="success" id="dagen-ok" role="status"></p>
         <p class="error" id="dagen-fout" role="alert"></p>
-      </section>
+      </details>
 
-      <section class="panel">
-        <h2>Het hele schema</h2>
+      <details class="panel uitklap">
+        <summary>Het hele schema</summary>
         <div id="alle-weken"></div>
         <ul class="opmerkingen" id="huidig-opmerkingen"></ul>
-        <div class="knop-rij ruimte-boven">
-          <button type="button" class="secondary" id="opnieuw">Ander duurschema kiezen</button>
+      </details>
+
+      <div class="duur-acties">
+        <div class="knop-rij">
+          <button type="button" class="secondary" id="opnieuw">Ander duurschema</button>
           <button type="button" class="text-link gevaar-link" id="stop">Stop met het duurschema</button>
         </div>
         <p class="error" id="stop-fout" role="alert"></p>
-      </section>
+      </div>
     </div>
 
     <form id="kies" novalidate hidden>

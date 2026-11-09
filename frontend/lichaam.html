@@ -66,8 +66,8 @@
       <span class="lijst-meta">Pijn per plek per week, bij welke oefeningen, en je eigen notities voor je fysio.</span>
     </a>
 
-    <section class="panel">
-      <h2>Meten</h2>
+    <details class="panel uitklap">
+      <summary>Meten (taille, vet%, …)</summary>
       <p class="subtitle">Meet 's ochtends, ontspannen, met een meetlint. Taille op navelhoogte, nek net onder het strottenhoofd.</p>
       <form id="meting-form" novalidate>
         <div class="veld-rij">
@@ -108,10 +108,10 @@
         <p class="error" id="meting-fout" role="alert"></p>
       </form>
       <ul class="lijst" id="metingen"></ul>
-    </section>
+    </details>
 
-    <section class="panel">
-      <h2>Profiel en doel</h2>
+    <details class="panel uitklap" id="profiel-uitklap">
+      <summary>Profiel en doel</summary>
       <form id="profiel-form" novalidate>
         <div class="veld-rij">
           <div>
@@ -152,7 +152,7 @@
         <p class="error" id="profiel-fout" role="alert"></p>
         <p class="success" id="profiel-succes" role="status"></p>
       </form>
-    </section>
+    </details>
 
     <p class="lijst-meta">RSLNT geeft schattingen, geen medisch advies. Formules en bronnen staan onder <a href="/wetenschap.html#lichaam">Wetenschap</a>.</p>
   </main>

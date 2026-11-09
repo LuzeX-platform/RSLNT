@@ -3205,9 +3205,13 @@ body.portaal {
 
 .duur-sessie {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.duur-acties {
+  margin: 8px 4px 0;
 }
 
 .duur-sessie.vandaag {
@@ -3221,4 +3225,84 @@ body.portaal {
 .week-duur {
   margin: 4px 0 6px;
   font-size: 14px;
+}
+
+/* ---------- Overzicht: dingen die je niet elke dag nodig hebt, klappen in ---------- */
+.andere-training {
+  width: 100%;
+}
+
+.andere-training summary,
+.uitklap > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  list-style: none;
+}
+
+.andere-training summary::-webkit-details-marker,
+.uitklap > summary::-webkit-details-marker {
+  display: none;
+}
+
+.andere-training summary::after,
+.uitklap > summary::after {
+  content: "›";
+  margin-left: auto;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--text-muted, inherit);
+  transition: transform 0.15s ease;
+}
+
+.andere-training[open] summary::after,
+.uitklap[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.andere-training .set-extra {
+  display: block;
+  margin-top: 0;
+}
+
+.herstel-dicht {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.herstel-dicht .subtitle {
+  margin: 0;
+}
+
+.herstel-dicht button {
+  flex: 0 0 auto;
+}
+
+/* Schema: korte tegels, ook op een telefoon twee naast elkaar. */
+.schema-links.schema-tegels {
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.schema-tegels .schema-link {
+  padding: 14px;
+  gap: 2px;
+}
+
+.sectie-kop {
+  margin: 24px 4px 10px;
+  font-size: 17px;
+}
+
+.uitklap > summary {
+  margin: -4px 0;
+}
+
+.uitklap[open] > summary {
+  margin-bottom: 12px;
 }
