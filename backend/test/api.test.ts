@@ -1070,6 +1070,75 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(fien, "GET", "/api/account/export")).json().weekplanning.length, 3);
   });
 
+  test("duurschema (gratis): voorstel, starten om je krachtdagen heen, afvinken, agenda, alleen van jezelf", async () => {
+    const { vandaag } = await import("../src/datum.js");
+    const { weekdagVan } = await import("../src/planning.js");
+    const fien = await sessieVoor("fien@test.nl");
+    const keuze = { sport: "hardlopen", doel: "afstand", afstand: 5, niveau: "beginner", dagenPerWeek: 3 };
+
+    let info = (await vraagAls(fien, "GET", "/api/duurschema")).json();
+    assert.equal(info.schema, null);
+    assert.deepEqual(info.kracht.alle.sort(), [1, 3, 5]);
+
+    // Een voorbeeld slaat niets op; ongeldige keuzes geven een nette fout.
+    const voorstel = (await vraagAls(fien, "POST", "/api/duurschema/voorstel", keuze)).json();
+    assert.equal(voorstel.schema.weken.length, 10);
+    assert.equal(voorstel.dagen.length, 3);
+    assert.ok(voorstel.dagen.every((d: number) => ![1, 3, 5].includes(d)), "niet op krachtdagen als er ruimte is");
+    assert.equal((await vraagAls(fien, "POST", "/api/duurschema/voorstel", { ...keuze, afstand: 21.1 })).statusCode, 400);
+    assert.equal((await vraagAls(fien, "POST", "/api/duurschema/voorstel", { ...keuze, sport: "roeien" })).statusCode, 400);
+    assert.equal((await vraagAls(fien, "GET", "/api/duurschema")).json().schema, null);
+
+    assert.equal((await vraagAls(fien, "PUT", "/api/duurschema", keuze)).statusCode, 200);
+    info = (await vraagAls(fien, "GET", "/api/duurschema")).json();
+    assert.equal(info.week, 1);
+    assert.deepEqual(info.instellingen.dagen, voorstel.dagen);
+
+    // Dagen wijzigen: precies zoveel als je koos, met vandaag erbij om af te vinken.
+    const dag = vandaag();
+    const nu = weekdagVan(dag);
+    const dagen = [nu, ...[1, 2, 3, 4, 5, 6, 7].filter((d) => d !== nu).slice(0, 2)];
+    assert.equal((await vraagAls(fien, "PUT", "/api/duurschema/dagen", { dagen: dagen.slice(0, 2) })).statusCode, 400);
+    assert.equal((await vraagAls(fien, "PUT", "/api/duurschema/dagen", { dagen, tijd: "06:45" })).statusCode, 200);
+    const scherm = (await vraagAls(fien, "GET", "/api/vandaag")).json();
+    assert.equal(scherm.duur.datum, dag);
+    assert.equal(scherm.duur.gedaan, false);
+    assert.equal(scherm.duur.tijd, "06:45");
+
+    // Afvinken wordt een duurtraining, één keer; een dag zonder sessie of in de toekomst kan niet.
+    assert.equal((await vraagAls(fien, "POST", "/api/duurschema/gedaan", { datum: dag })).statusCode, 200);
+    assert.equal((await vraagAls(fien, "POST", "/api/duurschema/gedaan", { datum: dag })).statusCode, 200);
+    const gelogd = await prisma.duurtraining.findMany({ where: { gebruiker: { email: "fien@test.nl" } } });
+    assert.equal(gelogd.length, 1);
+    assert.equal(gelogd[0].soort, "hardlopen");
+    assert.equal((await vraagAls(fien, "GET", "/api/vandaag")).json().duur.gedaan, true);
+    const morgen = new Date(Date.parse(`${dag}T12:00:00Z`) + 86400000).toISOString().slice(0, 10);
+    assert.equal((await vraagAls(fien, "POST", "/api/duurschema/gedaan", { datum: morgen })).statusCode, 400);
+
+    // Op Je week en in de agenda (losse afspraken voor 8 weken).
+    const plan = (await vraagAls(fien, "GET", "/api/planning")).json();
+    assert.equal(plan.duurschema, true);
+    assert.equal(plan.dagen.filter((d: any) => d.duur).length, 3);
+    const link = (await vraagAls(fien, "POST", "/api/agenda")).json();
+    const feed = (await app.inject({ method: "GET", url: new URL(link.https).pathname })).body;
+    assert.equal(feed.match(/UID:duur-/g)?.length, 24);
+    assert.ok(feed.includes(`UID:duur-${dag}@rslnt`));
+    await vraagAls(fien, "DELETE", "/api/agenda");
+
+    // Een ander ziet en raakt niets van Fien.
+    assert.equal((await vraag("GET", "/api/duurschema")).json().schema, null);
+    assert.equal((await vraag("POST", "/api/duurschema/gedaan", { datum: dag })).statusCode, 404);
+    assert.equal((await vraag("PUT", "/api/duurschema/dagen", { dagen })).statusCode, 404);
+    assert.equal((await vraag("DELETE", "/api/duurschema")).statusCode, 200);
+    assert.ok((await vraagAls(fien, "GET", "/api/duurschema")).json().schema);
+
+    // In je export, en stoppen.
+    assert.equal((await vraagAls(fien, "GET", "/api/account/export")).json().duurschema.sport, "hardlopen");
+    assert.equal((await vraagAls(fien, "DELETE", "/api/duurschema")).statusCode, 200);
+    assert.equal((await vraagAls(fien, "GET", "/api/duurschema")).json().schema, null);
+    assert.equal((await vraagAls(fien, "GET", "/api/vandaag")).json().duur, null);
+  });
+
   test("wens in eigen woorden (Pro): Claude vult keuzes in, de controle in code houdt alleen echte opties", async () => {
     const { zetWensVrager } = await import("../src/wensVertalen.js");
     let gevraagd = "";

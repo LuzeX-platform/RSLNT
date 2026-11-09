@@ -5,6 +5,7 @@ const KORT = (dag) => new Date(`${dag}T12:00:00`).toLocaleDateString("nl-NL", { 
 const GROOT = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 let plan = null;
 let meldingTimer = null;
+const DUUR_ICOON = { hardlopen: "🏃", fietsen: "🚴", zwemmen: "🏊" };
 
 function meld(tekst) {
   const el = document.getElementById("opgeslagen");
@@ -25,14 +26,18 @@ function dagHtml(d) {
   const isVandaag = d.datum === plan.vandaag;
   const opties = [`<option value="">Rust</option>`, ...plan.schemas.map((s) => `<option value="${s.id}"${s.id === d.schemaId ? " selected" : ""}>${escapeHtml(s.naam)}</option>`)].join("");
   const gedaan = d.gedaan.map((t) => `<span class="badge badge-succes">✓ ${escapeHtml(t.naam)}</span>`).join(" ");
+  const duur = d.duur
+    ? `<p class="week-duur"><span class="duur-sport">${DUUR_ICOON[d.duur.sport] ?? ""}</span> ${escapeHtml(d.duur.titel)} · ${d.duur.minuten} min · ${d.duur.tijd}${d.duur.gedaan ? ' <span class="badge badge-succes">✓ gedaan</span>' : ""}</p>`
+    : "";
   return `
-    <li class="week-dag${isVandaag ? " vandaag" : ""}${d.schemaId ? "" : " rust"}">
+    <li class="week-dag${isVandaag ? " vandaag" : ""}${d.schemaId || d.duur ? "" : " rust"}">
       <div class="week-dag-kop">
         <strong>${GROOT(d.naam)}</strong>
         <span class="lijst-meta">${isVandaag ? "vandaag" : KORT(d.datum)}</span>
         ${gedaan}
       </div>
-      <div class="week-dag-velden">
+      ${duur}
+      <div class="week-dag-velden"${plan.programma ? "" : " hidden"}>
         <select data-weekdag="${d.weekdag}" aria-label="Training op ${d.naam}">${opties}</select>
         <select data-tijd="${d.weekdag}" aria-label="Hoe laat op ${d.naam}" ${d.schemaId ? "" : "hidden"}>${tijdOpties(d.tijd)}</select>
       </div>
@@ -41,9 +46,12 @@ function dagHtml(d) {
 
 function tekenWeek() {
   const lijst = document.getElementById("week");
+  document.getElementById("duur-link").innerHTML = plan.duurschema
+    ? 'Je duurtrainingen staan erbij. <a class="text-link" href="/duurschema.html">Duurschema aanpassen</a>'
+    : 'Ook hardlopen, fietsen of zwemmen? <a class="text-link" href="/duurschema.html">Maak een duurschema</a>; RSLNT zet het om je krachttrainingen heen.';
   if (!plan.programma) {
-    document.getElementById("ondertitel").innerHTML = 'Je hebt nog geen schema. <a href="/start.html">Maak eerst een schema</a>, dan zet RSLNT het meteen over de week.';
-    lijst.innerHTML = "";
+    document.getElementById("ondertitel").innerHTML = 'Je hebt nog geen krachtschema. <a href="/start.html">Maak een schema</a>, dan zet RSLNT het meteen over de week.';
+    lijst.innerHTML = plan.duurschema ? plan.dagen.map(dagHtml).join("") : "";
     document.getElementById("verdeel").hidden = true;
     return;
   }
@@ -56,7 +64,7 @@ function tekenWeek() {
 
 function tekenAgenda(link) {
   const el = document.getElementById("agenda");
-  document.getElementById("agenda-paneel").hidden = !plan.programma;
+  document.getElementById("agenda-paneel").hidden = !plan.programma && !plan.duurschema;
   if (link) {
     el.innerHTML = `
       <a class="knop-link knop-groot" href="${escapeHtml(link.webcal)}">Zet in Apple Agenda</a>

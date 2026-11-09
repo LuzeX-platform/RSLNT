@@ -130,6 +130,43 @@ document.getElementById("fase-info").addEventListener("click", async (e) => {
   }
 });
 
+const DUUR_ICOON = { hardlopen: "🏃", fietsen: "🚴", zwemmen: "🏊" };
+
+/** De duursessie van vandaag (duurschema), met een knop om hem af te vinken. */
+function tekenDuur() {
+  const paneel = document.getElementById("duur-paneel");
+  const d = gegevens.duur;
+  if (!d) {
+    paneel.hidden = true;
+    return;
+  }
+  paneel.hidden = false;
+  const omvang = [d.meters ? `${d.meters} m` : null, `± ${d.minuten} min`, `om ${d.tijd}`].filter(Boolean).join(" · ");
+  paneel.innerHTML = `
+    <p class="kicker">Duurtraining · week ${d.week}</p>
+    <h2>${DUUR_ICOON[d.sport] ?? ""} ${escapeHtml(d.titel)}</h2>
+    <p class="lijst-meta">${escapeHtml(omvang)}</p>
+    <p>${escapeHtml(d.uitleg)}</p>
+    ${
+      d.gedaan
+        ? '<p class="success">✓ Gedaan. Goed bezig.</p>'
+        : '<button type="button" id="duur-gedaan">Gedaan</button>'
+    }
+    <a class="text-link set-extra" href="/duurschema.html">Je duurschema →</a>
+    <p class="error" id="duur-fout" role="alert"></p>`;
+  document.getElementById("duur-gedaan")?.addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    try {
+      await api("/api/duurschema/gedaan", { methode: "POST", body: { datum: d.datum } });
+      gegevens.duur.gedaan = true;
+      tekenDuur();
+    } catch (f) {
+      document.getElementById("duur-fout").textContent = foutTekst(f);
+      e.target.disabled = false;
+    }
+  });
+}
+
 function tekenGewicht() {
   const { gewicht } = gegevens;
   document.getElementById("gemiddelde").textContent = gewicht.gemiddelde7 === null ? "–" : kg(gewicht.gemiddelde7, 1);
@@ -379,6 +416,7 @@ async function laad() {
   }
   tekenHerstel();
   tekenTraining();
+  tekenDuur();
   tekenGewicht();
   tekenRecent();
   if (!sessie.offline) laadAdvies(sessie);
