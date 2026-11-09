@@ -350,6 +350,8 @@ async function laad() {
     month: "long",
   });
   const sessie = await vereisSessie();
+  // Met Pro meteen onder je training; zonder Pro onderaan, na de gratis inhoud.
+  toonWensKaart(document.getElementById(sessie.pro ? "wens-kaart" : "wens-kaart-onder"), Boolean(sessie.pro), { wegklikbaar: true });
   try {
     gegevens = await api("/api/vandaag");
   } catch (fout) {

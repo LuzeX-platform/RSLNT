@@ -25,13 +25,26 @@
       <p class="subtitle">Vertel wat je wilt en wat je hebt. RSLNT stelt een schema voor volgens het onderzoek op de <a href="/wetenschap.html#personaliseren">Wetenschap-pagina</a>. Je ziet het eerst; er verandert pas iets als je het inlaadt.</p>
     </div>
 
-    <section class="panel" id="wens-paneel" hidden>
-      <h2>In je eigen woorden</h2>
-      <p class="subtitle">Vertel wat je wilt: je doel, hoe vaak en hoe lang, waar je traint, klachten, wat extra aandacht mag krijgen. RSLNT vult de keuzes hieronder voor je in; daarna kijk je ze na.</p>
+    <section class="panel wens-paneel" id="wens-paneel" hidden>
+      <p class="wens-kaart-label"><span class="badge pro-badge">Pro</span> Nieuw</p>
+      <h2>Zeg wat je wilt</h2>
+      <p class="subtitle">Je doel, hoe vaak en hoe lang, waar je traint, klachten, wat extra aandacht mag krijgen. In je eigen woorden: RSLNT vult de keuzes hieronder voor je in.</p>
       <label for="wens">Je wens</label>
-      <textarea id="wens" rows="4" maxlength="1000" placeholder="Bijvoorbeeld: ik wil sterkere billen en rug, drie keer per week een uur, thuis met dumbbells en een kettlebell. Mijn schouder is soms gevoelig."></textarea>
-      <p class="veld-hint">Inspreken kan met de microfoon op het toetsenbord van je telefoon. Je tekst gaat naar Claude van Anthropic om om te zetten en wordt niet bewaard; zet er geen naam of andere persoonsgegevens in. <a href="/privacy.html#waar">Privacy</a></p>
-      <button type="button" class="ruimte-boven" id="wens-vertaal">Vul de keuzes in</button>
+      <div class="wens-invoer">
+        <textarea id="wens" rows="4" maxlength="1000" placeholder="Bijvoorbeeld: ik wil sterkere billen en rug, drie keer per week een uur, thuis met dumbbells en een kettlebell. Mijn schouder is soms gevoelig."></textarea>
+        <button type="button" class="wens-microfoon" id="wens-microfoon" aria-pressed="false" aria-label="Inspreken" hidden>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>
+        </button>
+      </div>
+      <p class="wens-luistert" id="wens-luistert" role="status" hidden>Ik luister… tik nog eens als je klaar bent.</p>
+      <p class="veld-hint">Of tik een voorbeeld aan en pas het aan:</p>
+      <div class="wens-voorbeelden" role="group" aria-label="Voorbeelden">
+        <button type="button" class="pil-filter" data-voorbeeld="Ik wil sterker worden, drie keer per week een uur in de sportschool.">Sterker, 3× sportschool</button>
+        <button type="button" class="pil-filter" data-voorbeeld="Afvallen en strakker worden, twee keer per week 45 minuten thuis met dumbbells.">Afvallen, thuis</button>
+        <button type="button" class="pil-filter" data-voorbeeld="Vooral billen en benen, vier keer per week een uur. Mijn knie is soms gevoelig.">Billen en benen, gevoelige knie</button>
+      </div>
+      <p class="veld-hint">Je tekst gaat naar Claude van Anthropic om om te zetten en wordt niet bewaard; zet er geen naam of andere persoonsgegevens in. <a href="/privacy.html#waar">Privacy</a></p>
+      <button type="button" class="knop-groot ruimte-boven" id="wens-vertaal">Vul de keuzes in</button>
       <p class="error" id="wens-fout" role="alert"></p>
       <div class="wens-resultaat" id="wens-resultaat" role="status" hidden></div>
     </section>

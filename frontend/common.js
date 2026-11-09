@@ -108,6 +108,7 @@ const PIJN_PLEKKEN = {
 // Elk onderdeel staat ook op de Wetenschap-pagina (anker).
 
 const PRO_ONDERDELEN = [
+  { sleutel: "wens", nieuw: true, titel: "Schema op maat in je eigen woorden", tekst: "Typ of spreek in wat je wilt, ook als het niet in de knoppen past. Claude zet het om naar de keuzes van Schema op maat; jij kijkt ze na voordat er een schema komt.", pad: "/personaliseren.html", anker: "wens" },
   { sleutel: "krachttrend", titel: "Krachttrend en voorspelling", tekst: "Hoeveel sterker je per week wordt, waar je over 4 en 8 weken staat als het zo doorgaat, je records per aantal reps en richtgewichten voor 3 tot 15 reps.", pad: "/voortgang.html#pro-kracht", anker: "krachttrend" },
   { sleutel: "volume", titel: "Volume per spiergroep in zones", tekst: "Je sets per spiergroep over 8 weken, met per spier of je in de zone zit waar het meeste groeit, en of het op- of afloopt.", pad: "/voortgang.html#pro-volume", anker: "volume-zones" },
   { sleutel: "niveau", titel: "Je krachtniveau", tekst: "Squat, bankdrukken, deadlift en overhead press naast je lichaamsgewicht: van beginner tot elite, en wat je nodig hebt voor het volgende niveau.", pad: "/voortgang.html#pro-kracht", anker: "krachtniveau" },
@@ -118,7 +119,6 @@ const PRO_ONDERDELEN = [
   { sleutel: "technieken", titel: "Dropsets, myo-reps en rest-pause", tekst: "Na je laatste set, met een voorstel voor het gewicht. Ze tellen half mee in je volume en niet voor je progressie.", pad: "/schema.html", anker: "technieken" },
   { sleutel: "hybride", titel: "Hybride trainen", tekst: "Log hardlopen, fietsen of zwemmen naast je krachttraining. RSLNT waarschuwt als een zware benendag en een harde duurtraining te dicht op elkaar vallen.", pad: "/duur.html", anker: "hybride" },
   { sleutel: "delen", titel: "Exporteren en delen met je trainer", tekst: "Al je sets als spreadsheet (CSV), en een leeslink voor je trainer of fysio die je zelf kiest, laat verlopen of intrekt.", pad: "/delen.html", anker: "delen" },
-  { sleutel: "wens", titel: "Schema op maat in je eigen woorden", tekst: "Typ of spreek in wat je wilt, ook als het niet in de knoppen past. Claude zet het om naar de keuzes van Schema op maat; jij kijkt ze na voordat er een schema komt.", pad: "/personaliseren.html", anker: "wens" },
   { sleutel: "pijn", titel: "Pijnlogboek", tekst: "Pijn per plek per week, bij welke oefeningen, en je eigen notities. Handig om aan je fysio te laten zien.", pad: "/pijn.html", anker: "pijnlogboek" },
 ];
 
@@ -144,6 +144,53 @@ function toonProSlot(element, titel, tekst, sleutels) {
   element.classList.add("pro-slot");
   element.innerHTML = proSlotHtml(titel, tekst, sleutels);
   element.hidden = false;
+}
+
+// ---------- Uitgelicht: Schema op maat in je eigen woorden (Pro) ----------
+// Eén kaart, op Vandaag, Schema en de Pro-pagina. Met Pro: "Vertel het" (naar het invulveld).
+// Zonder Pro: wat het is en waar je het krijgt, nooit vóór de gratis inhoud van een pagina.
+
+const WENS_GEBRUIKT = "rslnt-wens-gebruikt";
+const WENS_WEGGEKLIKT = "rslnt-wens-weggeklikt";
+const MICROFOON_SVG =
+  '<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/><path d="M8 21h8"/></svg>';
+
+function lokaal(sleutel, waarde) {
+  try {
+    if (waarde === undefined) return localStorage.getItem(sleutel);
+    localStorage.setItem(sleutel, waarde);
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Zet de kaart in een element.
+ * @param pro heeft de gebruiker Pro
+ * @param wegklikbaar met "Niet nu" (Vandaag); verdwijnt ook zodra je het één keer gebruikte
+ */
+function toonWensKaart(element, pro, { wegklikbaar = false } = {}) {
+  if (!element) return;
+  if (wegklikbaar && (lokaal(WENS_GEBRUIKT) || lokaal(WENS_WEGGEKLIKT))) return;
+  element.classList.add("wens-kaart");
+  element.innerHTML = `
+    <div class="wens-kaart-icoon">${MICROFOON_SVG}</div>
+    <div class="wens-kaart-inhoud">
+      <p class="wens-kaart-label"><span class="badge pro-badge">Pro</span> Nieuw</p>
+      <h2>Zeg wat je wilt. RSLNT maakt je schema.</h2>
+      <p class="wens-kaart-voorbeeld">“Sterkere billen en rug, drie keer per week een uur, thuis met dumbbells. Mijn schouder zeurt soms.”</p>
+      <p class="wens-kaart-tekst">Typ of spreek het in je eigen woorden in. RSLNT zet alles voor je klaar; jij kijkt het na en traint.</p>
+      <div class="knop-rij">
+        ${pro ? '<a class="knop-link" href="/personaliseren.html#wens">Vertel het</a>' : '<a class="knop-link" href="/pro.html">Bekijk Pro</a>'}
+        ${wegklikbaar ? '<button type="button" class="text-link" data-wens-weg>Niet nu</button>' : ""}
+      </div>
+    </div>`;
+  element.hidden = false;
+  element.querySelector("[data-wens-weg]")?.addEventListener("click", () => {
+    lokaal(WENS_WEGGEKLIKT, "1");
+    element.hidden = true;
+  });
 }
 
 /** Maakt van een API-fout één leesbare zin, inclusief de eerste veldfout als die er is. */

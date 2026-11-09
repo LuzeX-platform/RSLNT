@@ -11,7 +11,7 @@ const PRO_IN_VERKOOP = true;
 function tekenOnderdelen(pro) {
   document.getElementById("onderdelen-kop").textContent = pro ? "Je Pro-onderdelen" : "Wat je erbij krijgt";
   document.getElementById("onderdelen").innerHTML = PRO_ONDERDELEN.map(
-    (o) => `<li><strong>${escapeHtml(o.titel)}</strong><span>${escapeHtml(o.tekst)}</span><br />
+    (o) => `<li${o.nieuw ? ' class="pro-lijst-nieuw"' : ""}><strong>${escapeHtml(o.titel)}</strong>${o.nieuw ? ' <span class="badge">Nieuw</span>' : ""}<span>${escapeHtml(o.tekst)}</span><br />
       ${pro ? `<a class="text-link" href="${o.pad}">Openen</a> · ` : ""}<a class="text-link" href="/wetenschap.html#${o.anker}">Hoe werkt het?</a></li>`,
   ).join("");
 }

@@ -2956,3 +2956,159 @@ body.portaal {
   font-size: 14px;
   color: var(--text-secondary);
 }
+
+/* ---------- Uitgelicht: je schema in je eigen woorden (Pro) ----------
+   Bewust de enige vlakke accentkaart in de app: die moet opvallen tussen de glazen panelen. */
+.wens-kaart {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: transparent;
+  box-shadow: var(--shadow-lg);
+}
+
+.wens-kaart h2 {
+  margin: 2px 0 8px;
+  font-size: 22px;
+  line-height: 1.2;
+  color: inherit;
+}
+
+.wens-kaart-icoon {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent-contrast);
+  color: var(--accent);
+}
+
+.wens-kaart-inhoud {
+  min-width: 0;
+}
+
+.wens-kaart-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.wens-kaart-voorbeeld {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-style: italic;
+  line-height: 1.45;
+}
+
+.wens-kaart-tekst {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.wens-kaart .knop-rij {
+  margin-top: 14px;
+  align-items: center;
+}
+
+.wens-kaart .knop-link {
+  background: var(--accent-contrast);
+  color: var(--accent);
+}
+
+.wens-kaart .text-link {
+  color: inherit;
+  opacity: 0.85;
+}
+
+@media (max-width: 420px) {
+  .wens-kaart {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .wens-kaart .knop-link {
+    flex: 1;
+  }
+}
+
+/* Het invulveld zelf: een accentrand, zodat je ziet waar je moet beginnen. */
+.wens-paneel {
+  border: 2px solid var(--accent);
+}
+
+.wens-paneel h2 {
+  margin-top: 4px;
+}
+
+.wens-invoer {
+  position: relative;
+}
+
+.wens-invoer textarea {
+  padding-right: 64px;
+}
+
+.wens-microfoon {
+  position: absolute;
+  right: 8px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.wens-microfoon[aria-pressed="true"] {
+  background: var(--danger);
+  color: #fff;
+  animation: wens-puls 1.2s var(--ease, ease-in-out) infinite;
+}
+
+@keyframes wens-puls {
+  0%, 100% { box-shadow: 0 0 0 0 var(--danger-tint); }
+  50% { box-shadow: 0 0 0 10px var(--danger-tint); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wens-microfoon[aria-pressed="true"] {
+    animation: none;
+  }
+}
+
+.wens-luistert {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.wens-voorbeelden {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.pro-lijst-nieuw {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+
+.wens-kaart .pro-badge {
+  background: var(--accent-contrast);
+  color: var(--accent);
+}

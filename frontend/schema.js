@@ -447,6 +447,8 @@ async function laadOefeningen() {
 
 (async () => {
   pro = Boolean((await vereisSessie()).pro);
+  // Uitgelicht: met Pro bovenaan, zonder Pro na de gratis onderdelen.
+  toonWensKaart(document.getElementById(pro ? "wens-kaart-boven" : "wens-kaart-onder"), pro);
   try {
     await laadOefeningen();
     await Promise.all([laadSchemas(), laadProgrammas()]);

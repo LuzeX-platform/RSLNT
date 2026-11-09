@@ -302,6 +302,7 @@ async function vertaalWens() {
   knop.textContent = "Even denken…";
   try {
     pasWensToe(await api("/api/pro/wens", { methode: "POST", body: { tekst } }));
+    lokaal(WENS_GEBRUIKT, "1");
   } catch (f) {
     fout.textContent = foutTekst(f);
   } finally {
@@ -310,10 +311,67 @@ async function vertaalWens() {
   }
 }
 
+/**
+ * Inspreken met de spraakherkenning van de browser (Chrome, Safari), waar die er is. Anders blijft
+ * de microfoon van het toetsenbord. De browser zet spraak om naar tekst; RSLNT krijgt alleen tekst.
+ */
+function zetMicrofoonKlaar() {
+  const Herkenning = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const knop = document.getElementById("wens-microfoon");
+  if (!Herkenning) return;
+  knop.hidden = false;
+  const veld = document.getElementById("wens");
+  const melding = document.getElementById("wens-luistert");
+  let herkenning = null;
+  knop.addEventListener("click", () => {
+    if (herkenning) {
+      herkenning.stop();
+      return;
+    }
+    const basis = veld.value.trim() ? `${veld.value.trim()} ` : "";
+    herkenning = new Herkenning();
+    herkenning.lang = "nl-NL";
+    herkenning.interimResults = true;
+    herkenning.continuous = true;
+    herkenning.onresult = (e) => {
+      const gezegd = [...e.results].map((r) => r[0].transcript).join("");
+      veld.value = (basis + gezegd).slice(0, 1000);
+    };
+    herkenning.onerror = (e) => {
+      document.getElementById("wens-fout").textContent =
+        e.error === "not-allowed" || e.error === "service-not-allowed"
+          ? "Geef je browser toegang tot de microfoon, of gebruik de microfoon van je toetsenbord."
+          : "Inspreken lukte niet. Probeer het nog eens, of typ het.";
+    };
+    herkenning.onend = () => {
+      herkenning = null;
+      knop.setAttribute("aria-pressed", "false");
+      melding.hidden = true;
+    };
+    document.getElementById("wens-fout").textContent = "";
+    herkenning.start();
+    knop.setAttribute("aria-pressed", "true");
+    melding.hidden = false;
+  });
+}
+
 function tekenWens(gebruiker) {
   if (gebruiker?.pro) {
     document.getElementById("wens-paneel").hidden = false;
     document.getElementById("wens-vertaal").addEventListener("click", vertaalWens);
+    zetMicrofoonKlaar();
+    document.querySelector(".wens-voorbeelden").addEventListener("click", (e) => {
+      const knop = e.target.closest("[data-voorbeeld]");
+      if (!knop) return;
+      const veld = document.getElementById("wens");
+      veld.value = knop.dataset.voorbeeld;
+      veld.focus();
+    });
+    // Via "Vertel het" (Vandaag, Schema): meteen naar het veld.
+    if (location.hash === "#wens") {
+      document.getElementById("wens-paneel").scrollIntoView({ block: "start" });
+      document.getElementById("wens").focus({ preventScroll: true });
+    }
   } else {
     toonProSlot(
       document.getElementById("wens-pro"),
