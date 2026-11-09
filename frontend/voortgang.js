@@ -65,6 +65,9 @@ function tekenVolume() {
   const getrainde = rijen.filter((r) => r.recent > 0 || (r.gemiddeld ?? 0) > 0);
   const metGemiddelde = aantal > 0;
   document.getElementById("volume-legenda").hidden = getrainde.length === 0;
+  // Nog niets getraind: alleen de zin, geen rij nullen.
+  document.getElementById("volume-grafiek").hidden = getrainde.length === 0;
+  document.getElementById("volume-tabel").hidden = getrainde.length === 0;
   document.getElementById("volume-legenda-gemiddeld").hidden = !metGemiddelde;
   const eerder = metGemiddelde ? `, naast je gemiddelde per week in de ${aantal === 1 ? "week" : `${aantal} weken`} daarvoor (vanaf ${dagKort(vanaf)})` : "";
   document.getElementById("volume-samenvatting").textContent = getrainde.length

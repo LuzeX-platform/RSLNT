@@ -43,8 +43,8 @@
       <a class="text-link" href="/?uitleg=1">Uitleg opnieuw bekijken</a>
     </section>
 
-    <section class="panel">
-      <h2>Je naam</h2>
+    <details class="panel uitklap">
+      <summary>Je naam</summary>
       <form id="naam-form" novalidate>
         <label for="naam">Voornaam</label>
         <input id="naam" type="text" autocomplete="given-name" />
@@ -52,10 +52,10 @@
         <p class="error" id="naam-fout" role="alert"></p>
         <p class="success" id="naam-succes" role="status"></p>
       </form>
-    </section>
+    </details>
 
-    <section class="panel">
-      <h2>Wachtwoord wijzigen</h2>
+    <details class="panel uitklap">
+      <summary>Wachtwoord wijzigen</summary>
       <form id="wachtwoord-form" novalidate>
         <label for="huidig">Huidig wachtwoord</label>
         <input id="huidig" type="password" autocomplete="current-password" />
@@ -65,7 +65,7 @@
         <p class="error" id="fout" role="alert"></p>
         <p class="success" id="succes" role="status"></p>
       </form>
-    </section>
+    </details>
 
     <section class="panel">
       <h2>Je gegevens</h2>
@@ -79,8 +79,8 @@
 
     <button type="button" class="knop-groot secondary" id="uitloggen">Uitloggen</button>
 
-    <section class="panel gevaar-zone ruimte-boven" id="verwijder-paneel" hidden>
-      <h2>Account verwijderen</h2>
+    <details class="panel uitklap gevaar-zone ruimte-boven" id="verwijder-paneel" hidden>
+      <summary>Account verwijderen</summary>
       <p class="subtitle">Dit verwijdert je account en al je gegevens, direct en voorgoed: trainingen, gewicht, metingen, herstelchecks en programma's. Download ze eerst als je ze wilt bewaren.</p>
       <form id="verwijder-form" novalidate>
         <label for="verwijder-wachtwoord">Je wachtwoord, ter bevestiging</label>
@@ -88,7 +88,7 @@
         <button type="submit" class="gevaar ruimte-boven">Account en gegevens verwijderen</button>
         <p class="error" id="verwijder-fout" role="alert"></p>
       </form>
-    </section>
+    </details>
   </main>
 
   <script src="/common.js"></script>
