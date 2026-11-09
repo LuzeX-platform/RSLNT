@@ -72,6 +72,15 @@ Een fase begint pas als de vorige in de sportschool werkt.
   de hash in de database, route niet gelogd) met elke geplande dag als wekelijks terugkerende
   afspraak met de oefeningen erin, in Nederlandse tijd. Werkt in Apple Agenda, Google Agenda en
   Outlook; nieuwe link of stoppen maakt de oude meteen ongeldig (`agenda.ts`).
+- **Duurschema** (`/duurschema.html`, gratis) — hardlopen, fietsen of zwemmen naast je
+  krachttraining, met als doel conditie, een afstand (5/10 km, halve marathon; 50/100 km;
+  500/1000/1500 m) of afvallen ondersteunen, 2–4× per week. `duurschema.ts` (pure logica): ~80%
+  rustig, hoogstens 1 harde training per week (beginners eerst alleen rustig), +10% per week, elke
+  4e week −25%, taper in de laatste week, wandel-hardloop-start voor beginners. `duurData.ts` zet
+  de sessies op je dagen: lang in het weekend, hard niet op of vlak vóór een benendag. Zichtbaar op
+  Vandaag (met "Gedaan" → een duurtraining), Je week en in het agenda-abonnement (losse afspraken
+  voor 8 weken). Routes: `GET/PUT/DELETE /api/duurschema`, `POST /api/duurschema/voorstel`,
+  `PUT /api/duurschema/dagen`, `POST /api/duurschema/gedaan`.
 - **Training** — per oefening: doel (sets × reps, RIR, rusttijd), techniek-cue, wat je vorige keer
   deed, het voorstel met de reden en een link naar de onderbouwing. Per set gewicht, reps, RIR
   (0–4) en optioneel **pijn** (knop "Pijn?": 0–10 en waar, zoals knie of schouder). Na elke

@@ -67,6 +67,31 @@ model Gebruiker {
   pijnnotities  Pijnnotitie[]
   deellinks     Deellink[]
   planning      Planning[]
+  duurschema    Duurschema?
+}
+
+/// Je duursportschema (duurschema.ts): de keuzes, je dagen en wanneer het begon. De sessies zelf
+/// worden elke keer uit deze keuzes berekend, net als het gewichtsvoorstel; niets dubbel bewaard.
+model Duurschema {
+  gebruikerId  String   @id
+  /// hardlopen | fietsen | zwemmen
+  sport        String
+  /// conditie | afstand | afvallen
+  doel         String
+  /// km (hardlopen, fietsen) of meters (zwemmen); alleen bij doel "afstand"
+  afstand      Float?
+  /// beginner | gevorderd
+  niveau       String
+  dagenPerWeek Int
+  /// 1 = maandag … 7 = zondag, evenveel als dagenPerWeek
+  dagen        Int[]
+  /// "HH:MM", voor de agenda
+  tijd         String   @default("07:30")
+  /// Maandag van week 1
+  startdatum   DateTime @db.Date
+  aangemaaktOp DateTime @default(now())
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
 }
 
 /// De weekplanner: welke training op welke dag (en hoe laat). Eén training per dag. Zonder

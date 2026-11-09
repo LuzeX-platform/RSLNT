@@ -3179,3 +3179,46 @@ body.portaal {
 .vandaag-plan {
   margin: 12px 0 0;
 }
+
+/* ---------- Duurschema ---------- */
+.keuzes-7 {
+  grid-template-columns: repeat(7, 1fr);
+}
+
+.keuzes-7 .keuze {
+  font-size: 13.5px;
+}
+
+.duur-week {
+  border-top: 1px solid var(--glas-rand);
+  padding: 10px 0;
+}
+
+.duur-week summary {
+  cursor: pointer;
+  min-height: 32px;
+}
+
+.duur-week .lijst {
+  margin-top: 6px;
+}
+
+.duur-sessie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.duur-sessie.vandaag {
+  font-weight: inherit;
+}
+
+.duur-sessie > button {
+  flex: 0 0 auto;
+}
+
+.week-duur {
+  margin: 4px 0 6px;
+  font-size: 14px;
+}

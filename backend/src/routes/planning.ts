@@ -15,6 +15,7 @@ import { zorgVoorPlanning } from "../programmaImport.js";
 import { dagVan } from "../voortgang.js";
 import { appUrl } from "../mailer.js";
 import { hashToken } from "./pro.js";
+import { duurDezeWeek, duurSessies, krachtDagen } from "../duurData.js";
 import { ongeldig } from "./auth.js";
 
 /** Sets × reps per oefening, voor in de agenda. */
@@ -36,6 +37,20 @@ async function agendaTrainingen(gebruikerId: string) {
   }));
 }
 
+/** De duursessies van deze en de komende 7 weken, als losse afspraken. */
+async function agendaDuur(gebruikerId: string, dag: string) {
+  const rij = await prisma.duurschema.findUnique({ where: { gebruikerId } });
+  if (!rij) return [];
+  const { benen } = await krachtDagen(gebruikerId);
+  return duurSessies(rij, maandagVan(dag), 8, benen).map((d) => ({
+    datum: d.datum,
+    tijd: rij.tijd,
+    titel: d.sessie.titel,
+    minuten: d.sessie.minuten,
+    uitleg: `Week ${d.week}. ${d.sessie.uitleg}`,
+  }));
+}
+
 export function agendaUrls(token: string) {
   const https = `${appUrl()}/api/agenda/${token}.ics`;
   return { https, webcal: https.replace(/^https?:\/\//, "webcal://") };
@@ -51,7 +66,9 @@ export async function planningRoutes(app: FastifyInstance) {
       const token = /^([A-Za-z0-9_-]{20,100})\.ics$/.exec(request.params.bestand)?.[1];
       const gebruiker = token ? await prisma.gebruiker.findUnique({ where: { agendaTokenHash: hashToken(token) }, select: { id: true } }) : null;
       if (!gebruiker) return reply.code(404).send({ errorCode: "LINK_ONGELDIG" });
-      const tekst = maakAgenda(await agendaTrainingen(gebruiker.id), { dag: vandaag(), nu: new Date(), appUrl: appUrl() });
+      const dag = vandaag();
+      const [trainingen, duur] = await Promise.all([agendaTrainingen(gebruiker.id), agendaDuur(gebruiker.id, dag)]);
+      const tekst = maakAgenda(trainingen, { dag, nu: new Date(), appUrl: appUrl(), duur });
       return reply
         .header("Content-Type", "text/calendar; charset=utf-8")
         .header("Content-Disposition", 'inline; filename="rslnt.ics"')
@@ -69,13 +86,14 @@ export async function planningRoutes(app: FastifyInstance) {
       const dag = vandaag();
       const programma = await actiefProgramma(g);
       const maandag = maandagVan(dag);
-      const [planning, deezeWeek, gebruiker] = await Promise.all([
+      const [planning, deezeWeek, gebruiker, duur] = await Promise.all([
         programma ? prisma.planning.findMany({ where: { gebruikerId: g, schemaId: { in: programma.schemas.map((x) => x.id) } } }) : [],
         prisma.training.findMany({
           where: { gebruikerId: g, datum: { gte: new Date(new Date(`${maandag}T00:00:00Z`).getTime() - 2 * 3600_000) } },
           select: { datum: true, status: true, schema: { select: { naam: true } } },
         }),
         prisma.gebruiker.findUniqueOrThrow({ where: { id: g }, select: { agendaTokenHash: true } }),
+        duurDezeWeek(g, dag),
       ]);
       const schemas = programma?.schemas ?? [];
       return {
@@ -94,10 +112,15 @@ export async function planningRoutes(app: FastifyInstance) {
             schemaId: schema?.id ?? null,
             training: schema?.naam ?? null,
             tijd: p?.tijd ?? "18:00",
+            duur: (() => {
+              const d = duur?.sessies.find((x) => x.datum === datum);
+              return d ? { titel: d.sessie.titel, sport: d.sessie.sport, minuten: d.sessie.minuten, rol: d.sessie.rol, tijd: duur!.rij.tijd, gedaan: d.gedaan } : null;
+            })(),
             gedaan: deezeWeek.filter((t) => dagVan(t.datum) === datum).map((t) => ({ naam: t.schema.naam, afgerond: t.status === "afgerond" })),
           };
         }),
         agenda: { actief: gebruiker.agendaTokenHash !== null },
+        duurschema: duur !== null,
       };
     });
 

@@ -14,6 +14,15 @@ export interface AgendaTraining {
   oefeningen: string[];
 }
 
+/** Een losse duursessie op een datum (het duurschema verandert per week, dus geen herhaling). */
+export interface AgendaDuur {
+  datum: string;
+  tijd: string;
+  titel: string;
+  minuten: number;
+  uitleg: string;
+}
+
 const BYDAY = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 
 /** Tekst veilig voor een iCal-waarde: backslash, puntkomma, komma en regeleinden escapen. */
@@ -66,7 +75,10 @@ const lokaal = (dag: string, tijd: string) => `${dag.replace(/-/g, "")}T${tijd.r
  * @param dag vandaag (JJJJ-MM-DD): de reeks begint deze week, zodat ook vandaag erin staat
  * @param nu tijdstip voor DTSTAMP
  */
-export function maakAgenda(trainingen: AgendaTraining[], { dag, nu, appUrl }: { dag: string; nu: Date; appUrl: string }): string {
+export function maakAgenda(
+  trainingen: AgendaTraining[],
+  { dag, nu, appUrl, duur = [] }: { dag: string; nu: Date; appUrl: string; duur?: AgendaDuur[] },
+): string {
   const stempel = nu.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   const maandag = maandagVan(dag);
   const regels = [
@@ -98,6 +110,24 @@ export function maakAgenda(trainingen: AgendaTraining[], { dag, nu, appUrl }: { 
       "BEGIN:VALARM",
       "ACTION:DISPLAY",
       `DESCRIPTION:${ical(`Straks: ${t.naam}`)}`,
+      "TRIGGER:-PT30M",
+      "END:VALARM",
+      "END:VEVENT",
+    );
+  }
+  for (const d of [...duur].sort((a, b) => a.datum.localeCompare(b.datum))) {
+    regels.push(
+      "BEGIN:VEVENT",
+      `UID:duur-${d.datum}@rslnt`,
+      `DTSTAMP:${stempel}`,
+      `DTSTART;TZID=Europe/Amsterdam:${lokaal(d.datum, d.tijd)}`,
+      `DURATION:PT${Math.max(10, Math.round(d.minuten))}M`,
+      `SUMMARY:${ical(d.titel)}`,
+      `DESCRIPTION:${ical(`${d.uitleg}\n\nOpen RSLNT: ${appUrl}`)}`,
+      `URL:${appUrl}`,
+      "BEGIN:VALARM",
+      "ACTION:DISPLAY",
+      `DESCRIPTION:${ical(`Straks: ${d.titel}`)}`,
       "TRIGGER:-PT30M",
       "END:VALARM",
       "END:VEVENT",

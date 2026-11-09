@@ -25,6 +25,7 @@ import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { ongeldig } from "./auth.js";
 import { herstelVandaag } from "./herstel.js";
 import { maakFit } from "../fitExport.js";
+import { duurVandaag } from "../duurData.js";
 
 const pijnSchaal = z.number().int().min(0).max(10).nullable();
 const setSchema = z
@@ -87,6 +88,7 @@ export async function trainingRoutes(app: FastifyInstance) {
       heeftPro(g),
       programma ? planningVoor(programma, dag) : null,
     ]);
+    const duur = await duurVandaag(g, dag);
     const fase = programma ? faseVoor(programma, dag, pro) : null;
     const laatsteDag = recent[0] ? recent[0].datum.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" }) : null;
     // Rustdagen tussen de vorige training en vandaag; het programma adviseert er minstens zoveel.
@@ -115,6 +117,8 @@ export async function trainingRoutes(app: FastifyInstance) {
       volgendeSchema: volgende && { id: volgende.id, code: volgende.code, naam: volgende.naam, minuten: volgende.minuten },
       // De weekplanner: wat er vandaag gepland staat en wat daarna komt. null = geen planning (rotatie).
       planning,
+      // Het duursportschema: de sessie van vandaag, of null.
+      duur: duur && { datum: duur.datum, week: duur.week, tijd: duur.tijd, gedaan: duur.gedaan, ...duur.sessie },
       schemas: (programma?.schemas ?? []).map((s) => ({ id: s.id, code: s.code, naam: s.naam })),
       recent: recent.map((t) => ({
         id: t.id,
