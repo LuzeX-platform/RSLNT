@@ -11,6 +11,7 @@ import {
   TECHNIEK_SETSOORT,
   trainingDetail,
   volgendeSchema,
+  planningVoor,
   type Techniek,
 } from "../trainingData.js";
 import { heeftPro } from "../entitlementsPro.js";
@@ -80,10 +81,11 @@ export async function trainingRoutes(app: FastifyInstance) {
       prisma.lichaamsgewicht.findMany({ where: { gebruikerId: g, datum: { gte: naarDatum(verschuifDag(dag, -6)) } } }),
     ]);
 
-    const [volgende, herstel, pro] = await Promise.all([
+    const [volgende, herstel, pro, planning] = await Promise.all([
       programma ? volgendeSchema(programma) : null,
       herstelVandaag(g, dag),
       heeftPro(g),
+      programma ? planningVoor(programma, dag) : null,
     ]);
     const fase = programma ? faseVoor(programma, dag, pro) : null;
     const laatsteDag = recent[0] ? recent[0].datum.toLocaleDateString("en-CA", { timeZone: "Europe/Amsterdam" }) : null;
@@ -111,6 +113,8 @@ export async function trainingRoutes(app: FastifyInstance) {
         datum: bezig.datum,
       },
       volgendeSchema: volgende && { id: volgende.id, code: volgende.code, naam: volgende.naam, minuten: volgende.minuten },
+      // De weekplanner: wat er vandaag gepland staat en wat daarna komt. null = geen planning (rotatie).
+      planning,
       schemas: (programma?.schemas ?? []).map((s) => ({ id: s.id, code: s.code, naam: s.naam })),
       recent: recent.map((t) => ({
         id: t.id,

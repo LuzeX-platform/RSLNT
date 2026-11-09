@@ -23,7 +23,7 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
   // Inloggen, sessie en je account nooit uit een cache: dat moet altijd de echte stand zijn, en
   // een export (al je gegevens, een FIT-bestand) hoort niet op de telefoon te blijven staan.
-  if (url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/account") || url.pathname.endsWith("/fit") || url.pathname.startsWith("/api/pro/export")) return;
+  if (url.pathname.startsWith("/api/auth/") || url.pathname.startsWith("/api/account") || url.pathname.endsWith("/fit") || url.pathname.startsWith("/api/agenda") || url.pathname.startsWith("/api/pro/export")) return;
 
   event.respondWith(
     (async () => {

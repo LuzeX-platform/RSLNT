@@ -26,7 +26,10 @@ backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeN
   src/bibliotheekBouwen.ts    CLI: bouwt data/bibliotheek.json (npm run bibliotheek -- <exercises.json>)
   src/bibliotheek.ts  bibliotheek in het geheugen, zoeken (ook Nederlands), vergelijkbare oefeningen
   src/catalogus.ts    basislijst (84) met cues en blessurevlaggen; sleutels gelijk aan Benen / Push / Pull
-  src/generator.ts    pure logica: voorkeuren → programmabestand (split, oefeningkeuze, sets, tijd, klachten)
+  src/generator.ts    pure logica: voorkeuren → programmabestand (split per spiergroep, oefeningkeuze, sets, tijd, klachten)
+  src/planning.ts     pure logica: weekplanner (standaardindeling, wat er vandaag/daarna aan de beurt is)
+  src/agenda.ts       pure logica: de weekplanning als iCal-abonnement (Europe/Amsterdam, wekelijks)
+  src/routes/planning.ts  /api/planning (weekplanner) en /api/agenda (abonnement; de .ics-route zonder login)
 data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licentie van de bron
   src/datum.ts        kalenderdagen in Europe/Amsterdam (de server draait in UTC)
   src/mailer.ts       SMTP via nodemailer (zoals CMMNTY); zonder SMTP_HOST gelogd en in testPostvak

@@ -3112,3 +3112,70 @@ body.portaal {
   background: var(--accent-contrast);
   color: var(--accent);
 }
+
+/* ---------- Je week (weekplanner) ---------- */
+.week-lijst {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.week-dag {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.week-dag:last-child {
+  border-bottom: none;
+}
+
+.week-dag.vandaag {
+  margin: 0 -12px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  border-bottom-color: transparent;
+}
+
+.week-dag-kop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  margin-bottom: 8px;
+}
+
+.week-dag-velden {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+
+.week-dag-velden select,
+.week-dag-velden input {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+.week-dag-velden select[data-tijd] {
+  width: 104px;
+}
+
+.week-dag.rust select {
+  color: var(--text-secondary);
+}
+
+.agenda-stappen {
+  margin: 12px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.agenda-stappen li {
+  margin-bottom: 6px;
+}
+
+.vandaag-plan {
+  margin: 12px 0 0;
+}

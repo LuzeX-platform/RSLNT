@@ -47,7 +47,7 @@ Een fase begint pas als de vorige in de sportschool werkt.
   inloggen met vergrendeling na vijf missers; wachtwoord vergeten via een resetmail (andere
   sessies vervallen). Niet bevestigde accounts verdwijnen na 7 dagen.
 - **Start** (nieuw account) — geslacht, geboortedatum, lengte en gewicht, daarna je schema:
-  gratis het **standaardschema** (2× of 3× full body, 4× boven/onder; sportschool, 60 minuten,
+  gratis het **standaardschema** (per spiergroep: 2× boven en onder, 3× of 4× zoals "Borst en triceps", "Rug en biceps", "Benen"; sportschool, 60 minuten,
   beginnersvriendelijk), of het schema op maat. Via Schema → Standaardschema kies je later
   een ander aantal dagen (`POST /api/standaardschema`, programma "standaard").
 - **Account** — naam en wachtwoord wijzigen, al je gegevens downloaden (JSON), uitloggen (wist
@@ -63,6 +63,15 @@ Een fase begint pas als de vorige in de sportschool werkt.
 - **Vandaag** — welke training aan de beurt is (A → B → C → A …, los van de weekdag), de duur,
   de fase van je programma (introfase, deload, week), een rustdag-advies, gewicht invoeren met
   7-daags gemiddelde, recente trainingen. Knop "Ik heb een deload nodig".
+- **Je week** (`/week.html`, gratis) — per dag welke training (of rust) en hoe laat. Een nieuw
+  actief programma wordt meteen over de week verdeeld (2× ma/do, 3× ma/wo/vr, 4× ma/di/do/vr …,
+  `planning.ts`); daarna pas je het aan. Vandaag volgt de planning: de training van vandaag, of
+  "rust" met de volgende geplande dag (en toch trainen kan). Al eerder in de week gedaan? Dan
+  schuift het door naar de eerstvolgende die nog open staat. Zonder planning blijft de rotatie
+  A → B → C. **Agenda-abonnement**: een geheime webcal-link (`GET /api/agenda/<token>.ics`, alleen
+  de hash in de database, route niet gelogd) met elke geplande dag als wekelijks terugkerende
+  afspraak met de oefeningen erin, in Nederlandse tijd. Werkt in Apple Agenda, Google Agenda en
+  Outlook; nieuwe link of stoppen maakt de oude meteen ongeldig (`agenda.ts`).
 - **Training** — per oefening: doel (sets × reps, RIR, rusttijd), techniek-cue, wat je vorige keer
   deed, het voorstel met de reden en een link naar de onderbouwing. Per set gewicht, reps, RIR
   (0–4) en optioneel **pijn** (knop "Pijn?": 0–10 en waar, zoals knie of schouder). Na elke

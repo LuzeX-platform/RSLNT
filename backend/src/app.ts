@@ -14,6 +14,7 @@ import { programmaRoutes } from "./routes/programmas.js";
 import { lichaamRoutes } from "./routes/lichaam.js";
 import { herstelRoutes } from "./routes/herstel.js";
 import { voortgangRoutes } from "./routes/voortgang.js";
+import { planningRoutes } from "./routes/planning.js";
 import { bibliotheekRoutes } from "./routes/bibliotheek.js";
 import { personalisatieRoutes } from "./routes/personalisatie.js";
 import { abonnementRoutes } from "./routes/abonnement.js";
@@ -83,7 +84,9 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
 
   await app.register(fastifyRateLimit, {
     global: true,
-    max: 300,
+    // De testreeks doet honderden verzoeken per minuut vanaf één adres; de strengere limieten
+    // per route (inloggen, registreren) gelden daar gewoon.
+    max: process.env.NODE_ENV === "test" ? 5000 : 300,
     timeWindow: "1 minute",
     keyGenerator: (request) => request.ip,
     allowList: (request) => !request.url.startsWith("/api/"),
@@ -131,6 +134,7 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(adminRoutes);
   await app.register(proRoutes);
   await app.register(gedeeldRoutes);
+  await app.register(planningRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });
 

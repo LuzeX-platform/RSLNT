@@ -539,8 +539,9 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.ok(alle.some((r: any) => r.sleutel === "hack_squat"), "favoriet");
     assert.ok(!alle.some((r: any) => r.sleutel === "leg_press"), "uitgesloten");
     for (const s of voorstel.sessies) assert.ok(s.regels.filter((r: any) => r.knieGevoelig).length <= 1);
-    // Trap bar deadlift heeft geschiedenis: die gaat voor bij gelijke keuze.
-    assert.ok(alle.some((r: any) => r.sleutel === "trap_bar_deadlift"));
+    // Per spiergroep is er met een gevoelige knie één kniebelastende plek per week: de favoriet
+    // (hack squat) gaat voor op trap bar deadlift, ook al heeft die geschiedenis.
+    assert.equal(alle.filter((r: any) => r.knieGevoelig).length, 1);
 
     const voor = (await mijnOefening("trap_bar_deadlift"))!;
     const imp = await vraag("POST", "/api/programmas/import", { bestand: voorstel.bestand, activeren: true });
@@ -646,6 +647,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
       ["POST", `/api/programmas/${programmaA.id}/activeren`],
       ["POST", `/api/programmas/${programmaA.id}/deload`, { aan: true }],
       ["GET", `/api/programmas/${programmaA.id}/bestand`],
+      ["PUT", "/api/planning/1", { schemaId: schemaA.id }],
       ["POST", "/api/bibliotheek/Face_Pull/toevoegen", { schemaId: schemaA.id }],
     ];
     for (const [methode, url, body] of pogingen) {
@@ -856,9 +858,9 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     }
     const drie = await vraagAls(cookieDirk, "POST", "/api/standaardschema", { dagenPerWeek: 3 });
     assert.equal(drie.statusCode, 200, JSON.stringify(drie.json()));
-    assert.equal(drie.json().naam, "Standaard: Full body 3×");
+    assert.equal(drie.json().naam, "Standaard: Per spiergroep, 3×");
     const scherm = (await vraagAls(cookieDirk, "GET", "/api/vandaag")).json();
-    assert.equal(scherm.programma.naam, "Standaard: Full body 3×");
+    assert.equal(scherm.programma.naam, "Standaard: Per spiergroep, 3×");
     assert.equal(scherm.volgendeSchema.code, "A");
     assert.equal(scherm.schemas.length, 3);
 
@@ -866,7 +868,7 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(cookieDirk, "POST", "/api/standaardschema", { dagenPerWeek: 4 })).statusCode, 200);
     const programmas = (await vraagAls(cookieDirk, "GET", "/api/programmas")).json().programmas;
     assert.equal(programmas.length, 1);
-    assert.equal(programmas[0].naam, "Standaard: Boven / onder 4×");
+    assert.equal(programmas[0].naam, "Standaard: Per spiergroep, 4×");
     assert.equal(programmas[0].schemas.length, 4);
     // Alleen van Dirk: A's programma's zijn niet geraakt.
     assert.ok((await prisma.programma.count({ where: { gebruikerId: ikId } })) >= 1);
@@ -1012,6 +1014,61 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const g = await prisma.gebruiker.findUniqueOrThrow({ where: { email } });
     return `${COOKIE_NAME}=${maakSessieToken({ gebruikerId: g.id, email: g.email, versie: g.sessieVersie })}`;
   };
+
+  test("weekplanner: een nieuw schema staat meteen over de week verdeeld; dagen, tijden en de agendalink", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    await prisma.gebruiker.create({
+      data: { email: "fien@test.nl", naam: "Fien", wachtwoordHash: await hashWachtwoord("fien-wachtwoord-1"), emailBevestigdOp: new Date() },
+    });
+    const fien = await sessieVoor("fien@test.nl");
+    assert.equal((await vraagAls(fien, "POST", "/api/standaardschema", { dagenPerWeek: 3 })).statusCode, 200);
+
+    let plan = (await vraagAls(fien, "GET", "/api/planning")).json();
+    assert.deepEqual(plan.dagen.map((d: any) => d.training), ["Borst, schouders en triceps", null, "Rug en biceps", null, "Benen en buik", null, null]);
+    assert.equal(plan.agenda.actief, false);
+    const benen = plan.schemas.find((x: any) => x.naam === "Benen en buik");
+
+    // Benen naar woensdag om half acht, maandag rust.
+    assert.equal((await vraagAls(fien, "PUT", "/api/planning/3", { schemaId: benen.id, tijd: "07:30" })).statusCode, 200);
+    assert.equal((await vraagAls(fien, "PUT", "/api/planning/1", { schemaId: null })).statusCode, 200);
+    assert.equal((await vraagAls(fien, "PUT", "/api/planning/8", { schemaId: benen.id })).statusCode, 400);
+    assert.equal((await vraagAls(fien, "PUT", "/api/planning/2", { schemaId: benen.id, tijd: "25:00" })).statusCode, 400);
+    const vreemd = await prisma.schema.findFirstOrThrow({ where: { programma: { gebruikerId: ikId } } });
+    assert.equal((await vraagAls(fien, "PUT", "/api/planning/2", { schemaId: vreemd.id })).statusCode, 404);
+    plan = (await vraagAls(fien, "GET", "/api/planning")).json();
+    assert.deepEqual(plan.dagen.map((d: any) => d.training), [null, null, "Benen en buik", null, "Benen en buik", null, null]);
+    assert.equal(plan.dagen[2].tijd, "07:30");
+
+    // Vandaag volgt de planning: wat vandaag gepland staat, of anders de eerstvolgende dag.
+    const scherm = (await vraagAls(fien, "GET", "/api/vandaag")).json();
+    assert.ok(scherm.planning);
+    assert.equal(scherm.volgendeSchema.id, (scherm.planning.vandaag ?? scherm.planning.volgende).schemaId);
+
+    // Agenda-abonnement: zonder inloggen, alleen met de geheime link.
+    const link = (await vraagAls(fien, "POST", "/api/agenda")).json();
+    assert.match(link.webcal, /^webcal:\/\/.+\/api\/agenda\/[A-Za-z0-9_-]{20,}\.ics$/);
+    const pad = new URL(link.https).pathname;
+    const feed = await app.inject({ method: "GET", url: pad });
+    assert.equal(feed.statusCode, 200);
+    assert.match(String(feed.headers["content-type"]), /^text\/calendar/);
+    assert.equal(feed.body.match(/BEGIN:VEVENT/g)?.length, 2);
+    assert.ok(feed.body.includes("RRULE:FREQ=WEEKLY;BYDAY=WE"));
+    assert.ok(/DTSTART;TZID=Europe\/Amsterdam:\d{8}T073000/.test(feed.body));
+    assert.ok(feed.body.includes("SUMMARY:Training: Benen en buik"));
+    assert.equal((await vraagAls(fien, "GET", "/api/planning")).json().agenda.actief, true);
+    // Een nieuwe link maakt de oude dood; intrekken maakt alles dood.
+    const nieuw = (await vraagAls(fien, "POST", "/api/agenda")).json();
+    assert.equal((await app.inject({ method: "GET", url: pad })).statusCode, 404);
+    assert.equal((await vraagAls(fien, "DELETE", "/api/agenda")).statusCode, 200);
+    assert.equal((await app.inject({ method: "GET", url: new URL(nieuw.https).pathname })).statusCode, 404);
+    assert.equal((await app.inject({ method: "GET", url: "/api/agenda/kort.ics" })).statusCode, 404);
+
+    // Opnieuw verdelen, en de planning zit in je gegevensexport.
+    assert.equal((await vraagAls(fien, "POST", "/api/planning/standaard")).statusCode, 200);
+    plan = (await vraagAls(fien, "GET", "/api/planning")).json();
+    assert.deepEqual(plan.dagen.map((d: any) => Boolean(d.training)), [true, false, true, false, true, false, false]);
+    assert.equal((await vraagAls(fien, "GET", "/api/account/export")).json().weekplanning.length, 3);
+  });
 
   test("wens in eigen woorden (Pro): Claude vult keuzes in, de controle in code houdt alleen echte opties", async () => {
     const { zetWensVrager } = await import("../src/wensVertalen.js");

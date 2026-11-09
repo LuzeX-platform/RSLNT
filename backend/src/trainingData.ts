@@ -16,7 +16,9 @@ import {
   type ProgressieRegel,
 } from "./progressie.js";
 import { bepaalFase, type Fase, type FaseInstellingen } from "./fase.js";
-import { uitDatum } from "./datum.js";
+import { uitDatum, vandaag } from "./datum.js";
+import { aanDeBeurt, maandagVan } from "./planning.js";
+import { dagVan } from "./voortgang.js";
 import { opwarmsets } from "./opwarmen.js";
 import { bijsturing } from "./autoregulatie.js";
 import { blokOp, type BlokOpDag, type Blokplan } from "./periodisering.js";
@@ -98,12 +100,38 @@ export async function actiefProgramma(gebruikerId: string) {
 }
 
 /**
- * De training die aan de beurt is: de volgende in de rotatie na de laatste training van dit
- * programma (A → B → C → A …), los van de weekdag.
+ * Wat de weekplanner voor vandaag zegt (planning.ts), alleen met planning voor dit programma.
+ * null = geen planning: dan geldt de rotatie.
+ */
+export async function planningVoor(programma: NonNullable<Awaited<ReturnType<typeof actiefProgramma>>>, dag = vandaag()) {
+  const ids = new Set(programma.schemas.map((x) => x.id));
+  const planning = (await prisma.planning.findMany({ where: { gebruikerId: programma.gebruikerId } })).filter((p) => ids.has(p.schemaId));
+  if (planning.length === 0) return null;
+  const maandag = maandagVan(dag);
+  const recent = await prisma.training.findMany({
+    where: { gebruikerId: programma.gebruikerId, datum: { gte: new Date(Date.now() - 8 * 86400_000) } },
+    select: { schemaId: true, datum: true },
+  });
+  const gedaan = new Set(recent.filter((t) => dagVan(t.datum) >= maandag && dagVan(t.datum) <= dag).map((t) => t.schemaId));
+  const beurt = aanDeBeurt(planning, dag, gedaan);
+  const schema = (id: string) => programma.schemas.find((x) => x.id === id)!;
+  return {
+    vandaag: beurt.vandaag && { ...beurt.vandaag, naam: schema(beurt.vandaag.schemaId).naam },
+    volgende: beurt.volgende && { ...beurt.volgende, naam: schema(beurt.volgende.schemaId).naam },
+  };
+}
+
+/**
+ * De training die aan de beurt is. Met een weekplanning: die van vandaag, of anders de eerstvolgende
+ * geplande. Zonder: de volgende in de rotatie na de laatste training van dit programma
+ * (A → B → C → A …), los van de weekdag.
  */
 export async function volgendeSchema(programma: NonNullable<Awaited<ReturnType<typeof actiefProgramma>>>) {
   const schemas = programma.schemas;
   if (schemas.length === 0) return null;
+  const plan = await planningVoor(programma);
+  const gepland = plan?.vandaag ?? plan?.volgende;
+  if (gepland) return schemas.find((x) => x.id === gepland.schemaId)!;
   const laatste = await prisma.training.findFirst({
     where: { gebruikerId: programma.gebruikerId, schema: { programmaId: programma.id } },
     orderBy: { datum: "desc" },

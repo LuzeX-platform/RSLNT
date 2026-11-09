@@ -107,60 +107,89 @@ interface Split {
 
 const s = (patroon: Patroon, prioriteit: Prioriteit): Slot => ({ patroon, prioriteit });
 
+// Trainingen per spiergroep, met namen die je zonder uitleg begrijpt ("Borst en triceps"). Bij
+// hetzelfde weekvolume maakt het voor spiergroei weinig uit of je een spier één of twee keer per week
+// traint (Wetenschap → Frequentie); per groep is voor beginners het makkelijkst te volgen. De grens
+// van ~11 sets per spier per training blijft gelden.
+const BORST_TRICEPS = (code: string): SessieSjabloon => ({
+  code,
+  naam: "Borst en triceps",
+  slots: [s("horizontaal_duwen", 1), s("horizontaal_duwen", 2), s("borst_isolatie", 2), s("triceps", 2), s("triceps", 3)],
+});
+const RUG_BICEPS = (code: string): SessieSjabloon => ({
+  code,
+  naam: "Rug en biceps",
+  slots: [s("verticaal_trekken", 1), s("horizontaal_trekken", 1), s("horizontaal_trekken", 2), s("biceps", 2), s("biceps", 3)],
+});
+const BENEN = (code: string): SessieSjabloon => ({
+  code,
+  naam: "Benen",
+  slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("quad_isolatie", 2), s("hamstring_curl", 2), s("kuiten", 3)],
+});
+const SCHOUDERS = (code: string): SessieSjabloon => ({
+  code,
+  naam: "Schouders",
+  slots: [s("verticaal_duwen", 1), s("zijkant_schouder", 2), s("achterkant_schouder", 2), s("zijkant_schouder", 3)],
+});
+const BUIK = (code: string): SessieSjabloon => ({
+  code,
+  naam: "Buik",
+  slots: [s("buik", 1), s("buik", 2), s("buik", 2), s("heup_dominant", 3)],
+});
+const ARMEN = (code: string): SessieSjabloon => ({
+  code,
+  naam: "Armen",
+  slots: [s("biceps", 1), s("triceps", 1), s("biceps", 2), s("triceps", 2)],
+});
+
+/** Aanvulling als een training met jouw materiaal minder dan twee oefeningen krijgt. */
+const RESERVE: Slot[] = [s("heup_dominant", 3), s("buik", 3), s("achterkant_schouder", 3)];
+
 export function kiesSplit(dagen: number): Split {
   if (dagen <= 2) {
     return {
-      naam: "Full body 2×",
-      uitleg: "Twee keer per week je hele lichaam: elke spiergroep twee keer per week.",
+      naam: "Boven- en onderlichaam",
+      uitleg: "Twee trainingen: je bovenlichaam (borst, rug, armen) en je benen met schouders en buik.",
       sessies: [
-        { code: "A", naam: "Full body A", slots: [s("knie_dominant", 1), s("horizontaal_duwen", 1), s("verticaal_trekken", 1), s("hamstring_curl", 2), s("zijkant_schouder", 2), s("triceps", 2), s("kuiten", 3), s("buik", 3)] },
-        { code: "B", naam: "Full body B", slots: [s("heup_dominant", 1), s("horizontaal_trekken", 1), s("horizontaal_duwen", 1), s("knie_dominant", 2), s("achterkant_schouder", 2), s("biceps", 2), s("zijkant_schouder", 3), s("buik", 3)] },
+        { code: "A", naam: "Borst, rug en armen", slots: [s("horizontaal_duwen", 1), s("horizontaal_trekken", 1), s("verticaal_trekken", 2), s("borst_isolatie", 2), s("biceps", 3), s("triceps", 3)] },
+        { code: "B", naam: "Benen, schouders en buik", slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("verticaal_duwen", 2), s("hamstring_curl", 2), s("zijkant_schouder", 2), s("achterkant_schouder", 3), s("buik", 3)] },
       ],
     };
   }
   if (dagen === 3) {
     return {
-      naam: "Full body 3×",
-      uitleg: "Drie keer per week je hele lichaam: elke spiergroep twee tot drie keer per week, met per training minder sets per spier.",
+      naam: "Per spiergroep, 3×",
+      uitleg: "Drie trainingen: borst met schouders en triceps, rug met biceps, en benen met buik. Elke spiergroep één keer per week, met genoeg sets.",
       sessies: [
-        { code: "A", naam: "Full body A", slots: [s("knie_dominant", 1), s("horizontaal_duwen", 1), s("verticaal_trekken", 1), s("hamstring_curl", 2), s("zijkant_schouder", 2), s("biceps", 3), s("kuiten", 3)] },
-        { code: "B", naam: "Full body B", slots: [s("heup_dominant", 1), s("horizontaal_trekken", 1), s("horizontaal_duwen", 1), s("quad_isolatie", 2), s("achterkant_schouder", 2), s("triceps", 2), s("buik", 3)] },
-        { code: "C", naam: "Full body C", slots: [s("knie_dominant", 1), s("verticaal_duwen", 1), s("horizontaal_trekken", 1), s("heup_dominant", 2), s("borst_isolatie", 2), s("zijkant_schouder", 2), s("kuiten", 3), s("biceps", 3), s("buik", 3)] },
+        { code: "A", naam: "Borst, schouders en triceps", slots: [s("horizontaal_duwen", 1), s("verticaal_duwen", 1), s("borst_isolatie", 2), s("zijkant_schouder", 2), s("triceps", 2)] },
+        { code: "B", naam: "Rug en biceps", slots: [s("verticaal_trekken", 1), s("horizontaal_trekken", 1), s("achterkant_schouder", 2), s("biceps", 2), s("biceps", 3)] },
+        { code: "C", naam: "Benen en buik", slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("hamstring_curl", 2), s("quad_isolatie", 2), s("buik", 2), s("kuiten", 3)] },
       ],
     };
   }
   if (dagen === 4) {
     return {
-      naam: "Boven / onder 4×",
-      uitleg: "Twee trainingen voor je bovenlichaam en twee voor je benen: elke spiergroep twee keer per week.",
+      naam: "Per spiergroep, 4×",
+      uitleg: "Vier trainingen: borst en triceps, rug en biceps, benen, en schouders met buik. Elke spiergroep één keer per week, met genoeg sets.",
       sessies: [
-        { code: "A", naam: "Bovenlichaam A", slots: [s("horizontaal_duwen", 1), s("horizontaal_trekken", 1), s("verticaal_duwen", 2), s("verticaal_trekken", 2), s("zijkant_schouder", 2), s("biceps", 3), s("triceps", 3)] },
-        { code: "B", naam: "Onderlichaam A", slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("hamstring_curl", 2), s("quad_isolatie", 2), s("kuiten", 2), s("buik", 3)] },
-        { code: "C", naam: "Bovenlichaam B", slots: [s("verticaal_trekken", 1), s("horizontaal_duwen", 1), s("horizontaal_trekken", 2), s("borst_isolatie", 2), s("achterkant_schouder", 2), s("zijkant_schouder", 2), s("triceps", 3), s("biceps", 3)] },
-        { code: "D", naam: "Onderlichaam B", slots: [s("heup_dominant", 1), s("knie_dominant", 1), s("hamstring_curl", 2), s("kuiten", 2), s("buik", 3)] },
+        BORST_TRICEPS("A"),
+        RUG_BICEPS("B"),
+        BENEN("C"),
+        { code: "D", naam: "Schouders en buik", slots: [s("verticaal_duwen", 1), s("zijkant_schouder", 2), s("achterkant_schouder", 2), s("buik", 2), s("buik", 3)] },
       ],
     };
   }
   if (dagen === 5) {
     return {
-      naam: "Boven / onder + push / pull / benen",
-      uitleg: "Vijf trainingen: boven, onder, push, pull en benen. Elke spiergroep twee keer per week.",
-      sessies: [
-        { code: "A", naam: "Bovenlichaam", slots: [s("horizontaal_duwen", 1), s("horizontaal_trekken", 1), s("verticaal_duwen", 2), s("verticaal_trekken", 2), s("zijkant_schouder", 3), s("biceps", 3), s("triceps", 3)] },
-        { code: "B", naam: "Onderlichaam", slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("hamstring_curl", 2), s("kuiten", 2), s("buik", 3)] },
-        { code: "C", naam: "Push", slots: [s("horizontaal_duwen", 1), s("verticaal_duwen", 1), s("borst_isolatie", 2), s("zijkant_schouder", 2), s("triceps", 2)] },
-        { code: "D", naam: "Pull", slots: [s("verticaal_trekken", 1), s("horizontaal_trekken", 1), s("achterkant_schouder", 2), s("biceps", 2), s("buik", 3)] },
-        { code: "E", naam: "Benen", slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("quad_isolatie", 2), s("hamstring_curl", 2), s("kuiten", 2)] },
-      ],
+      naam: "Per spiergroep, 5×",
+      uitleg: "Vijf trainingen: borst en triceps, rug en biceps, benen, schouders en buik. Elke spiergroep één keer per week, met genoeg sets.",
+      sessies: [BORST_TRICEPS("A"), RUG_BICEPS("B"), BENEN("C"), SCHOUDERS("D"), BUIK("E")],
     };
   }
-  const push = (code: string, naam: string): SessieSjabloon => ({ code, naam, slots: [s("horizontaal_duwen", 1), s("verticaal_duwen", 1), s("borst_isolatie", 2), s("zijkant_schouder", 2), s("triceps", 2)] });
-  const pull = (code: string, naam: string): SessieSjabloon => ({ code, naam, slots: [s("verticaal_trekken", 1), s("horizontaal_trekken", 1), s("achterkant_schouder", 2), s("biceps", 2), s("buik", 3)] });
-  const benen = (code: string, naam: string): SessieSjabloon => ({ code, naam, slots: [s("knie_dominant", 1), s("heup_dominant", 1), s("hamstring_curl", 2), s("quad_isolatie", 2), s("kuiten", 2), s("buik", 3)] });
   return {
-    naam: "Push / pull / benen 2×",
-    uitleg: "Zes trainingen: push, pull en benen, twee keer per week. Elke spiergroep twee keer per week.",
-    sessies: [push("A", "Push A"), pull("B", "Pull A"), benen("C", "Benen A"), push("D", "Push B"), pull("E", "Pull B"), benen("F", "Benen B")],
+    naam: "Per spiergroep, 6×",
+    uitleg: "Zes trainingen: borst en triceps, rug en biceps, benen, schouders, buik en armen.",
+    sessies: [BORST_TRICEPS("A"), RUG_BICEPS("B"), BENEN("C"), SCHOUDERS("D"), BUIK("E"), ARMEN("F")],
   };
 }
 
@@ -483,6 +512,7 @@ export function maakVoorstel(invoer: GeneratorInvoer): Voorstel {
   const knieMax = v.blessures.includes("knie") ? 1 : 3;
   const gebruikt = new Map<string, number>();
   const ontbrekend = new Set<Patroon>();
+  const aangevuld: string[] = [];
 
   // 1. Oefeningen kiezen. Per training eerst de belangrijkste patronen, zodat die de kniebudgetten krijgen.
   const sessies: VoorstelSessie[] = split.sessies.map((sjabloon) => {
@@ -494,7 +524,12 @@ export function maakVoorstel(invoer: GeneratorInvoer): Voorstel {
         prioriteit: (v.focus.length && FOCUS_PATRONEN[slot.patroon]?.some((m) => v.focus.includes(m)) ? 1 : slot.prioriteit) as Prioriteit,
       }))
       .sort((a, b) => a.prioriteit - b.prioriteit);
-    for (const slot of slots) {
+    // Lukt een training met jouw materiaal bijna niet (thuis zonder materiaal heeft rug en biceps
+    // geen oefeningen), dan vullen we aan met wat wel kan, en zeggen dat erbij.
+    const reserve = RESERVE.map((r) => ({ ...r, reserve: true }));
+    for (const slot of [...slots, ...reserve]) {
+      if ("reserve" in slot && regels.length >= 2) break;
+      if ("reserve" in slot && !aangevuld.includes(sjabloon.naam)) aangevuld.push(sjabloon.naam);
       const opties = mogelijk
         .filter((k) => k.patroon === slot.patroon && !regels.some((r) => r.sleutel === k.sleutel))
         .filter((k) => !k.knieGevoelig || knie < knieMax)
@@ -542,6 +577,11 @@ export function maakVoorstel(invoer: GeneratorInvoer): Voorstel {
 
   for (const patroon of ontbrekend) {
     opmerkingen.push(`Geen oefening voor ${PATROON_TEKST[patroon]} met jouw materiaal of blessures; die plek blijft leeg.`);
+  }
+  if (aangevuld.length) {
+    opmerkingen.push(
+      `${aangevuld.join(", ")}: met jouw materiaal is hier weinig te kiezen, dus aangevuld met oefeningen voor je billen, onderrug en buik. Een weerstandsband of optrekstang maakt rug- en bicepsoefeningen mogelijk.`,
+    );
   }
 
   // 2. Inkorten tot het in je tijd past. Eerst de rust naar de ondergrens uit onderzoek, dan de

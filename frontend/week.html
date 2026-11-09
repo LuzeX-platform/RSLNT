@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Je week — LuzeX RSLNT</title>
+  <meta name="theme-color" content="#cfc6bc" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="RSLNT" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png" />
+  <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <link rel="manifest" href="/assets/site.webmanifest" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body class="app">
+  <header id="balk"></header>
+
+  <main class="app-kolom">
+    <div class="app-kop">
+      <p class="kicker"><a class="text-link" href="/schema.html">Schema</a> · Week</p>
+      <h1>Je week</h1>
+      <p class="subtitle" id="ondertitel">Kies per dag welke training je doet. Vandaag en je agenda volgen dit.</p>
+    </div>
+
+    <section class="panel">
+      <ul class="week-lijst" id="week"></ul>
+      <p class="success" id="opgeslagen" role="status"></p>
+      <p class="error" id="fout" role="alert"></p>
+      <div class="knop-rij ruimte-boven">
+        <button type="button" class="text-link" id="verdeel">Opnieuw over de week verdelen</button>
+      </div>
+    </section>
+
+    <section class="panel" id="agenda-paneel" hidden>
+      <h2>In je agenda</h2>
+      <p class="subtitle">Je trainingen als afspraken in Apple Agenda, Google Agenda of Outlook, met de oefeningen erbij. Pas je je week hier aan, dan verandert je agenda vanzelf mee.</p>
+      <div id="agenda"></div>
+      <p class="error" id="agenda-fout" role="alert"></p>
+      <p class="lijst-meta">De link is geheim: wie hem heeft, ziet de namen van je trainingen en oefeningen, verder niets. Maak je een nieuwe link of stop je, dan werkt de oude meteen niet meer.</p>
+    </section>
+  </main>
+
+  <script src="/common.js"></script>
+  <script src="/week.js"></script>
+</body>
+</html>

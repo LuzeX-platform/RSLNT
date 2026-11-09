@@ -80,12 +80,25 @@ function tekenTraining() {
     return;
   }
 
-  kop.textContent = `${volgendeSchema.naam} is aan de beurt`;
   const laatste = recent[0];
   const duur = volgendeSchema.minuten ? `± ${volgendeSchema.minuten} min` : "";
   const vorige = laatste ? `Vorige: ${laatste.schemaNaam}, ${datumKort(laatste.datum)}.` : "Je eerste training: kies startgewichten waarmee je de range netjes haalt.";
-  ondertitel.textContent = [`Training ${volgendeSchema.code}`, duur, vorige].filter(Boolean).join(" · ");
-  startKnop.textContent = `Start ${volgendeSchema.naam}`;
+  const plan = gegevens.planning;
+  if (plan?.vandaag) {
+    // Weekplanner: vandaag staat er een training gepland.
+    kop.textContent = `Vandaag: ${volgendeSchema.naam}`;
+    ondertitel.textContent = [`Gepland om ${plan.vandaag.tijd}`, duur, vorige].filter(Boolean).join(" · ");
+    startKnop.textContent = `Start ${volgendeSchema.naam}`;
+  } else if (plan?.volgende) {
+    const wanneer = new Date(`${plan.volgende.datum}T12:00:00`).toLocaleDateString("nl-NL", { weekday: "long" });
+    kop.textContent = "Vandaag: rust";
+    ondertitel.textContent = `Volgende: ${plan.volgende.naam}, ${wanneer} om ${plan.volgende.tijd}. Toch vandaag trainen? Dat kan hieronder.`;
+    startKnop.textContent = `Toch nu: ${volgendeSchema.naam}`;
+  } else {
+    kop.textContent = `${volgendeSchema.naam} is aan de beurt`;
+    ondertitel.textContent = [`Training ${volgendeSchema.code}`, duur, vorige].filter(Boolean).join(" · ");
+    startKnop.textContent = `Start ${volgendeSchema.naam}`;
+  }
   startKnop.onclick = () => start(volgendeSchema.id);
 
   for (const schema of schemas.filter((s) => s.id !== volgendeSchema.id)) {
@@ -96,6 +109,11 @@ function tekenTraining() {
     knop.addEventListener("click", () => start(schema.id));
     andereSchemas.append(knop);
   }
+  const week = document.createElement("a");
+  week.className = "text-link set-extra";
+  week.href = "/week.html";
+  week.textContent = plan ? "Je week bekijken en aanpassen →" : "Plan je week: vaste dagen voor je trainingen →";
+  andereSchemas.append(week);
 }
 
 document.getElementById("fase-info").addEventListener("click", async (e) => {

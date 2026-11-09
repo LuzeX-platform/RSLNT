@@ -9,6 +9,7 @@
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { naarDatum, vandaag } from "./datum.js";
+import { standaardDagen } from "./planning.js";
 import { CATALOGUS_PER_SLEUTEL } from "./catalogus.js";
 
 const sleutel = z.string().regex(/^[a-z0-9_]+$/, "Alleen kleine letters, cijfers en _");
@@ -282,7 +283,23 @@ export async function activeer(tx: Prisma.TransactionClient, programmaId: string
       where: { id: programmaId },
       data: { actief: true, startdatum: naarDatum(vandaag()), deloadTot: null },
     });
-  }
+  }  await zorgVoorPlanning(tx, programma.gebruikerId, programmaId);
+}
+
+/**
+ * Een nieuw actief programma krijgt meteen een indeling over de week (planning.ts), tenzij je
+ * planning al helemaal bij dit programma hoort. Je past hem daarna aan in de weekplanner.
+ */
+export async function zorgVoorPlanning(tx: Prisma.TransactionClient, gebruikerId: string, programmaId: string) {
+  const schemas = await tx.schema.findMany({ where: { programmaId, inRotatie: true }, orderBy: { volgorde: "asc" }, select: { id: true } });
+  const huidig = await tx.planning.findMany({ where: { gebruikerId } });
+  const ids = new Set(schemas.map((x) => x.id));
+  if (huidig.length > 0 && huidig.every((p) => ids.has(p.schemaId))) return;
+  await tx.planning.deleteMany({ where: { gebruikerId } });
+  const dagen = standaardDagen(schemas.length);
+  await tx.planning.createMany({
+    data: schemas.slice(0, dagen.length).map((x, i) => ({ gebruikerId, weekdag: dagen[i], schemaId: x.id })),
+  });
 }
 
 export class ImportFout extends Error {}

@@ -49,6 +49,9 @@ model Gebruiker {
   /// Wanneer iemand de rondleiding door de app heeft afgerond of overgeslagen. Op de server en
   /// niet in localStorage: anders krijg je hem op je telefoon na de laptop gewoon nog een keer.
   rondleidingGezienOp   DateTime? @map("rondleiding_gezien_op")
+  /// Geheime link naar je trainingsagenda (iCal, voor Apple Agenda e.d.). Alleen de sha256-hash;
+  /// het ruwe token staat alleen in de link die je zelf kopieert. Opnieuw maken = oude link dood.
+  agendaTokenHash       String?   @unique @map("agenda_token_hash")
   aangemaaktOp          DateTime  @default(now())
   bijgewerktOp          DateTime  @default(now()) @updatedAt
 
@@ -63,6 +66,24 @@ model Gebruiker {
   duurtrainingen Duurtraining[]
   pijnnotities  Pijnnotitie[]
   deellinks     Deellink[]
+  planning      Planning[]
+}
+
+/// De weekplanner: welke training op welke dag (en hoe laat). Eén training per dag. Zonder
+/// planning voor het actieve programma geldt de rotatie A → B → C, los van de weekdag.
+model Planning {
+  gebruikerId String
+  /// 1 = maandag … 7 = zondag
+  weekdag     Int
+  schemaId    String
+  /// "HH:MM", Nederlandse tijd. Voor de agenda.
+  tijd        String    @default("18:00")
+
+  gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+  schema    Schema    @relation(fields: [schemaId], references: [id], onDelete: Cascade)
+
+  @@id([gebruikerId, weekdag])
+  @@index([schemaId])
 }
 
 model Oefening {
@@ -153,6 +174,7 @@ model Schema {
   programma  Programma        @relation(fields: [programmaId], references: [id], onDelete: Cascade)
   oefeningen SchemaOefening[]
   trainingen Training[]
+  planning   Planning[]
 
   @@unique([programmaId, code])
 }

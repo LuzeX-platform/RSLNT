@@ -46,7 +46,11 @@ test("split per aantal dagen", () => {
   assert.equal(kiesSplit(4).sessies.length, 4);
   assert.equal(kiesSplit(5).sessies.length, 5);
   assert.equal(kiesSplit(6).sessies.length, 6);
-  assert.match(kiesSplit(4).naam, /Boven \/ onder/);
+  // Per spiergroep, met namen die een beginner begrijpt.
+  assert.deepEqual(kiesSplit(5).sessies.map((x) => x.naam), ["Borst en triceps", "Rug en biceps", "Benen", "Schouders", "Buik"]);
+  assert.deepEqual(kiesSplit(4).sessies.map((x) => x.naam), ["Borst en triceps", "Rug en biceps", "Benen", "Schouders en buik"]);
+  assert.deepEqual(kiesSplit(3).sessies.map((x) => x.naam), ["Borst, schouders en triceps", "Rug en biceps", "Benen en buik"]);
+  for (let d = 2; d <= 6; d++) assert.ok(kiesSplit(d).sessies.every((x) => !/full body/i.test(x.naam)), `${d} dagen`);
 });
 
 test("weekdoelen: per doel en ervaring, focus +30%, kleine spieren minder", () => {
@@ -134,8 +138,8 @@ test("alle combinaties: geldig bestand, binnen tijd, max 11 sets per spier, bles
 test("geen oefening twee keer in één training; in een week zo gevarieerd als het kan", () => {
   const r = voorstel({ dagenPerWeek: 3 });
   for (const s of r.sessies) assert.equal(new Set(s.regels.map((x) => x.sleutel)).size, s.regels.length);
-  const knie = r.sessies.flatMap((s) => s.regels.filter((x) => x.patroon === "knie_dominant").map((x) => x.sleutel));
-  assert.equal(new Set(knie).size, knie.length, "A en C krijgen een andere squatvariant");
+  const duwen = r.sessies.flatMap((s) => s.regels.filter((x) => x.patroon === "horizontaal_duwen").map((x) => x.sleutel));
+  assert.equal(new Set(duwen).size, duwen.length, "geen dubbele borstoefening");
 });
 
 test("kracht: hoofdliften met de stang en 4–6 reps", () => {
@@ -147,9 +151,10 @@ test("kracht: hoofdliften met de stang en 4–6 reps", () => {
 });
 
 test("favorieten gaan voor, ook buiten de basislijst; uitgesloten komt er niet in", () => {
-  const met = voorstel({ favorieten: ["Hack_Squat", "Barbell_Full_Squat"], uitgesloten: ["Leg_Press", "Romanian_Deadlift"] });
+  // Per spiergroep is er één squatplek per week: één favoriet per keer.
+  assert.ok(voorstel({ favorieten: ["Hack_Squat"] }).sessies.flatMap((s) => s.regels).some((x) => x.sleutel === "hack_squat"));
+  const met = voorstel({ favorieten: ["Barbell_Full_Squat"], uitgesloten: ["Leg_Press", "Romanian_Deadlift"] });
   const alle = met.sessies.flatMap((s) => s.regels);
-  assert.ok(alle.some((x) => x.sleutel === "hack_squat"));
   const vrij = alle.find((x) => x.sleutel === "barbell_full_squat");
   assert.ok(vrij, "favoriet uit de bibliotheek doet mee");
   assert.equal(vrij.bibliotheekId, "Barbell_Full_Squat");
@@ -239,6 +244,9 @@ test("thuis zonder materiaal: alleen lichaamsgewicht, en een uitleg wat er ontbr
   const alle = r.sessies.flatMap((s) => s.regels);
   assert.ok(alle.every((x) => CATALOGUS_PER_SLEUTEL.get(x.sleutel)?.materiaal === "lichaamsgewicht"));
   assert.ok(r.opmerkingen.some((t) => /Geen oefening voor/.test(t)));
+  // Rug en biceps kan thuis niet zonder materiaal: aangevuld, en dat staat erbij.
+  assert.ok(r.sessies.every((s) => s.regels.length >= 2));
+  assert.ok(r.opmerkingen.some((t) => /Rug en biceps: .*aangevuld/.test(t)));
 });
 
 test("haalbaarheid: 81 → 90 kg op 1 maart is te snel; zonder streefdatum-druk haalbaar", () => {

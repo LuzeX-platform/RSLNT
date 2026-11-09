@@ -12,7 +12,7 @@ import { stripeClient } from "../stripe.js";
 
 /** Alles wat RSLNT van één account bewaart, behalve het wachtwoord en de tokens. */
 export async function alleGegevens(gebruikerId: string) {
-  const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen, duurtrainingen, pijnnotities, deellinks] = await Promise.all([
+  const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen, duurtrainingen, pijnnotities, deellinks, planning] = await Promise.all([
     prisma.gebruiker.findUniqueOrThrow({
       where: { id: gebruikerId },
       select: { naam: true, email: true, rol: true, pro: true, aangemaaktOp: true, emailBevestigdOp: true, toestemmingOp: true, privacyVersie: true },
@@ -40,6 +40,11 @@ export async function alleGegevens(gebruikerId: string) {
       orderBy: { aangemaaktOp: "asc" },
       select: { naam: true, onderdelen: true, aangemaaktOp: true, verlooptOp: true, ingetrokkenOp: true, laatstBekekenOp: true },
     }),
+    prisma.planning.findMany({
+      where: { gebruikerId },
+      orderBy: { weekdag: "asc" },
+      select: { weekdag: true, tijd: true, schema: { select: { naam: true } } },
+    }),
   ]);
   return {
     toelichting: "Al je gegevens uit LuzeX RSLNT. Datums in UTC. Zie /privacy.html voor wat we bewaren en waarom.",
@@ -56,6 +61,7 @@ export async function alleGegevens(gebruikerId: string) {
     duurtrainingen,
     pijnnotities,
     deellinks,
+    weekplanning: planning.map((p) => ({ weekdag: p.weekdag, tijd: p.tijd, training: p.schema.naam })),
   };
 }
 
@@ -73,6 +79,7 @@ export async function verwijderAccount(gebruikerId: string) {
     await stripe.subscriptions.cancel(g.stripeAbonnementId).catch(() => {});
   }
   await prisma.$transaction([
+    prisma.planning.deleteMany({ where: { gebruikerId } }),
     prisma.training.deleteMany({ where: { gebruikerId } }),
     prisma.programma.deleteMany({ where: { gebruikerId } }),
     prisma.oefening.deleteMany({ where: { gebruikerId } }),
