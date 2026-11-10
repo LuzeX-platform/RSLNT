@@ -16,6 +16,7 @@ import { herstelRoutes } from "./routes/herstel.js";
 import { voortgangRoutes } from "./routes/voortgang.js";
 import { planningRoutes } from "./routes/planning.js";
 import { duurschemaRoutes } from "./routes/duurschema.js";
+import { samenRoutes } from "./routes/samen.js";
 import { bibliotheekRoutes } from "./routes/bibliotheek.js";
 import { personalisatieRoutes } from "./routes/personalisatie.js";
 import { abonnementRoutes } from "./routes/abonnement.js";
@@ -137,6 +138,7 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(gedeeldRoutes);
   await app.register(planningRoutes);
   await app.register(duurschemaRoutes);
+  await app.register(samenRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });
 

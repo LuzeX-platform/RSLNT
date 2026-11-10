@@ -55,19 +55,21 @@ model Gebruiker {
   aangemaaktOp          DateTime  @default(now())
   bijgewerktOp          DateTime  @default(now()) @updatedAt
 
-  programmas    Programma[]
-  oefeningen    Oefening[]
-  trainingen    Training[]
-  gewichten     Lichaamsgewicht[]
-  metingen      Lichaamsmeting[]
-  herstelchecks Herstelcheck[]
-  profiel       Profiel?
-  voorkeuren    Voorkeuren?
+  programmas     Programma[]
+  oefeningen     Oefening[]
+  trainingen     Training[]
+  gewichten      Lichaamsgewicht[]
+  metingen       Lichaamsmeting[]
+  herstelchecks  Herstelcheck[]
+  profiel        Profiel?
+  voorkeuren     Voorkeuren?
   duurtrainingen Duurtraining[]
-  pijnnotities  Pijnnotitie[]
-  deellinks     Deellink[]
-  planning      Planning[]
-  duurschema    Duurschema?
+  pijnnotities   Pijnnotitie[]
+  deellinks      Deellink[]
+  planning       Planning[]
+  duurschema     Duurschema?
+  samenGastheer  SamenSessie[]
+  samenMee       SamenDeelnemer[]
 }
 
 /// Je duursportschema (duurschema.ts): de keuzes, je dagen en wanneer het begon. De sessies zelf
@@ -102,7 +104,7 @@ model Planning {
   weekdag     Int
   schemaId    String
   /// "HH:MM", Nederlandse tijd. Voor de agenda.
-  tijd        String    @default("18:00")
+  tijd        String @default("18:00")
 
   gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
   schema    Schema    @relation(fields: [schemaId], references: [id], onDelete: Cascade)
@@ -472,4 +474,43 @@ model Deellink {
   gebruiker Gebruiker @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
 
   @@index([gebruikerId])
+}
+
+/// Samen trainen: één keer samen dezelfde training. Wie uitnodigt kiest een training uit het eigen
+/// schema; de oefeningen staan hier als momentopname, zodat meedoen ook werkt als het schema later
+/// verandert. Na 12 uur kan niemand meer meedoen; wat gelogd is blijft gewoon in ieders account.
+model SamenSessie {
+  id           String   @id @default(cuid())
+  /// Korte code om te delen (6 tekens, zonder lettertjes die op elkaar lijken).
+  code         String   @unique
+  gastheerId   String
+  /// Het schema van wie uitnodigt; die traint daar gewoon mee.
+  schemaId     String
+  naam         String
+  minuten      Int?
+  /// [{ oefeningId, volgorde, aantalSets, minSets, repsMin, repsMax, supersetGroep, rustSeconden, doelRir, cue }]
+  oefeningen   Json
+  geldigTot    DateTime
+  aangemaaktOp DateTime @default(now())
+
+  gastheer   Gebruiker        @relation(fields: [gastheerId], references: [id], onDelete: Cascade)
+  deelnemers SamenDeelnemer[]
+
+  @@index([gastheerId])
+}
+
+model SamenDeelnemer {
+  id           String   @id @default(cuid())
+  sessieId     String
+  gebruikerId  String
+  /// De training die deze deelnemer startte, of null (nog niet begonnen).
+  trainingId   String?
+  aangemaaktOp DateTime @default(now())
+
+  sessie    SamenSessie @relation(fields: [sessieId], references: [id], onDelete: Cascade)
+  gebruiker Gebruiker   @relation(fields: [gebruikerId], references: [id], onDelete: Cascade)
+
+  @@unique([sessieId, gebruikerId])
+  @@index([gebruikerId])
+  @@index([trainingId])
 }

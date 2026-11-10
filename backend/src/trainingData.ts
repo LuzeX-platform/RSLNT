@@ -122,15 +122,16 @@ export async function planningVoor(programma: NonNullable<Awaited<ReturnType<typ
 }
 
 /**
- * De training die aan de beurt is. Met een weekplanning: die van vandaag, of anders de eerstvolgende
- * geplande. Zonder: de volgende in de rotatie na de laatste training van dit programma
- * (A → B → C → A …), los van de weekdag.
+ * De training die aan de beurt is. Staat er vandaag een gepland (en nog niet gedaan): die. Anders
+ * (rustdag, of zonder weekplanning) de volgende in de rotatie na de laatste training van dit
+ * programma (A → B → C → A …): wie op een rustdag toch traint, of een dag inhaalt, doet de
+ * training die in de volgorde aan de beurt is.
  */
 export async function volgendeSchema(programma: NonNullable<Awaited<ReturnType<typeof actiefProgramma>>>) {
   const schemas = programma.schemas;
   if (schemas.length === 0) return null;
   const plan = await planningVoor(programma);
-  const gepland = plan?.vandaag ?? plan?.volgende;
+  const gepland = plan?.vandaag;
   if (gepland) return schemas.find((x) => x.id === gepland.schemaId)!;
   const laatste = await prisma.training.findFirst({
     where: { gebruikerId: programma.gebruikerId, schema: { programmaId: programma.id } },

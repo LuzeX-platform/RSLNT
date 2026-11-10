@@ -121,6 +121,11 @@ function tekenTraining() {
   week.href = "/week.html";
   week.textContent = plan ? "Je week →" : "Plan je week →";
   andereSchemas.append(week);
+  const samen = document.createElement("a");
+  samen.className = "text-link set-extra";
+  samen.href = "/samen.html";
+  samen.textContent = "Samen trainen →";
+  andereSchemas.append(samen);
 }
 
 document.getElementById("fase-info").addEventListener("click", async (e) => {
@@ -172,6 +177,26 @@ function tekenDuur() {
       e.target.disabled = false;
     }
   });
+}
+
+/** Een samen-training waar je aan meedoet (nog niet klaar): bovenaan, met één knop. */
+async function tekenSamen() {
+  const paneel = document.getElementById("samen-paneel");
+  try {
+    const { samen } = await api("/api/samen/actief");
+    if (!samen) return;
+    const anderen = samen.deelnemers.filter((d) => !d.ikzelf).map((d) => d.naam);
+    const met = anderen.length ? `met ${anderen.join(", ")}` : `uitnodiging van ${samen.ikGastheer ? "jou" : samen.gastheer}`;
+    const link = `/samen.html?code=${encodeURIComponent(samen.code)}`;
+    paneel.innerHTML = `
+      <p class="kicker">Samen trainen</p>
+      <h2>${escapeHtml(samen.naam)}</h2>
+      <p class="lijst-meta">${escapeHtml(met)}</p>
+      <a class="knop-link ruimte-boven" href="${samen.mijnTrainingId ? `/training.html?id=${encodeURIComponent(samen.mijnTrainingId)}` : link}">${samen.mijnTrainingId ? "Verder met trainen" : "Naar de training"}</a>`;
+    paneel.hidden = false;
+  } catch {
+    paneel.hidden = true;
+  }
 }
 
 function tekenGewicht() {
@@ -425,6 +450,7 @@ async function laad() {
   tekenHerstel();
   tekenTraining();
   tekenDuur();
+  tekenSamen();
   tekenGewicht();
   tekenRecent();
   if (!sessie.offline) laadAdvies(sessie);

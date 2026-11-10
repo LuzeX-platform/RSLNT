@@ -966,3 +966,33 @@ async function laad() {
 }
 
 laad();
+
+// ---------- Samen trainen: hoe ver de anderen zijn ----------
+
+async function tekenSamen() {
+  const paneel = document.getElementById("samen-paneel");
+  let s;
+  try {
+    s = await api(`/api/samen/training/${encodeURIComponent(trainingId)}`);
+  } catch {
+    paneel.hidden = true;
+    return false;
+  }
+  const anderen = s.deelnemers.filter((d) => !d.ikzelf);
+  const regel = (d) => {
+    const wat = d.status === "klaar" ? "klaar ✓" : d.status === "wacht" ? "nog niet begonnen" : `${d.nu ? `${escapeHtml(d.nu)} · ` : ""}${d.setsGedaan}/${d.setsTotaal}`;
+    return `<li><strong>${escapeHtml(d.naam)}</strong> <span class="lijst-meta">${wat}</span></li>`;
+  };
+  paneel.innerHTML = `
+    <div class="panel-kop"><h2>Samen</h2><a class="text-link" href="/samen.html?code=${encodeURIComponent(s.code)}">Code ${escapeHtml(s.code)}</a></div>
+    ${anderen.length ? `<ul class="samen-kort">${anderen.map(regel).join("")}</ul>` : '<p class="lijst-meta">Nog niemand anders. Deel de code.</p>'}`;
+  paneel.hidden = false;
+  return true;
+}
+
+tekenSamen().then((samen) => {
+  if (!samen) return;
+  setInterval(() => {
+    if (document.visibilityState === "visible") tekenSamen();
+  }, 15000);
+});
