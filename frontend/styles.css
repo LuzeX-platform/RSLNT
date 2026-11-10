@@ -3347,3 +3347,372 @@ body.portaal {
   display: grid;
   gap: 4px;
 }
+
+/* =====================================================================
+   Redesign: één rustige lijn voor alle tabbladen.
+   - Eén hoofdkaart per pagina (wat je nu nodig hebt), daarna korte lijsten.
+   - Rijen met een pijltje (›) voor alles wat je openklikt.
+   - Minder uitleg op het scherm; "Waarom?" en details klappen open.
+   ===================================================================== */
+
+/* ---------- Je week: zeven dagen in één oogopslag ---------- */
+.week-strip {
+  display: block;
+  color: var(--text);
+  text-decoration: none;
+  padding-bottom: 18px;
+}
+
+.week-strip .panel-kop {
+  margin-bottom: 12px;
+}
+
+.week-mini {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.week-dag-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 6px;
+  border-radius: 14px;
+  color: var(--text-tertiary);
+}
+
+.wd-naam {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wd-nummer {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.wd-teken {
+  min-height: 18px;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.week-dag-mini.gepland {
+  color: var(--text);
+}
+
+.week-dag-mini.gedaan .wd-teken {
+  color: var(--success);
+  font-weight: 700;
+}
+
+.week-dag-mini.vandaag {
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+
+.week-dag-mini.vandaag.gedaan .wd-teken {
+  color: var(--accent-contrast);
+}
+
+/* ---------- Je training van vandaag ---------- */
+.workout .kicker {
+  margin-bottom: 6px;
+}
+
+.workout-titel {
+  font-size: 26px !important;
+  line-height: 1.15;
+}
+
+.workout-meta {
+  margin: 6px 0 0;
+  color: var(--text-secondary);
+}
+
+.workout .knop-groot {
+  margin-top: 18px;
+}
+
+.advies {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--accent-tint);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.advies p {
+  margin: 0;
+}
+
+.advies p + p {
+  margin-top: 6px;
+}
+
+.advies .knop-rij {
+  margin-top: 10px;
+}
+
+.workout-extra:not(:empty) {
+  margin-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.extra-rij {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  text-decoration: none;
+}
+
+.extra-icoon {
+  flex: 0 0 32px;
+  font-size: 22px;
+  text-align: center;
+}
+
+.extra-tekst {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.extra-pijl {
+  color: var(--text-tertiary);
+  font-size: 22px;
+  line-height: 1;
+}
+
+button.klein {
+  min-height: 36px;
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+.meer-opties {
+  margin-top: 12px;
+}
+
+.meer-opties > summary {
+  cursor: pointer;
+  list-style: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.meer-opties > summary::-webkit-details-marker {
+  display: none;
+}
+
+.meer-opties > summary::after {
+  content: "›";
+  margin-left: 8px;
+  font-size: 20px;
+  transition: transform 0.15s ease;
+}
+
+.meer-opties[open] > summary::after {
+  transform: rotate(90deg);
+}
+
+.meer-rij {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  text-decoration: none;
+}
+
+.meer-rij:hover {
+  background: none;
+  color: var(--text);
+}
+
+/* ---------- Herstel als het ertoe doet ---------- */
+.herstel-kaart h2 {
+  margin: 0;
+}
+
+.herstel-kaart .lijst-meta {
+  margin: 2px 0 0;
+}
+
+/* ---------- Pro-kaart compact (Vandaag) ---------- */
+.wens-kaart.wens-kaart-compact {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+}
+
+.wens-compact {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.wens-kaart-compact .wens-kaart-icoon {
+  width: 40px;
+  height: 40px;
+}
+
+.wens-compact-tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+
+.wens-compact-tekst span {
+  opacity: 0.75;
+  font-size: 13px;
+}
+
+.wens-weg {
+  flex: 0 0 auto;
+  min-height: 36px;
+  width: 36px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 22px;
+  opacity: 0.7;
+  box-shadow: none;
+}
+
+/* Dagen die voorbij zijn zonder vinkje: vaag, geen verwijt. */
+.week-dag-mini.voorbij:not(.gedaan):not(.vandaag) {
+  opacity: 0.45;
+}
+
+/* ---------- Lichaam ---------- */
+.herstel-tegels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.herstel-tegels li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 4px;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-tint);
+  text-align: center;
+}
+
+.herstel-tegels strong {
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+.herstel-status {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.herstel-tegels .signaal-goed {
+  background: var(--success-tint);
+}
+
+.herstel-tegels .signaal-let_op {
+  background: var(--warning-tint);
+}
+
+.herstel-tegels .signaal-let_op .herstel-status {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+.lijst-kaart {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.lijst-kaart .meer-rij:first-child {
+  border-top: 0;
+}
+
+/* ---------- Wetenschap: één regel per onderwerp ---------- */
+.onderwerp {
+  margin-bottom: 10px;
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.onderwerp-kop {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.onderwerp-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.onderwerp-label .badge {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.onderwerp-titel {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* Pro-plek: kort, met "Wat zit erin?" om open te klappen. */
+.pro-slot-meer {
+  margin: 4px 0 12px;
+}
+
+.pro-slot-meer > summary {
+  cursor: pointer;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  font-weight: 600;
+}

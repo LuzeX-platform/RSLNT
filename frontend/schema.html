@@ -21,11 +21,10 @@
   <main class="app-kolom">
     <div class="app-kop">
       <p class="kicker" id="programma-naam">Schema</p>
-      <h1>Schema</h1>
-      <p class="subtitle">Wijzigingen gelden vanaf je volgende training. Eerdere trainingen houden hun eigen schema.</p>
+      <h1>Je schema</h1>
+      <p class="subtitle">Wijzigingen gelden vanaf je volgende training.</p>
     </div>
 
-    <section class="panel" id="wens-kaart-boven" hidden></section>
 
 
     <div class="tabs" id="tabs" role="group" aria-label="Kies een schema"></div>
@@ -42,15 +41,15 @@
       <p class="veld-hint">Min. sets: zoveel sets moeten op de bovenkant van de range zitten voordat het gewicht omhoog gaat. RIR: zoveel reps moet je minstens over hebben. Superset: oefeningen met dezelfde letter of hetzelfde cijfer horen bij elkaar.</p>
     </section>
 
-    <h2 class="sectie-kop">Meer</h2>
-    <div class="schema-links schema-tegels">
-      <a class="panel schema-link" href="/week.html"><strong>Je week</strong><span class="lijst-meta">Dagen en je agenda</span></a>
-      <a class="panel schema-link" href="/duurschema.html"><strong>Duurschema</strong><span class="lijst-meta">Lopen, fietsen, zwemmen</span></a>
-      <a class="panel schema-link" href="/personaliseren.html"><strong>Schema op maat</strong><span class="lijst-meta">Een nieuw voorstel</span></a>
-      <a class="panel schema-link" href="/bibliotheek.html"><strong>Oefeningen</strong><span class="lijst-meta">Uitleg en foto's</span></a>
-      <a class="panel schema-link" href="/start.html?stap=2"><strong>Standaardschema</strong><span class="lijst-meta">2, 3 of 4 dagen</span></a>
-      <a class="panel schema-link" href="/blokken.html"><strong>Blokken <span class="badge pro-badge">Pro</span></strong><span class="lijst-meta">Periodisering</span></a>
-    </div>
+    <nav class="panel lijst-kaart" aria-label="Meer">
+      <a class="meer-rij" href="/week.html"><span>Je week <span class="lijst-meta">· dagen en agenda</span></span><span class="extra-pijl">›</span></a>
+      <a class="meer-rij" href="/duurschema.html"><span>Duurschema <span class="lijst-meta">· lopen, fietsen, zwemmen</span></span><span class="extra-pijl">›</span></a>
+      <a class="meer-rij" href="/samen.html"><span>Samen trainen</span><span class="extra-pijl">›</span></a>
+      <a class="meer-rij" href="/personaliseren.html"><span>Nieuw schema op maat</span><span class="extra-pijl">›</span></a>
+      <a class="meer-rij" href="/bibliotheek.html"><span>Oefeningen <span class="lijst-meta">· uitleg en foto's</span></span><span class="extra-pijl">›</span></a>
+      <a class="meer-rij" href="/start.html?stap=2"><span>Standaardschema</span><span class="extra-pijl">›</span></a>
+      <a class="meer-rij" href="/blokken.html"><span>Blokken <span class="badge pro-badge">Pro</span></span><span class="extra-pijl">›</span></a>
+    </nav>
 
     <details class="panel uitklap">
       <summary>Programma inladen (JSON)</summary>

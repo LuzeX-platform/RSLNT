@@ -132,7 +132,7 @@ function proSlotHtml(titel, tekst, sleutels = []) {
   return `
     <div class="pro-slot-kop"><span class="badge pro-badge">Pro</span><h2>${escapeHtml(titel)}</h2></div>
     <p class="subtitle">${escapeHtml(tekst)}</p>
-    ${punten.length ? `<ul>${punten.map((p) => `<li><strong>${escapeHtml(p.titel)}.</strong> ${escapeHtml(p.tekst)}</li>`).join("")}</ul>` : ""}
+    ${punten.length ? `<details class="pro-slot-meer"><summary>Wat zit erin?</summary><ul>${punten.map((p) => `<li><strong>${escapeHtml(p.titel)}.</strong> ${escapeHtml(p.tekst)}</li>`).join("")}</ul></details>` : ""}
     <div class="knop-rij"><a class="knop-link secondary" href="/pro.html">Bekijk Pro</a>${
       punten[0] ? `<a class="text-link" href="/wetenschap.html#${punten[0].anker}">Hoe werkt het?</a>` : ""
     }</div>`;
@@ -170,11 +170,20 @@ function lokaal(sleutel, waarde) {
  * @param pro heeft de gebruiker Pro
  * @param wegklikbaar met "Niet nu" (Vandaag); verdwijnt ook zodra je het één keer gebruikte
  */
-function toonWensKaart(element, pro, { wegklikbaar = false } = {}) {
+function toonWensKaart(element, pro, { wegklikbaar = false, compact = false } = {}) {
   if (!element) return;
   if (wegklikbaar && (lokaal(WENS_GEBRUIKT) || lokaal(WENS_WEGGEKLIKT))) return;
   element.classList.add("wens-kaart");
-  element.innerHTML = `
+  element.classList.toggle("wens-kaart-compact", compact);
+  // Compact: één rij (op Vandaag), zodat de kaart niet meer ruimte pakt dan je training.
+  if (compact) {
+    element.innerHTML = `
+    <a class="wens-compact" href="${pro ? "/personaliseren.html#wens" : "/pro.html"}">
+      <span class="wens-kaart-icoon">${MICROFOON_SVG}</span>
+      <span class="wens-compact-tekst"><strong>Zeg wat je wilt. RSLNT maakt je schema.</strong><span>${pro ? "Typ of spreek het in" : "Nieuw in Pro"}</span></span>
+    </a>
+    ${wegklikbaar ? '<button type="button" class="wens-weg" data-wens-weg aria-label="Niet nu">×</button>' : ""}`;
+  } else element.innerHTML = `
     <div class="wens-kaart-icoon">${MICROFOON_SVG}</div>
     <div class="wens-kaart-inhoud">
       <p class="wens-kaart-label"><span class="badge pro-badge">Pro</span> Nieuw</p>

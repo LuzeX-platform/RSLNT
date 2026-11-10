@@ -23,7 +23,7 @@
     <div class="app-kop">
       <p class="kicker">Wetenschap</p>
       <h1>Waar onze adviezen vandaan komen</h1>
-      <p class="subtitle">Elk voorstel in RSLNT volgt een vaste regel. Hier lees je welke regel, waarom, hoe zeker dat is en uit welk onderzoek het komt. Zonder hype: waar het bewijs dun is, zeggen we dat ook.</p>
+      <p class="subtitle">Elke regel in RSLNT, waarom, hoe zeker dat is en uit welk onderzoek. Tik op een onderwerp.</p>
     </div>
 
     <nav class="inhoud" aria-label="Onderwerpen">
@@ -71,8 +71,8 @@
       <a href="#grenzen">Wat we niet weten</a>
     </nav>
 
-    <section class="panel">
-      <h2>Hoe zeker is het?</h2>
+    <details class="panel uitklap">
+      <summary>Hoe zeker is het? Zo lees je de labels</summary>
       <p>Bij elk onderwerp staat wat voor bewijs erachter zit, van sterk naar zwak:</p>
       <ul class="zekerheid-lijst">
         <li><span class="badge bewijs-meta">Meta-analyse</span> Veel studies samen doorgerekend. Het sterkste wat er is, maar zo goed als de studies erin.</li>
@@ -82,7 +82,7 @@
         <li><span class="badge bewijs-praktijk">Praktijkregel</span> Een verstandige afspraak zonder direct onderzoek erachter. We zeggen erbij als dat zo is.</li>
       </ul>
       <p class="lijst-meta">Het meeste onderzoek is gedaan bij jonge, gezonde volwassenen (vaker mannen dan vrouwen) over 6 tot 12 weken. Wat over jaren gebeurt, weten we minder goed.</p>
-    </section>
+    </details>
 
     <section class="panel bron-kaart" id="progressie">
       <p class="kicker">Progressie</p>
@@ -612,5 +612,6 @@
   </main>
 
   <script src="/common.js"></script>
+  <script src="/wetenschap.js"></script>
 </body>
 </html>
