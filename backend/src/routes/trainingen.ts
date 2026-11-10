@@ -4,8 +4,6 @@ import { prisma } from "../db.js";
 import { gid, requireIngelogd } from "../plugins/requireAuth.js";
 import {
   actiefProgramma,
-  alsRegel,
-  faseInstellingen,
   faseVoor,
   SET_VELDEN,
   TECHNIEK_SETSOORT,
@@ -15,17 +13,16 @@ import {
   type Techniek,
 } from "../trainingData.js";
 import { heeftPro } from "../entitlementsPro.js";
-import { doelInBlok } from "../periodisering.js";
 import { bijsturing } from "../autoregulatie.js";
 import { isWerkset } from "../progressie.js";
 import { PIJN_PLEK_SLEUTELS } from "../pijn.js";
-import { doelInFase } from "../fase.js";
 import { zevenDaagsGemiddelde } from "../gewicht.js";
 import { naarDatum, uitDatum, vandaag, verschuifDag } from "../datum.js";
 import { ongeldig } from "./auth.js";
 import { herstelVandaag } from "./herstel.js";
 import { maakFit } from "../fitExport.js";
 import { duurVandaag } from "../duurData.js";
+import { haalSchema, maakTraining } from "../trainingStart.js";
 
 const pijnSchaal = z.number().int().min(0).max(10).nullable();
 const setSchema = z
@@ -182,55 +179,10 @@ export async function trainingRoutes(app: FastifyInstance) {
     const bezig = await prisma.training.findFirst({ where: { gebruikerId: g, status: "bezig" }, select: { id: true } });
     if (bezig) return reply.code(409).send({ errorCode: "TRAINING_BEZIG", id: bezig.id });
 
-    const schema = await prisma.schema.findFirst({
-      where: { id: parsed.data.schemaId, programma: { gebruikerId: g } },
-      include: { programma: true, oefeningen: { orderBy: { volgorde: "asc" }, include: { oefening: { select: { mechaniek: true } } } } },
-    });
+    const schema = await haalSchema(parsed.data.schemaId, g);
     if (!schema) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });
     if (schema.oefeningen.length === 0) return reply.code(400).send({ errorCode: "SCHEMA_LEEG" });
-
-    // De fase (intro/deload/licht) en het blok (Pro) worden bij het starten vastgelegd, met het
-    // aangepaste doel per oefening. Eerst het blok, dan de fase: een deload of lichte dag
-    // halveert of verlicht wat het blok voorschrijft. Een lichte dag gaat niet over een intro of
-    // deload heen: die zijn al licht.
-    const basisFase = faseVoor(schema.programma, vandaag(), pro);
-    const fase = parsed.data.licht && basisFase.fase === "normaal" ? { ...basisFase, fase: "licht" as const } : basisFase;
-    const blok = fase.blok && fase.blok.soort !== "deload" ? fase.blok.soort : null;
-    const instellingen = faseInstellingen(schema.programma);
-    const training = await prisma.training.create({
-      data: {
-        gebruikerId: g,
-        schemaId: schema.id,
-        fase: fase.fase,
-        week: fase.week,
-        blok: fase.blok?.soort ?? null,
-        oefeningen: {
-          create: schema.oefeningen.map((r) => {
-            const inBlok = blok
-              ? doelInBlok(r, blok, r.oefening.mechaniek === "compound")
-              : { aantalSets: r.aantalSets, minSets: r.minSets, repsMin: r.repsMin, repsMax: r.repsMax, doelRir: r.doelRir };
-            const doel = doelInFase(inBlok, fase.fase, instellingen);
-            return {
-              oefeningId: r.oefeningId,
-              volgorde: r.volgorde,
-              aantalSets: doel.aantalSets,
-              minSets: doel.minSets,
-              doelRir: doel.doelRir,
-              repsMin: inBlok.repsMin,
-              repsMax: inBlok.repsMax,
-              supersetGroep: r.supersetGroep,
-              rustSeconden: r.rustSeconden,
-              cue: r.cue,
-              // Zonder Pro geldt de standaardregel en geen techniek, ook als die in het schema
-              // staat (bijvoorbeeld van toen je Pro nog had).
-              progressie: pro ? alsRegel(r.progressie) : "dubbel",
-              techniek: pro ? r.techniek : null,
-            };
-          }),
-        },
-      },
-    });
-    return { id: training.id };
+    return maakTraining(g, schema, pro, parsed.data.licht);
   });
 
   app.get<{ Params: { id: string } }>("/api/trainingen/:id", async (request, reply) => {

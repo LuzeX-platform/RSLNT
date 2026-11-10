@@ -3306,3 +3306,44 @@ body.portaal {
 .uitklap[open] > summary {
   margin-bottom: 12px;
 }
+
+/* ---------- Samen trainen ---------- */
+.samen-code {
+  margin: 4px 0 14px;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-variant-numeric: tabular-nums;
+}
+
+.samen-lijst .samen-wie {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.samen-balk {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--neutral-tint);
+  overflow: hidden;
+}
+
+.samen-balk span {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+.samen-wie.klaar .samen-balk span {
+  background: var(--success, var(--accent));
+}
+
+.samen-kort {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}

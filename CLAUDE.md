@@ -31,6 +31,8 @@ backend/            Fastify 5 + Prisma 5 + PostgreSQL 16, TypeScript (ESM, NodeN
   src/agenda.ts       pure logica: de weekplanning als iCal-abonnement (Europe/Amsterdam, wekelijks)
   src/duurschema.ts   pure logica: duursportschema (hardlopen/fietsen/zwemmen; opbouw, 80/20, taper, dagen)
   src/duurData.ts     duurschema uit de database op je dagen, rekening houdend met benendagen; gedaan of niet
+  src/trainingStart.ts  een training starten uit een schema (fase, blok, lichte dag); Vandaag en Samen
+  src/routes/samen.ts   samen trainen (gratis): code/link, meedoen met een kopie in je eigen account, voortgang
   src/routes/duurschema.ts  /api/duurschema (gratis): voorstel, starten, dagen, afvinken, stoppen
   src/routes/planning.ts  /api/planning (weekplanner) en /api/agenda (abonnement; de .ics-route zonder login)
 data/               bibliotheek.json (876 oefeningen, vastgepinde bron) + licentie van de bron

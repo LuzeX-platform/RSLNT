@@ -1024,7 +1024,12 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(fien, "POST", "/api/standaardschema", { dagenPerWeek: 3 })).statusCode, 200);
 
     let plan = (await vraagAls(fien, "GET", "/api/planning")).json();
-    assert.deepEqual(plan.dagen.map((d: any) => d.training), ["Borst, schouders en triceps", null, "Rug en biceps", null, "Benen en buik", null, null]);
+    // Ma/wo/vr, met de eerste training op de eerstvolgende van die dagen (vandaag meegerekend).
+    const { verdeelVanaf, weekdagVan } = await import("../src/planning.js");
+    const { vandaag: nu } = await import("../src/datum.js");
+    const verwacht: (string | null)[] = [null, null, null, null, null, null, null];
+    for (const { weekdag, schema } of verdeelVanaf(["Borst, schouders en triceps", "Rug en biceps", "Benen en buik"], [1, 3, 5], weekdagVan(nu()))) verwacht[weekdag - 1] = schema;
+    assert.deepEqual(plan.dagen.map((d: any) => d.training), verwacht);
     assert.equal(plan.agenda.actief, false);
     const benen = plan.schemas.find((x: any) => x.naam === "Benen en buik");
 
@@ -1036,13 +1041,15 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     const vreemd = await prisma.schema.findFirstOrThrow({ where: { programma: { gebruikerId: ikId } } });
     assert.equal((await vraagAls(fien, "PUT", "/api/planning/2", { schemaId: vreemd.id })).statusCode, 404);
     plan = (await vraagAls(fien, "GET", "/api/planning")).json();
-    assert.deepEqual(plan.dagen.map((d: any) => d.training), [null, null, "Benen en buik", null, "Benen en buik", null, null]);
+    assert.deepEqual(plan.dagen.map((d: any) => d.training), [null, null, "Benen en buik", null, verwacht[4], null, null]);
     assert.equal(plan.dagen[2].tijd, "07:30");
 
     // Vandaag volgt de planning: wat vandaag gepland staat, of anders de eerstvolgende dag.
     const scherm = (await vraagAls(fien, "GET", "/api/vandaag")).json();
     assert.ok(scherm.planning);
-    assert.equal(scherm.volgendeSchema.id, (scherm.planning.vandaag ?? scherm.planning.volgende).schemaId);
+    // Staat er vandaag iets gepland, dan is dat aan de beurt; anders de volgende in de rotatie.
+    if (scherm.planning.vandaag) assert.equal(scherm.volgendeSchema.id, scherm.planning.vandaag.schemaId);
+    else assert.ok(scherm.planning.volgende);
 
     // Agenda-abonnement: zonder inloggen, alleen met de geheime link.
     const link = (await vraagAls(fien, "POST", "/api/agenda")).json();
@@ -1137,6 +1144,90 @@ describe("API", { skip: !TEST_DB && "TEST_DATABASE_URL niet gezet" }, () => {
     assert.equal((await vraagAls(fien, "DELETE", "/api/duurschema")).statusCode, 200);
     assert.equal((await vraagAls(fien, "GET", "/api/duurschema")).json().schema, null);
     assert.equal((await vraagAls(fien, "GET", "/api/vandaag")).json().duur, null);
+  });
+
+  test("samen trainen: uitnodigen met een code, meedoen met je eigen oefeningen, elkaars voortgang, alleen voor wie meedoet", async () => {
+    const { hashWachtwoord } = await import("../src/auth.js");
+    for (const [email, naam] of [["noor@samen.nl", "Noor de Vries"], ["lex@samen.nl", "Lex"]]) {
+      await prisma.gebruiker.create({ data: { email, naam, wachtwoordHash: await hashWachtwoord("samen-wachtwoord-1"), emailBevestigdOp: new Date() } });
+    }
+    const fien = await sessieVoor("fien@test.nl");
+    const bo = await sessieVoor("noor@samen.nl");
+    const lex = await sessieVoor("lex@samen.nl");
+    const plan = (await vraagAls(fien, "GET", "/api/planning")).json();
+    const rug = plan.schemas.find((x: any) => x.naam === "Rug en biceps");
+
+    // Alleen een eigen schema.
+    const vreemd = await prisma.schema.findFirstOrThrow({ where: { programma: { gebruikerId: ikId } } });
+    assert.equal((await vraagAls(fien, "POST", "/api/samen", { schemaId: vreemd.id })).statusCode, 404);
+    const { code } = (await vraagAls(fien, "POST", "/api/samen", { schemaId: rug.id })).json();
+    assert.match(code, /^[A-Z2-9]{6}$/);
+
+    // Bo ziet wat het is, maar nog niet wie er meedoen; kleine letters en spaties in de code mogen.
+    let bekeken = (await vraagAls(bo, "GET", `/api/samen/${code.slice(0, 3).toLowerCase()} ${code.slice(3)}`)).json();
+    assert.equal(bekeken.gastheer, "Fien");
+    assert.equal(bekeken.naam, "Rug en biceps");
+    assert.equal(bekeken.doetMee, false);
+    assert.deepEqual(bekeken.deelnemers, []);
+    assert.equal((await vraagAls(bo, "GET", "/api/samen/ZZZZZZ")).statusCode, 404);
+    assert.equal((await vraagAls(bo, "POST", `/api/samen/${code}/start`)).statusCode, 403);
+
+    // Bo doet mee en start: dezelfde oefeningen, als training in Bo's eigen account.
+    assert.equal((await vraagAls(bo, "POST", `/api/samen/${code}/doe-mee`)).statusCode, 200);
+    const boStart = (await vraagAls(bo, "POST", `/api/samen/${code}/start`)).json();
+    const boTraining = await prisma.training.findUniqueOrThrow({
+      where: { id: boStart.id },
+      include: { gebruiker: { select: { email: true } }, schema: { include: { programma: true } }, oefeningen: { include: { oefening: true } } },
+    });
+    const fienSchema = await prisma.schema.findUniqueOrThrow({ where: { id: rug.id }, include: { oefeningen: { include: { oefening: true } } } });
+    assert.equal(boTraining.gebruiker.email, "noor@samen.nl");
+    assert.equal(boTraining.schema.naam, "Rug en biceps (samen met Fien)");
+    assert.equal(boTraining.schema.programma.actief, false);
+    assert.equal(boTraining.schema.inRotatie, false);
+    assert.deepEqual(boTraining.oefeningen.map((o) => o.oefening.naam).sort(), fienSchema.oefeningen.map((o) => o.oefening.naam).sort());
+    assert.ok(boTraining.oefeningen.every((o) => o.oefening.gebruikerId === boTraining.gebruikerId), "Bo's eigen oefeningen");
+    // Nog een keer start: dezelfde training, geen tweede.
+    assert.equal((await vraagAls(bo, "POST", `/api/samen/${code}/start`)).json().id, boStart.id);
+    // Het verborgen programma staat niet in Bo's lijst met programma's.
+    assert.equal((await vraagAls(bo, "GET", "/api/programmas")).json().programmas.length, 0);
+
+    // Fien start haar eigen schema; samen zien ze elkaars voortgang (geen gewichten).
+    const fienStart = (await vraagAls(fien, "POST", `/api/samen/${code}/start`)).json();
+    assert.equal((await prisma.training.findUniqueOrThrow({ where: { id: fienStart.id } })).schemaId, rug.id);
+    const eerste = boTraining.oefeningen.sort((a, b) => a.volgorde - b.volgorde)[0];
+    await prisma.trainingSet.create({ data: { trainingOefeningId: eerste.id, nummer: 1, gewicht: 20, reps: 10 } });
+    const live = (await vraagAls(fien, "GET", `/api/samen/training/${fienStart.id}`)).json();
+    assert.deepEqual(live.deelnemers.map((d: any) => [d.naam, d.gastheer, d.status, d.ikzelf]), [["Fien", true, "bezig", true], ["Noor", false, "bezig", false]]);
+    assert.equal(live.deelnemers[1].setsGedaan, 1);
+    assert.equal(live.deelnemers[1].nu, eerste.oefening.naam);
+    assert.ok(!JSON.stringify(live).includes('"gewicht"'));
+    assert.equal((await vraagAls(bo, "GET", "/api/samen/actief")).json().samen.code, code);
+
+    // Vol is vol (6), en wie niet meedoet ziet de lijst niet.
+    for (let i = 0; i < 4; i++) {
+      const u = await prisma.gebruiker.create({ data: { email: `vol${i}@samen.nl`, naam: `Vol${i}`, wachtwoordHash: "x", emailBevestigdOp: new Date() } });
+      await prisma.samenDeelnemer.create({ data: { sessieId: (await prisma.samenSessie.findUniqueOrThrow({ where: { code } })).id, gebruikerId: u.id } });
+    }
+    assert.equal((await vraagAls(lex, "POST", `/api/samen/${code}/doe-mee`)).statusCode, 409);
+    assert.deepEqual((await vraagAls(lex, "GET", `/api/samen/${code}`)).json().deelnemers, []);
+
+    // Uitstappen kan Bo alleen voor zichzelf; Fien stopt de uitnodiging, trainingen blijven bestaan.
+    assert.equal((await vraagAls(bo, "DELETE", `/api/samen/${code}`)).statusCode, 200);
+    assert.equal(await prisma.samenSessie.count({ where: { code } }), 1);
+    assert.equal((await vraagAls(fien, "DELETE", `/api/samen/${code}`)).statusCode, 200);
+    assert.equal(await prisma.samenSessie.count({ where: { code } }), 0);
+    assert.ok(await prisma.training.findUnique({ where: { id: boStart.id } }));
+    assert.equal((await vraagAls(bo, "GET", `/api/samen/${code}`)).statusCode, 404);
+
+    // Verlopen: na 12 uur kan niemand meer meedoen.
+    const oud = (await vraagAls(fien, "POST", "/api/samen", { schemaId: rug.id })).json();
+    await prisma.samenSessie.update({ where: { code: oud.code }, data: { geldigTot: new Date(Date.now() - 1000) } });
+    assert.equal((await vraagAls(lex, "POST", `/api/samen/${oud.code}/doe-mee`)).statusCode, 404);
+    assert.equal((await vraagAls(lex, "GET", `/api/samen/${oud.code}`)).json().geldig, false);
+    assert.ok(Array.isArray((await vraagAls(fien, "GET", "/api/account/export")).json().samenTrainen));
+
+    // Open trainingen netjes afsluiten voor de tests hierna.
+    await prisma.training.updateMany({ where: { id: { in: [boStart.id, fienStart.id] } }, data: { status: "afgerond", afgerondOp: new Date() } });
   });
 
   test("wens in eigen woorden (Pro): Claude vult keuzes in, de controle in code houdt alleen echte opties", async () => {

@@ -72,6 +72,14 @@ Een fase begint pas als de vorige in de sportschool werkt.
   de hash in de database, route niet gelogd) met elke geplande dag als wekelijks terugkerende
   afspraak met de oefeningen erin, in Nederlandse tijd. Werkt in Apple Agenda, Google Agenda en
   Outlook; nieuwe link of stoppen maakt de oude meteen ongeldig (`agenda.ts`).
+- **Samen trainen** (`/samen.html`, gratis) — één keer samen dezelfde training. Wie uitnodigt
+  kiest een training uit het eigen schema en deelt een code van 6 tekens of een link (12 uur
+  geldig, tot 6 mensen). Wie meedoet krijgt die oefeningen als training in het eigen account
+  (gekoppeld aan de eigen oefeningen, dus eigen geschiedenis en voorstellen), via een verborgen
+  programma "samen" dat niet in de rotatie of de lijst staat. Onderweg zie je van elkaar alleen
+  voornaam, huidige oefening en sets klaar. Routes: `POST /api/samen`, `GET /api/samen/:code`,
+  `POST /api/samen/:code/doe-mee`, `POST /api/samen/:code/start`, `DELETE /api/samen/:code`,
+  `GET /api/samen/actief`, `GET /api/samen/training/:id` (`routes/samen.ts`).
 - **Duurschema** (`/duurschema.html`, gratis) — hardlopen, fietsen of zwemmen naast je
   krachttraining, met als doel conditie, een afstand (5/10 km, halve marathon; 50/100 km;
   500/1000/1500 m) of afvallen ondersteunen, 2–4× per week. `duurschema.ts` (pure logica): ~80%

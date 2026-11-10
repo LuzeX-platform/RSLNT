@@ -11,7 +11,8 @@ export async function programmaRoutes(app: FastifyInstance) {
 
   app.get("/api/programmas", async (request) => {
     const programmas = await prisma.programma.findMany({
-      where: { gebruikerId: gid(request) },
+      // "samen" is het verborgen programma met trainingen waar je aan meedeed (routes/samen.ts).
+      where: { gebruikerId: gid(request), sleutel: { not: "samen" } },
       orderBy: [{ actief: "desc" }, { aangemaaktOp: "desc" }],
       include: { schemas: { where: { inRotatie: true }, orderBy: { volgorde: "asc" }, select: { code: true, naam: true } } },
     });

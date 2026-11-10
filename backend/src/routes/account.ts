@@ -12,7 +12,7 @@ import { stripeClient } from "../stripe.js";
 
 /** Alles wat RSLNT van één account bewaart, behalve het wachtwoord en de tokens. */
 export async function alleGegevens(gebruikerId: string) {
-  const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen, duurtrainingen, pijnnotities, deellinks, planning, duurschema] = await Promise.all([
+  const [gebruiker, profiel, voorkeuren, gewichten, metingen, herstelchecks, oefeningen, programmas, trainingen, duurtrainingen, pijnnotities, deellinks, planning, duurschema, samen] = await Promise.all([
     prisma.gebruiker.findUniqueOrThrow({
       where: { id: gebruikerId },
       select: { naam: true, email: true, rol: true, pro: true, aangemaaktOp: true, emailBevestigdOp: true, toestemmingOp: true, privacyVersie: true },
@@ -46,6 +46,11 @@ export async function alleGegevens(gebruikerId: string) {
       select: { weekdag: true, tijd: true, schema: { select: { naam: true } } },
     }),
     prisma.duurschema.findUnique({ where: { gebruikerId }, select: { sport: true, doel: true, afstand: true, niveau: true, dagenPerWeek: true, dagen: true, tijd: true, startdatum: true } }),
+    prisma.samenDeelnemer.findMany({
+      where: { gebruikerId },
+      orderBy: { aangemaaktOp: "asc" },
+      select: { aangemaaktOp: true, trainingId: true, sessie: { select: { naam: true, aangemaaktOp: true, gastheerId: true } } },
+    }),
   ]);
   return {
     toelichting: "Al je gegevens uit LuzeX RSLNT. Datums in UTC. Zie /privacy.html voor wat we bewaren en waarom.",
@@ -63,6 +68,7 @@ export async function alleGegevens(gebruikerId: string) {
     pijnnotities,
     deellinks,
     duurschema,
+    samenTrainen: samen.map((s) => ({ training: s.sessie.naam, op: s.sessie.aangemaaktOp, uitgenodigdDoorJou: s.sessie.gastheerId === gebruikerId, trainingId: s.trainingId })),
     weekplanning: planning.map((p) => ({ weekdag: p.weekdag, tijd: p.tijd, training: p.schema.naam })),
   };
 }
@@ -83,6 +89,8 @@ export async function verwijderAccount(gebruikerId: string) {
   await prisma.$transaction([
     prisma.planning.deleteMany({ where: { gebruikerId } }),
     prisma.duurschema.deleteMany({ where: { gebruikerId } }),
+    prisma.samenDeelnemer.deleteMany({ where: { gebruikerId } }),
+    prisma.samenSessie.deleteMany({ where: { gastheerId: gebruikerId } }),
     prisma.training.deleteMany({ where: { gebruikerId } }),
     prisma.programma.deleteMany({ where: { gebruikerId } }),
     prisma.oefening.deleteMany({ where: { gebruikerId } }),

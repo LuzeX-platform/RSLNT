@@ -20,6 +20,22 @@ export function maandagVan(dag: string): string {
  * Een begin dat voor de meeste mensen werkt: zo veel mogelijk een rustdag ertussen, en het weekend
  * pas als het moet.
  */
+/**
+ * Welke training op welke dag: A op de eerstvolgende geplande dag vanaf vandaag (vandaag zelf
+ * meegerekend), daarna B, C … in de volgorde van de week. Wie op vrijdag begint met ma/wo/vr,
+ * doet vrijdag A, maandag B en woensdag C: je eerste training is altijd A.
+ */
+export function verdeelVanaf<T>(schemas: T[], dagen: number[], weekdagVandaag: number): { weekdag: number; schema: T }[] {
+  const n = Math.min(schemas.length, dagen.length);
+  const gesorteerd = [...dagen].sort((a, b) => a - b).slice(0, n);
+  const eerste = gesorteerd.findIndex((d) => d >= weekdagVandaag);
+  const start = eerste === -1 ? 0 : eerste;
+  return gesorteerd.map((_, i) => {
+    const weekdag = gesorteerd[(start + i) % gesorteerd.length];
+    return { weekdag, schema: schemas[i] };
+  });
+}
+
 export function standaardDagen(aantal: number): number[] {
   const indeling: Record<number, number[]> = {
     1: [3],

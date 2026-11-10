@@ -9,7 +9,7 @@
 import { z } from "zod";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import { naarDatum, vandaag } from "./datum.js";
-import { standaardDagen } from "./planning.js";
+import { standaardDagen, verdeelVanaf, weekdagVan } from "./planning.js";
 import { CATALOGUS_PER_SLEUTEL } from "./catalogus.js";
 
 const sleutel = z.string().regex(/^[a-z0-9_]+$/, "Alleen kleine letters, cijfers en _");
@@ -298,7 +298,7 @@ export async function zorgVoorPlanning(tx: Prisma.TransactionClient, gebruikerId
   await tx.planning.deleteMany({ where: { gebruikerId } });
   const dagen = standaardDagen(schemas.length);
   await tx.planning.createMany({
-    data: schemas.slice(0, dagen.length).map((x, i) => ({ gebruikerId, weekdag: dagen[i], schemaId: x.id })),
+    data: verdeelVanaf(schemas, dagen, weekdagVan(vandaag())).map(({ weekdag, schema }) => ({ gebruikerId, weekdag, schemaId: schema.id })),
   });
 }
 

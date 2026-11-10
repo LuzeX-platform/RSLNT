@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { aanDeBeurt, maandagVan, standaardDagen, weekdagVan } from "../src/planning.js";
+import { aanDeBeurt, maandagVan, standaardDagen, verdeelVanaf, weekdagVan } from "../src/planning.js";
 import { ical, maakAgenda, vouw } from "../src/agenda.js";
 
 test("weekdagen: maandag 1 … zondag 7, maandag van de week", () => {
@@ -75,4 +75,14 @@ test("agenda: tekst escapen en lange regels vouwen zonder een teken te breken", 
   const gevouwen = vouw(lang);
   assert.ok(gevouwen.split("\r\n").every((r) => Buffer.byteLength(r) <= 75));
   assert.equal(gevouwen.replace(/\r\n /g, ""), lang);
+});
+
+test("planning: je eerste training (A) komt op de eerstvolgende geplande dag, vandaag meegerekend", () => {
+  const dagen = (w: number) => verdeelVanaf(["A", "B", "C"], [1, 3, 5], w).sort((a, b) => a.weekdag - b.weekdag).map((x) => `${x.weekdag}${x.schema}`);
+  assert.deepEqual(dagen(1), ["1A", "3B", "5C"]); // maandag
+  assert.deepEqual(dagen(2), ["1C", "3A", "5B"]); // dinsdag: woensdag A
+  assert.deepEqual(dagen(5), ["1B", "3C", "5A"]); // vrijdag zelf A
+  assert.deepEqual(dagen(6), ["1A", "3B", "5C"]); // weekend: volgende week maandag A
+  // Minder dagen dan trainingen: alleen zoveel als er dagen zijn.
+  assert.equal(verdeelVanaf(["A", "B", "C"], [1, 4], 1).length, 2);
 });
