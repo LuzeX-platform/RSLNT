@@ -21,39 +21,45 @@
   <main class="app-kolom">
     <div class="app-kop">
       <p class="kicker" id="vandaag-datum">Vandaag</p>
-      <h1 id="kop">Laden…</h1>
-      <p class="subtitle" id="ondertitel"></p>
+      <h1 id="kop">Vandaag</h1>
     </div>
 
-    <!-- Nieuw account zonder schema: één duidelijke eerste stap, bovenaan. -->
+    <!-- Nieuw account zonder schema: één duidelijke eerste stap. -->
     <section class="panel welkom-paneel" id="welkom-paneel" hidden>
       <h2>Je eerste stap</h2>
-      <p class="subtitle">Vertel kort wie je bent, wat je wilt en hoeveel tijd je hebt. RSLNT maakt er een schema bij, met bij elke oefening een voorstel voor vandaag. Duurt een paar minuten.</p>
+      <p class="subtitle">Vertel kort wat je wilt en hoeveel tijd je hebt. RSLNT maakt er een schema bij. Duurt een paar minuten.</p>
       <a class="knop-link knop-groot" href="/start.html">Maak mijn schema</a>
     </section>
 
-    <section class="panel" id="training-paneel">
-      <div class="fase-info" id="fase-info" hidden></div>
+    <!-- 1. Je week -->
+    <a class="panel week-strip" id="week-strip" href="/week.html" hidden aria-label="Je week bekijken"></a>
+
+    <!-- 2. Je training van vandaag, met het advies en wat er verder vandaag is -->
+    <section class="panel workout" id="training-paneel" hidden>
+      <p class="kicker" id="workout-kicker">Vandaag</p>
+      <h2 class="workout-titel" id="workout-titel"></h2>
+      <p class="workout-meta" id="workout-meta"></p>
+      <div class="advies" id="advies" hidden></div>
       <button class="knop-groot" id="start-knop" hidden></button>
-      <div class="knop-rij" id="andere-schemas"></div>
       <p class="error" id="start-fout" role="alert"></p>
+      <div class="workout-extra" id="workout-extra"></div>
+      <details class="meer-opties" id="meer-opties">
+        <summary>Meer opties</summary>
+        <div class="meer-lijst" id="meer-lijst"></div>
+      </details>
     </section>
 
-    <section class="panel samen-vandaag" id="samen-paneel" hidden></section>
-
-    <section class="panel duur-vandaag" id="duur-paneel" hidden></section>
-
-    <section class="panel" id="herstel-paneel">
-      <div class="panel-kop">
-        <h2>Herstelcheck</h2>
-        <a class="text-link" href="/wetenschap.html#herstel">Waarom?</a>
-      </div>
+    <!-- 3. Herstelcheck: alleen op een trainingsdag, of als er iets is om op te letten -->
+    <section class="panel herstel-kaart" id="herstel-paneel" hidden>
       <div class="herstel-dicht" id="herstel-dicht" hidden>
-        <p class="subtitle">Hoe voel je je vandaag? 4 tikken.</p>
+        <div>
+          <h2>Hoe voel je je?</h2>
+          <p class="lijst-meta">4 tikken, dan past het advies zich aan.</p>
+        </div>
         <button type="button" class="secondary" id="herstel-open">Invullen</button>
       </div>
       <form id="herstel-form" novalidate hidden>
-        <p class="subtitle">Vier losse signalen, geen totaalscore.</p>
+        <div class="panel-kop"><h2>Hoe voel je je?</h2><a class="text-link" href="/wetenschap.html#herstel">Waarom?</a></div>
         <div id="herstel-rijen"></div>
         <button type="submit" class="ruimte-boven" id="herstel-opslaan" disabled>Opslaan</button>
       </form>
@@ -61,39 +67,13 @@
       <p class="error" id="herstel-fout" role="alert"></p>
     </section>
 
-    <!-- Pro: advies voor vandaag (lichte dag, deload, blokken, duurtraining). Zonder Pro een Pro-plek. -->
-    <section class="panel" id="advies-paneel" hidden></section>
-
-    <!-- Uitgelicht voor Pro: je schema in je eigen woorden (common.js, toonWensKaart). -->
-    <section class="panel" id="wens-kaart" hidden></section>
-
-    <section class="panel">
-      <div class="panel-kop">
-        <h2>Lichaamsgewicht</h2>
-        <a class="text-link" href="/gewicht.html">Alles →</a>
-      </div>
-      <div class="getallen">
-        <div>
-          <div class="getal-groot" id="gemiddelde">–</div>
-          <div class="getal-label">7-daags gemiddelde</div>
-        </div>
-        <div>
-          <div class="getal-groot" id="laatste">–</div>
-          <div class="getal-label" id="laatste-label">laatste weging</div>
-        </div>
-      </div>
-      <form class="invoer-rij" id="gewicht-form" novalidate>
-        <input id="gewicht-invoer" inputmode="decimal" autocomplete="off" placeholder="Gewicht vandaag" aria-label="Gewicht vandaag in kg" />
-        <button type="submit">Opslaan</button>
-      </form>
-      <p class="error" id="gewicht-fout" role="alert"></p>
-    </section>
-
-    <section class="panel">
-      <h2>Recente trainingen</h2>
+    <!-- 4. Recente trainingen -->
+    <section class="panel" id="recent-paneel">
+      <h2>Recent</h2>
       <ul class="lijst" id="recent"></ul>
     </section>
-    <section class="panel" id="wens-kaart-onder" hidden></section>
+
+    <section class="panel" id="wens-kaart" hidden></section>
   </main>
 
   <script src="/common.js"></script>

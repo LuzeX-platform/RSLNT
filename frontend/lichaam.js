@@ -164,9 +164,27 @@ function tekenOntbreekt() {
   if (lijst.length) document.getElementById("profiel-uitklap").open = true;
 }
 
+/** De herstelcheck van vandaag als vier tegels; invullen gebeurt op Vandaag. */
+function tekenHerstel(herstel) {
+  const el = document.getElementById("herstel");
+  const link = document.getElementById("herstel-link");
+  if (!herstel?.check) {
+    el.innerHTML = '<p class="lijst-meta">Nog niet ingevuld. Slaap, energie, spierpijn en pijntjes: 4 tikken.</p>';
+    link.textContent = "Invullen ›";
+    return;
+  }
+  link.textContent = "Aanpassen ›";
+  const tekst = { goed: "goed", neutraal: "gemiddeld", let_op: "let op" };
+  el.innerHTML = `<ul class="herstel-tegels">${herstel.signalen
+    .map((s) => `<li class="signaal-${s.status}"><span class="lijst-meta">${escapeHtml(s.label)}</span><strong>${s.waarde}</strong><span class="herstel-status">${tekst[s.status]}</span></li>`)
+    .join("")}</ul>
+    ${herstel.deloadOverwegen ? '<p class="melding ruimte-boven">Je herstel was een paar keer matig. Een deloadweek kan helpen.</p>' : ""}`;
+}
+
 async function laad() {
-  const [lichaam, profiel] = await Promise.all([api("/api/lichaam"), api("/api/profiel")]);
+  const [lichaam, profiel, vandaag] = await Promise.all([api("/api/lichaam"), api("/api/profiel"), api("/api/vandaag").catch(() => null)]);
   gegevens = lichaam;
+  tekenHerstel(vandaag?.herstel);
   tekenOntbreekt();
   tekenGewicht();
   tekenSamenstelling();

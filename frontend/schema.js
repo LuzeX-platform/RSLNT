@@ -87,7 +87,8 @@ function veld(label, naam, waarde, i) {
 function tekenRegels() {
   document.getElementById("pro-uitleg").innerHTML = pro
     ? 'Per oefening een eigen progressieregel of een techniek na de laatste set. <a href="/wetenschap.html#progressieregels">Progressieregels</a> · <a href="/wetenschap.html#technieken">Technieken</a>'
-    : 'Een eigen progressieregel en dropsets, myo-reps of rest-pause per oefening zijn <a href="/pro.html">Pro</a>. De pijnregel en max. één stap omhoog gelden altijd.';
+    : "";
+  document.getElementById("pro-uitleg").hidden = !pro;
   if (regels.length === 0) {
     regelsEl.innerHTML = '<p class="lijst-meta">Nog geen oefeningen in dit schema.</p>';
     return;
@@ -448,7 +449,7 @@ async function laadOefeningen() {
 (async () => {
   pro = Boolean((await vereisSessie()).pro);
   // Uitgelicht: met Pro bovenaan, zonder Pro na de gratis onderdelen.
-  toonWensKaart(document.getElementById(pro ? "wens-kaart-boven" : "wens-kaart-onder"), pro);
+  toonWensKaart(document.getElementById("wens-kaart-onder"), pro, { compact: true });
   try {
     await laadOefeningen();
     await Promise.all([laadSchemas(), laadProgrammas()]);
