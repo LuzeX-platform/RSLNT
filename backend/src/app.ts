@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import Fastify, { type FastifyInstance } from "fastify";
 import fastifyCookie from "@fastify/cookie";
 import fastifyStatic from "@fastify/static";
+import { leesSessie } from "./plugins/requireAuth.js";
 import fastifyRateLimit from "@fastify/rate-limit";
 import fastifyHelmet from "@fastify/helmet";
 import { authRoutes } from "./routes/auth.js";
@@ -141,6 +142,20 @@ export async function bouwApp(opties: { logger?: boolean } = {}): Promise<Fastif
   await app.register(samenRoutes);
 
   await app.register(fastifyStatic, { root: FRONTEND, prefix: "/", index: "index.html", redirect: true });
+
+  // De hoofdpagina hangt af van wie er aanklopt.
+  //
+  // Wie niet is ingelogd — en dus ook elke zoekmachine en elk linkvoorbeeld —
+  // krijgt welkom.html: de startpagina die vertelt wat RSLNT is. Daarvoor stond
+  // daar index.html, het lege "Vandaag"-scherm van de app, en dat is zowel voor
+  // een bezoeker als voor Google een nietszeggende pagina.
+  //
+  // Wie wél is ingelogd krijgt de app, precies zoals eerst. Dat is geen
+  // franje maar noodzaak: na het inloggen doet auth.js location.href = "/",
+  // en welkom.js stuurt een ingelogde bezoeker juist naar "/". Zou "/" voor
+  // iedereen welkom.html worden, dan draaien die twee eindeloos rond.
+  app.get("/", (request, reply) =>
+    reply.sendFile(leesSessie(request) ? "index.html" : "welkom.html"));
 
   app.setNotFoundHandler((request, reply) => {
     if (request.url.startsWith("/api/")) return reply.code(404).send({ errorCode: "NIET_GEVONDEN" });

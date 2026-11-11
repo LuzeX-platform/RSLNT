@@ -3716,3 +3716,43 @@ button.klein {
   align-items: center;
   font-weight: 600;
 }
+
+/* ── De startpagina is een etalage, geen app-scherm ──────────────────────
+   welkom.html deelde de kolom van 640px met de app. In de app is dat precies
+   de goede leesmaat, maar op een breed scherm leest de startpagina daardoor
+   als een telefoon die in het midden hangt, terwijl accrd.luzex.nl en
+   cmmnty.luzex.nl daar een volle pagina tonen.
+
+   Alleen de startpagina wordt breder, via een eigen klasse: gedeeld.html en
+   privacy.html dragen ook class="portaal" en die horen smal te blijven. De
+   tekst binnen de panelen blijft wel begrensd: een regel van duizend pixels
+   leest niet, hoe breed het scherm ook is. */
+@media (min-width: 900px) {
+  body.startpagina .app-kolom {
+    max-width: 1000px;
+    padding-inline: 32px;
+  }
+
+  body.startpagina .portaal-held {
+    padding-top: 48px;
+  }
+
+  body.startpagina .portaal-held h1 {
+    font-size: clamp(40px, 4vw, 54px);
+    max-width: 16ch;
+  }
+
+  body.startpagina .portaal-held .lead {
+    max-width: 54ch;
+  }
+
+  body.startpagina .portaal-held .knop-rij {
+    grid-template-columns: auto auto;
+    justify-content: start;
+  }
+
+  body.startpagina .panel p,
+  body.startpagina .pro-lijst span {
+    max-width: 74ch;
+  }
+}

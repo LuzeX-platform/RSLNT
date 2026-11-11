@@ -1,0 +1,30 @@
+# Alleen de startpagina hoort in een zoekmachine.
+#
+# De rest is de app zelf: persoonlijke trainingsschema's, gewicht, pijn en
+# herstel. De HTML-schillen daarvan worden als statische bestanden geserveerd
+# (backend/src/app.ts), dus zonder account op te vragen; de gegevens erachter
+# zitten wél achter authenticatie. Lege app-schermen horen niet in
+# zoekresultaten en ze verraden de opbouw van de app.
+#
+# / levert welkom.html aan wie niet is ingelogd, en de app aan wie dat wel is.
+# Een crawler is per definitie niet ingelogd en krijgt dus de startpagina.
+
+User-agent: *
+Allow: /$
+Allow: /welkom.html
+Allow: /privacy.html
+Allow: /wetenschap.html
+Allow: /assets/
+
+Disallow: /index.html
+Disallow: /inloggen.html
+Disallow: /registreren.html
+Disallow: /bevestigen.html
+Disallow: /wachtwoord-vergeten.html
+Disallow: /wachtwoord-resetten.html
+Disallow: /account.html
+Disallow: /beheer.html
+Disallow: /gedeeld.html
+Disallow: /delen.html
+
+Sitemap: https://rslnt.luzex.nl/sitemap.xml
