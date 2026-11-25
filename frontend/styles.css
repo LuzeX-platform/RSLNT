@@ -3756,3 +3756,65 @@ button.klein {
     max-width: 74ch;
   }
 }
+
+
+/* ---------- Over: wie zit erachter (startpagina) ----------
+   Zelfde opbouw als het blok op CMMNTY (over.html): foto links, tekst rechts, onder 760px
+   onder elkaar. Alleen bestaande tokens. De kolom is hier smaller dan op CMMNTY (640px tot
+   900px breed), dus de foto groeit mee tot hooguit 300px in plaats van altijd 300px: anders
+   blijft er naast de foto een tekstkolom van een paar woorden over.
+   Gemeten op de echte pagina (320–1440px, licht en donker): de laagste waarde is 5,4:1
+   (kicker in donker op 768px). */
+.over-wie {
+  display: grid;
+  grid-template-columns: minmax(0, clamp(180px, 28vw, 300px)) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 48px);
+  align-items: center;
+}
+
+.over-foto {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.over-tekst h2 {
+  margin: 0 0 14px;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 600;
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+}
+
+.over-tekst p:not(.kicker) {
+  margin: 0 0 12px;
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.over-contact a {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: 4px;
+}
+
+.over-contact a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+@media (max-width: 760px) {
+  .over-wie {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .over-foto {
+    max-width: 260px;
+  }
+}
